@@ -163,3 +163,9 @@ app.*.symbols
 .python-version
 .gclient_previous_custom_vars
 .gclient_previous_sync_commits
+# Flutter app: commit the lockfile (apps pin their dependencies)
+!/countit_app/pubspec.lock
+# Per-environment build config other than local and the examples
+/countit_app/env/*.json
+!/countit_app/env/local.json
+!/countit_app/env/*.example.json
