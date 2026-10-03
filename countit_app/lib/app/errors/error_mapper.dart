@@ -28,6 +28,7 @@ abstract final class ErrorMapper {
     'reauth_required': 'Confirma tu contraseña para continuar',
     'feature_not_in_plan': 'Tu plan no incluye esta función',
     'invalid_credentials': 'Correo o contraseña incorrectos',
+    'invalid_password': 'Contraseña incorrecta',
     'email_not_confirmed': 'Confirma tu correo para iniciar sesión',
     'account_locked': 'Tu cuenta está bloqueada temporalmente',
     'rate_limited': 'Demasiados intentos. Intenta nuevamente más tarde',
@@ -110,8 +111,12 @@ abstract final class ErrorMapper {
         return FailureKind.reauthRequired;
       case 'feature_not_in_plan':
         return FailureKind.featureNotInPlan;
-      case 'session_revoked' || 'not_authenticated':
+      case 'session_revoked' || 'not_authenticated' || 'missing_token' || 'invalid_token':
         return FailureKind.unauthenticated;
+      // A wrong password must never end the session (e.g. a typo in the
+      // reauthenticate dialog answers 401 invalid_password).
+      case 'invalid_credentials' || 'invalid_password':
+        return FailureKind.invalidCredentials;
     }
     return switch (status) {
       400 || 422 => FailureKind.validation,

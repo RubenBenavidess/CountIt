@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import '../shared/widgets/secure_screen.dart';
 import 'theme/app_theme.dart';
 
 /// Root widget: theme, Spanish (Ecuador) locale and the router.
@@ -25,6 +26,8 @@ class CountItApp extends StatelessWidget {
       supportedLocales: const [locale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: router,
+      // Hides the content in the app switcher (COU-115).
+      builder: (context, child) => PrivacyCurtain(child: child ?? const SizedBox.shrink()),
     );
   }
 }

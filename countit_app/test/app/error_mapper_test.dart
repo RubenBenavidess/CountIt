@@ -97,7 +97,8 @@ void main() {
           details: {'error': 'Credenciales inválidas', 'code': 'invalid_credentials'},
         ),
       );
-      expect(creds.kind, FailureKind.unauthenticated);
+      expect(creds.kind, FailureKind.invalidCredentials);
+      expect(creds.endsSession, isFalse, reason: 'a failed login is not a closed session');
       expect(creds.message, 'Credenciales inválidas');
       expect(
         ErrorMapper.map(const FunctionException(status: 423, details: {'code': 'account_locked'})).kind,
@@ -106,6 +107,21 @@ void main() {
       final limited = ErrorMapper.map(const FunctionException(status: 429, details: null));
       expect(limited.kind, FailureKind.rateLimited);
       expect(limited.message, isNotEmpty);
+    });
+
+    test('wrong password in reauthenticate keeps the session (audit A1)', () {
+      final f = ErrorMapper.map(
+        const FunctionException(status: 401, details: {'error': 'Contraseña incorrecta', 'code': 'invalid_password'}),
+      );
+      expect(f.kind, FailureKind.invalidCredentials);
+      expect(f.endsSession, isFalse);
+    });
+
+    test('a missing or expired token in an Edge Function does end the session', () {
+      for (final code in ['missing_token', 'invalid_token']) {
+        final f = ErrorMapper.map(FunctionException(status: 401, details: {'code': code}));
+        expect(f.endsSession, isTrue, reason: code);
+      }
     });
 
     test('5xx shows the generic message even if the body has text', () {

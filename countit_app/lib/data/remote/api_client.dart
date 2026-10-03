@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/errors/app_failure.dart';
 import '../../app/errors/error_mapper.dart';
+import '../../app/logging/app_logger.dart';
 
 /// Asks the user to confirm their password (modal + `reauthenticate`).
 /// Returns true when the identity was confirmed and the action can be retried.
@@ -71,6 +72,8 @@ class ApiClient {
   }
 
   AppFailure _report(AppFailure failure) {
+    // Only the classification: never messages, payloads or tokens.
+    AppLogger.debug('api failure ${failure.kind.name} key=${failure.key} status=${failure.status}');
     if (failure.endsSession) onSessionEnded?.call(failure);
     return failure;
   }

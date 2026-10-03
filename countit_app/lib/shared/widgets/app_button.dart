@@ -81,7 +81,10 @@ class AppButton extends StatelessWidget {
     );
 
     final child = loading
-        ? SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: foreground))
+        ? Semantics(
+            label: '$label, cargando',
+            child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2, color: foreground)),
+          )
         : Row(
             mainAxisSize: MainAxisSize.min,
             spacing: AppSpacing.sm,
@@ -91,10 +94,8 @@ class AppButton extends StatelessWidget {
             ],
           );
 
-    return Semantics(
-      button: true,
-      label: loading ? '$label, cargando' : null,
-      child: FilledButton(onPressed: loading ? null : onPressed, style: style, child: child),
-    );
+    // FilledButton already exposes button semantics; wrapping it again would
+    // announce two buttons to screen readers.
+    return FilledButton(onPressed: loading ? null : onPressed, style: style, child: child);
   }
 }
