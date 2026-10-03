@@ -54,4 +54,10 @@ Cada carpeta tiene su README con reglas.
   ante `403 reauth_required` se pide la contraseña y se reintenta una vez.
 - **Sesión:** el login va por la Edge Function `login` y la sesión se entrega al SDK con `setSession`; se guarda en el
   almacenamiento seguro del sistema (`SecureSessionStorage`).
+- **Componentes** (`lib/shared/widgets`): `AppButton`, campos (`AppTextField`, `AppPasswordField`, `AppMoneyField`
+  con máximo 2 decimales, `AppDateField`, `AppDropdownField`), `AppCard`, `AppBadge`, `AppProgressBar`,
+  `showConfirmDialog` (devuelve `bool`), `showAppBottomSheet`, `EmptyState`/`LoadingView`/`ErrorView`,
+  `LoadStateView` para el `LoadState<T>` de los Cubits y `showAppSnackBar` (no se apilan).
+- **Formato** (`lib/shared/utils`): `Money` (`$3,836.80`, como el diseño; signo `+`/`−` en movimientos) y `Dates`
+  (español, «Hoy»/«Ayer», y el «hoy» en la zona horaria del perfil, con America/Guayaquil por defecto).
 - **Navegación:** `go_router` con redirecciones por sesión y rol (`lib/app/router`).

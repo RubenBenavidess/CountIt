@@ -12,10 +12,12 @@ import 'data/remote/install_id.dart';
 import 'data/remote/supabase_setup.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/profile_repository.dart';
+import 'shared/utils/dates.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
+  await Dates.init();
 
   final client = await initSupabase(config);
   final api = ApiClient(client, deviceId: await InstallId.load());
