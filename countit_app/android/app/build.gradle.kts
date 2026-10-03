@@ -30,6 +30,11 @@ android {
 
     // One installable app per environment (COU-11); run with
     // flutter run --flavor <local|staging|prod> --dart-define-from-file=env/<same>.json
+    // AGP disables resValue by default; the flavors use it for the app name.
+    buildFeatures {
+        resValues = true
+    }
+
     flavorDimensions += "env"
     productFlavors {
         create("local") {
