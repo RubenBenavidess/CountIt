@@ -28,6 +28,28 @@ android {
         versionName = flutter.versionName
     }
 
+    // One installable app per environment (COU-11); run with
+    // flutter run --flavor <local|staging|prod> --dart-define-from-file=env/<same>.json
+    flavorDimensions += "env"
+    productFlavors {
+        create("local") {
+            dimension = "env"
+            applicationIdSuffix = ".local"
+            versionNameSuffix = "-local"
+            resValue("string", "app_name", "Count It! Local")
+        }
+        create("staging") {
+            dimension = "env"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            resValue("string", "app_name", "Count It! Staging")
+        }
+        create("prod") {
+            dimension = "env"
+            resValue("string", "app_name", "Count It!")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

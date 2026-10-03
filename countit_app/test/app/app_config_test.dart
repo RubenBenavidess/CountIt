@@ -24,6 +24,17 @@ void main() {
       expect(() => AppConfig.fromValues(env: 'prod', url: 'https://x.supabase.co', anonKey: ''), throwsStateError);
     });
 
+    test('the Turnstile site key is optional', () {
+      expect(AppConfig.fromValues(env: 'local', url: 'http://localhost', anonKey: 'k').turnstileSiteKey, isNull);
+      final withKey = AppConfig.fromValues(
+        env: 'staging',
+        url: 'https://x.supabase.co',
+        anonKey: 'k',
+        turnstileSiteKey: '0x4AAA',
+      );
+      expect(withKey.turnstileSiteKey, '0x4AAA');
+    });
+
     test('rejects unknown environments and relative URLs', () {
       expect(() => AppConfig.fromValues(env: 'qa', url: 'https://x.supabase.co', anonKey: 'k'), throwsArgumentError);
       expect(() => AppConfig.fromValues(env: 'local', url: 'localhost', anonKey: 'k'), throwsArgumentError);

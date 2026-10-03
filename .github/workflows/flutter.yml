@@ -35,7 +35,13 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Test
-        run: flutter test
+        run: flutter test --coverage
+      - name: Coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: countit_app/coverage/lcov.info
+          retention-days: 14
 
   android:
     name: Android debug build
@@ -54,5 +60,5 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Build APK (local environment)
-        run: flutter build apk --debug --dart-define-from-file=env/local.json
+      - name: Build APK (local flavor)
+        run: flutter build apk --debug --flavor local --dart-define-from-file=env/local.json
