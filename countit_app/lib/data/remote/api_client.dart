@@ -1,8 +1,12 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/errors/app_failure.dart';
 import '../../app/errors/error_mapper.dart';
 import '../../app/logging/app_logger.dart';
+import 'edge_function_exception.dart';
 
 /// Asks the user to confirm their password (modal + `reauthenticate`).
 /// Returns true when the identity was confirmed and the action can be retried.
@@ -18,12 +22,25 @@ typedef ReauthPrompt = Future<bool> Function();
 /// * Destructive actions pass `onReauth`: on `403 reauth_required` the prompt
 ///   runs and the call is retried once after a successful confirmation (COU-59).
 class ApiClient {
-  ApiClient(this._client, {this.deviceId});
+  ApiClient(
+    this._client, {
+    required this.functionsUrl,
+    this.deviceId,
+    http.Client? httpClient,
+    this.timeout = const Duration(seconds: 20),
+  }) : _http = httpClient ?? http.Client();
 
   final SupabaseClient _client;
+  final http.Client _http;
+
+  /// `<SUPABASE_URL>/functions/v1`.
+  final Uri functionsUrl;
 
   /// Stable install id sent as `x-device-id` to the Edge Functions (rate limiting per device).
   final String? deviceId;
+
+  /// Upper bound for an Edge Function call; past it the UI shows the network error.
+  final Duration timeout;
 
   /// Set by the session layer; called when a request proves the session is gone.
   void Function(AppFailure failure)? onSessionEnded;
@@ -48,11 +65,46 @@ class ApiClient {
   });
 
   /// `POST /functions/v1/<name>`; returns the decoded JSON body.
-  Future<Map<String, dynamic>> invoke(String name, {Map<String, dynamic>? body}) => run(() async {
-    final response = await _client.functions.invoke(name, body: body, headers: {'x-device-id': ?deviceId});
-    final data = response.data;
-    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
-  });
+  ///
+  /// Sent with our own HTTP client (same headers as the SDK: `apikey`, the
+  /// current access token and client info) because the SDK hides the response
+  /// headers and 429 answers carry the wait in `Retry-After` (COU-63).
+  Future<Map<String, dynamic>> invoke(String name, {Map<String, dynamic>? body, ReauthPrompt? onReauth}) =>
+      run(() async {
+        // The SDK updates `functions.headers` from an auth listener, which may
+        // lag right after setSession: read the current token at call time.
+        final token = _client.auth.currentSession?.accessToken;
+        final response = await _http
+            .post(
+              functionsUrl.replace(path: '${functionsUrl.path}/$name'),
+              headers: {
+                ..._client.functions.headers,
+                'Authorization': ?(token == null ? null : 'Bearer $token'),
+                'Content-Type': 'application/json',
+                'x-device-id': ?deviceId,
+              },
+              body: jsonEncode(body ?? const <String, dynamic>{}),
+            )
+            .timeout(timeout);
+        final decoded = _decode(response.body);
+        if (response.statusCode >= 200 && response.statusCode < 300) return decoded;
+        throw EdgeFunctionException(
+          status: response.statusCode,
+          body: decoded,
+          retryAfter: EdgeFunctionException.parseRetryAfter(response.headers['retry-after']),
+        );
+      }, onReauth: onReauth);
+
+  static Map<String, dynamic> _decode(String body) {
+    if (body.isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(body);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    } on FormatException {
+      // A gateway error page: the status alone decides the failure.
+      return <String, dynamic>{};
+    }
+  }
 
   /// Runs [call] mapping its errors; see the class doc for 401 and reauth handling.
   Future<T> run<T>(Future<T> Function() call, {ReauthPrompt? onReauth}) async {

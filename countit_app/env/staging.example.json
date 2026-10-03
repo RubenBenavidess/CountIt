@@ -2,5 +2,6 @@
   "APP_ENV": "staging",
   "SUPABASE_URL": "https://<ref>.supabase.co",
   "SUPABASE_ANON_KEY": "<anon key de staging>",
-  "TURNSTILE_SITE_KEY": ""
+  "TURNSTILE_SITE_KEY": "",
+  "TURNSTILE_BASE_URL": ""
 }

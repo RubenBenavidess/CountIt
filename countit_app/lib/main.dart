@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app/app.dart';
 import 'app/config/app_config.dart';
+import 'app/links/auth_links.dart';
 import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'data/remote/api_client.dart';
@@ -20,13 +22,26 @@ Future<void> main() async {
   await Dates.init();
 
   final client = await initSupabase(config);
-  final api = ApiClient(client, deviceId: await InstallId.load());
+  final api = ApiClient(
+    client,
+    functionsUrl: Uri.parse('${config.supabaseUrl}/functions/v1'),
+    deviceId: await InstallId.load(),
+  );
   final AuthRepository auth = SupabaseAuthRepository(api);
   final ProfileRepository profiles = SupabaseProfileRepository(api);
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
-  unawaited(session.restore());
+  final router = buildRouter(session: session, config: config);
+  final links = AppLinks();
+  final linkHandler = AuthLinkHandler(auth: auth, navigate: (destination) => navigateForAuthLink(router, destination));
+  // Links wait for the restored session: otherwise the splash redirect would
+  // swallow a cold-start link.
+  unawaited(
+    session.restore().whenComplete(
+      () => linkHandler.listen(initial: links.getInitialLink(), links: links.uriLinkStream),
+    ),
+  );
 
   runApp(
     MultiRepositoryProvider(
@@ -38,9 +53,7 @@ Future<void> main() async {
       ],
       child: BlocProvider.value(
         value: session,
-        child: CountItApp(
-          router: buildRouter(session: session, config: config),
-        ),
+        child: CountItApp(router: router),
       ),
     ),
   );

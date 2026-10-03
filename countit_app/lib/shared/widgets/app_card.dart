@@ -103,3 +103,24 @@ class AppProgressBar extends StatelessWidget {
     );
   }
 }
+
+/// Rounded icon tile of the design (`.tx-icon`): feature lists, movements, banners.
+class IconTile extends StatelessWidget {
+  const IconTile(this.icon, {super.key, this.size = 40, this.color = AppColors.lavender, this.radius = AppRadii.md});
+
+  final IconData icon;
+  final double size;
+  final Color color;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: context.palette.surface2, borderRadius: BorderRadius.circular(radius)),
+      child: Icon(icon, size: size * 0.5, color: color),
+    );
+  }
+}

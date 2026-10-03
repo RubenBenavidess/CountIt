@@ -1,10 +1,22 @@
+import 'dart:convert';
+
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/data/remote/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _MockSupabase extends Mock implements SupabaseClient {}
+
+class _MockFunctions extends Mock implements FunctionsClient {}
+
+class _MockAuth extends Mock implements GoTrueClient {}
+
+class _MockSession extends Mock implements Session {}
+
+final _functionsUrl = Uri.parse('https://api.test/functions/v1');
 
 const _reauth = PostgrestException(code: 'PT403', message: 'Confirma tu contraseña', hint: 'reauth_required');
 const _revoked = PostgrestException(code: 'PT401', message: 'Tu sesión ya no es válida', hint: 'session_revoked');
@@ -14,7 +26,7 @@ void main() {
   late List<AppFailure> ended;
 
   setUp(() {
-    api = ApiClient(_MockSupabase());
+    api = ApiClient(_MockSupabase(), functionsUrl: _functionsUrl);
     ended = [];
     api.onSessionEnded = ended.add;
   });
@@ -82,5 +94,97 @@ void main() {
       throwsA(isA<AppFailure>().having((f) => f.endsSession, 'endsSession', isTrue)),
     );
     expect(ended, hasLength(1));
+  });
+
+  group('invoke (Edge Functions with our HTTP client, COU-63)', () {
+    late _MockSupabase supabase;
+    late http.Request sent;
+
+    ApiClient withServer(http.Response Function(http.Request request) answer, {String? accessToken = 'user-jwt'}) {
+      supabase = _MockSupabase();
+      final functions = _MockFunctions();
+      final auth = _MockAuth();
+      when(() => supabase.functions).thenReturn(functions);
+      when(() => supabase.auth).thenReturn(auth);
+      when(() => functions.headers).thenReturn({'apikey': 'anon', 'Authorization': 'Bearer anon'});
+      Session? session;
+      if (accessToken != null) {
+        session = _MockSession();
+        when(() => session!.accessToken).thenReturn(accessToken);
+      }
+      when(() => auth.currentSession).thenReturn(session);
+      return ApiClient(
+        supabase,
+        functionsUrl: _functionsUrl,
+        deviceId: 'device-1',
+        httpClient: MockClient((request) async {
+          sent = request;
+          return answer(request);
+        }),
+      );
+    }
+
+    test('posts JSON with the SDK headers and the device id', () async {
+      final client = withServer((_) => http.Response(jsonEncode({'success': true}), 200));
+      final body = await client.invoke('login', body: {'email': 'a@b.ec'});
+      expect(body['success'], isTrue);
+      expect(sent.url.toString(), 'https://api.test/functions/v1/login');
+      expect(sent.headers['apikey'], 'anon');
+      expect(sent.headers['Authorization'], 'Bearer user-jwt', reason: 'the current session token, not a stale header');
+      expect(sent.headers['x-device-id'], 'device-1');
+      expect(jsonDecode(sent.body), {'email': 'a@b.ec'});
+    });
+
+    test('without a session the anon key authorizes the call (login, register)', () async {
+      final client = withServer((_) => http.Response('{}', 200), accessToken: null);
+      await client.invoke('login');
+      expect(sent.headers['Authorization'], 'Bearer anon');
+    });
+
+    test('429 exposes Retry-After as AppFailure.retryAfter', () async {
+      final client = withServer(
+        (_) => http.Response(
+          jsonEncode({'success': false, 'error': 'Demasiados intentos', 'code': 'rate_limited'}),
+          429,
+          headers: {'retry-after': '900', 'content-type': 'application/json'},
+        ),
+      );
+      await expectLater(
+        client.invoke('login'),
+        throwsA(
+          isA<AppFailure>()
+              .having((f) => f.kind, 'kind', FailureKind.rateLimited)
+              .having((f) => f.retryAfter, 'retryAfter', const Duration(seconds: 900)),
+        ),
+      );
+    });
+
+    test('a non-JSON gateway error still maps by status', () async {
+      final client = withServer((_) => http.Response('<html>Bad gateway</html>', 502));
+      await expectLater(
+        client.invoke('register'),
+        throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.server)),
+      );
+    });
+
+    test('a timeout is a network failure', () async {
+      supabase = _MockSupabase();
+      final functions = _MockFunctions();
+      final auth = _MockAuth();
+      when(() => supabase.functions).thenReturn(functions);
+      when(() => supabase.auth).thenReturn(auth);
+      when(() => auth.currentSession).thenReturn(null);
+      when(() => functions.headers).thenReturn(<String, String>{});
+      final slow = ApiClient(
+        supabase,
+        functionsUrl: _functionsUrl,
+        timeout: const Duration(milliseconds: 10),
+        httpClient: MockClient((_) => Future.delayed(const Duration(seconds: 1), () => http.Response('{}', 200))),
+      );
+      await expectLater(
+        slow.invoke('login'),
+        throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.network)),
+      );
+    });
   });
 }
