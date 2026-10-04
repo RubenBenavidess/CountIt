@@ -18,8 +18,11 @@ import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
 import '../../../shared/widgets/detail_rows.dart';
+import '../../../shared/widgets/section_header.dart';
 import '../../plans/view/plan_upsell_sheet.dart';
 import '../cubit/statistics_cubit.dart';
+import 'charts/evolution_chart.dart';
+import 'charts/income_expense_chart.dart';
 import 'widgets/distribution_section.dart';
 
 /// «Estadísticas» of a wallet (HU-26 · COU-93): wallet and range selectors,
@@ -124,8 +127,27 @@ class _StatisticsView extends StatelessWidget {
                 icon: Icons.insights_outlined,
                 message: 'Sin movimientos en este periodo. Registra ingresos o gastos, o elige un periodo más largo.',
               )
-            else
+            else ...[
               _Totals(totals: statistics.totals),
+              const SizedBox(height: AppSpacing.xxl),
+              const SectionHeader(title: 'Ingresos vs. gastos'),
+              AppCard(child: IncomeExpenseChart(statistics: statistics)),
+              const SizedBox(height: AppSpacing.xxl),
+              const SectionHeader(title: 'Evolución'),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: AppSpacing.md,
+                  children: [
+                    Text(
+                      'Balance acumulado del periodo (ingresos menos gastos).',
+                      style: AppTypography.caption.copyWith(color: context.palette.muted),
+                    ),
+                    EvolutionChart(statistics: statistics),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             _Growth(growth: statistics.growth),
             const SizedBox(height: AppSpacing.xxl),

@@ -155,8 +155,11 @@ class BudgetDistribution extends Equatable {
 }
 
 /// Result of `api.get_wallet_statistics` (HU-26 · COU-22).
+///
+/// The chart aggregates ([cumulativeNetCents], [peakBucketCents]) are derived
+/// here, once per answer, so widgets never loop over the series while building.
 class WalletStatistics extends Equatable {
-  const WalletStatistics({
+  WalletStatistics({
     required this.walletId,
     required this.range,
     required this.bucket,
@@ -166,7 +169,8 @@ class WalletStatistics extends Equatable {
     required this.totals,
     required this.growth,
     this.distribution,
-  });
+  }) : cumulativeNetCents = cumulativeNet(series),
+       peakBucketCents = peakBucket(series);
 
   factory WalletStatistics.fromJson(Map<String, dynamic> json) => WalletStatistics(
     walletId: (json['wallet_id'] as num).toInt(),
@@ -185,6 +189,23 @@ class WalletStatistics extends Equatable {
         : null,
   );
 
+  /// Running sum of income − expense after each bucket (COU-97): where the
+  /// period's balance stood at the end of every day, week or month.
+  static List<int> cumulativeNet(List<StatisticsPoint> series) {
+    var sum = 0;
+    return List.unmodifiable([for (final point in series) sum += point.netCents]);
+  }
+
+  /// Largest income or expense of a single bucket (scale of the bars, COU-96).
+  static int peakBucket(List<StatisticsPoint> series) {
+    var peak = 0;
+    for (final point in series) {
+      if (point.incomeCents > peak) peak = point.incomeCents;
+      if (point.expenseCents > peak) peak = point.expenseCents;
+    }
+    return peak;
+  }
+
   final int walletId;
   final StatisticsRange range;
   final StatisticsBucket bucket;
@@ -201,6 +222,12 @@ class WalletStatistics extends Equatable {
   /// Null when the caller's plan has no `advanced_statistics` (Regular):
   /// the API decides and the screen offers the plans instead.
   final BudgetDistribution? distribution;
+
+  /// [cumulativeNet] of [series], one value per bucket.
+  final List<int> cumulativeNetCents;
+
+  /// [peakBucket] of [series].
+  final int peakBucketCents;
 
   /// No movement in the range.
   bool get isEmpty => totals.incomeCents == 0 && totals.expenseCents == 0;

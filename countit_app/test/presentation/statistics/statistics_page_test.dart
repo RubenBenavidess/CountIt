@@ -78,6 +78,19 @@ void main() {
       expect(find.text('Balance del periodo'), findsNothing);
       expect(find.text('ESTE MES VS. EL ANTERIOR'), findsOneWidget);
       expect(find.text('Gastos por presupuesto'), findsNothing);
+      expect(find.text('Ingresos vs. gastos'), findsNothing);
+      expect(find.text('Evolución'), findsNothing);
+    });
+
+    testWidgets('with movements: income vs expenses and evolution charts (COU-96, COU-97)', (tester) async {
+      when(() => analysis.walletStatistics(4, StatisticsRange.days30))
+          .thenAnswer((_) async => statisticsFixture(range: StatisticsRange.days30));
+      await pumpPage(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Ingresos vs. gastos'), findsOneWidget);
+      expect(find.text('Evolución'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('^Gráfico de ingresos y gastos')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('^Gráfico de evolución')), findsOneWidget);
     });
 
     testWidgets('totals with signs, growth read as words', (tester) async {
