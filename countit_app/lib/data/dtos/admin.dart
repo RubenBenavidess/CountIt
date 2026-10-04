@@ -122,3 +122,57 @@ class PlanAssignment extends Equatable {
   @override
   List<Object?> get props => [planId, planName, validUntil, membershipsEnded, memberRulesEnded, rulesPaused];
 }
+
+/// A row of `api.admin_list_audit_log` (HU-28, superadmin): newest first.
+class AuditEntry extends Equatable {
+  const AuditEntry({
+    required this.auditId,
+    required this.occurredAt,
+    required this.action,
+    required this.entity,
+    this.entityId,
+    this.actorId,
+    this.actorUsername,
+    this.details = const {},
+  });
+
+  factory AuditEntry.fromJson(Map<String, dynamic> json) => AuditEntry(
+    auditId: (json['audit_id'] as num).toInt(),
+    occurredAt: parseTimestamp(json['occurred_at']) ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    actorId: json['actor_id'] as String?,
+    actorUsername: json['actor_username'] as String?,
+    action: (json['action'] as String?) ?? '',
+    entity: (json['entity'] as String?) ?? '',
+    entityId: json['entity_id'] as String?,
+    details: json['details'] is Map ? Map<String, dynamic>.from(json['details'] as Map) : const {},
+  );
+
+  final int auditId;
+  final DateTime occurredAt;
+
+  /// Null actor = the system (scheduled jobs).
+  final String? actorId;
+  final String? actorUsername;
+  final String action;
+  final String entity;
+  final String? entityId;
+  final Map<String, dynamic> details;
+
+  bool get bySystem => actorId == null;
+
+  @override
+  List<Object?> get props => [auditId, occurredAt, actorId, actorUsername, action, entity, entityId, details];
+}
+
+/// Filters of the audit trail (COU-209): both optional, exact match.
+class AuditFilter extends Equatable {
+  const AuditFilter({this.entity, this.entityId});
+
+  final String? entity;
+  final String? entityId;
+
+  bool get isEmpty => entity == null && entityId == null;
+
+  @override
+  List<Object?> get props => [entity, entityId];
+}

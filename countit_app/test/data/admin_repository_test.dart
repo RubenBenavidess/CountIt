@@ -1,4 +1,5 @@
 import 'package:countit_app/app/errors/app_failure.dart';
+import 'package:countit_app/data/dtos/admin.dart';
 import 'package:countit_app/data/dtos/bank.dart';
 import 'package:countit_app/data/dtos/json_parsing.dart';
 import 'package:countit_app/data/dtos/profile.dart';
@@ -154,6 +155,46 @@ void main() {
       expect(toHexColor(0xFF0072BC), '#0072BC');
       expect(parseHexColor(toHexColor(0xFF0072BC)), 0xFF0072BC);
       expect(toHexColor(null), isNull);
+    });
+  });
+
+  group('audit (admin_list_audit_log · COU-208, COU-209)', () {
+    Map<String, dynamic> row(int id, {String? actor = 'u-root'}) => {
+      'audit_id': id,
+      'occurred_at': '2026-10-04T15:30:00Z',
+      'actor_id': actor,
+      'actor_username': actor == null ? null : 'rubendario',
+      'action': 'bank_updated',
+      'entity': 'bank',
+      'entity_id': '1',
+      'details': {
+        'from': {'color': null},
+        'to': {'color': '#FFDD00'},
+      },
+    };
+
+    test('filters only when set, and one row more than the page', () async {
+      rpcReturns([for (var i = 51; i > 0; i--) row(i)]);
+      final page = await admin.listAuditLog(
+        filter: const AuditFilter(entity: 'bank', entityId: '1'),
+      );
+      expect(page.items, hasLength(50));
+      expect(page.hasMore, isTrue);
+      expect(page.items.first.details['to'], {'color': '#FFDD00'});
+      verify(
+        () => api.rpc<dynamic>(
+          'admin_list_audit_log',
+          params: {'p_entity': 'bank', 'p_entity_id': '1', 'p_limit': 51, 'p_offset': 0},
+        ),
+      ).called(1);
+    });
+
+    test('no filters: only the page; a null actor is the system', () async {
+      rpcReturns([row(3, actor: null)]);
+      final entry = (await admin.listAuditLog(offset: 50)).items.single;
+      expect(entry.bySystem, isTrue);
+      expect(entry.occurredAt, DateTime.utc(2026, 10, 4, 15, 30));
+      verify(() => api.rpc<dynamic>('admin_list_audit_log', params: {'p_limit': 51, 'p_offset': 50})).called(1);
     });
   });
 }

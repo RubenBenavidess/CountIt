@@ -48,6 +48,14 @@ const adminSections = <AdminSection>[
     subtitle: 'Crear, editar, colores y activación',
     route: AppRoutes.adminBanks,
   ),
+  AdminSection(
+    key: 'admin-audit',
+    icon: Icons.fact_check_outlined,
+    title: 'Auditoría',
+    subtitle: 'Acciones registradas, por entidad',
+    route: AppRoutes.auditLog,
+    superadminOnly: true,
+  ),
 ];
 
 /// Administration hub (HU-27, HU-28 · COU-127): reachable by admin and
