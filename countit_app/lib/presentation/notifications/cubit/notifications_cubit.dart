@@ -101,12 +101,12 @@ class NotificationsState extends Equatable {
   ];
 }
 
-/// HU-31 (COU-108, COU-111, COU-181): the signed-in user's inbox, its unread
-/// badge and «mark as read».
+/// HU-31 (COU-108, COU-111, COU-181, COU-182): the signed-in user's inbox,
+/// live with Realtime, its unread badge and «mark as read».
 ///
 /// One instance lives for the whole app; [setUser] follows the session:
-/// signing out forgets every notification, so nothing leaks to the next
-/// account. Every load starts a new generation: answers of a previous user
+/// signing out cancels the subscription (closing the Realtime channel) and
+/// forgets every notification, so nothing leaks to the next account. Every load starts a new generation: answers of a previous user
 /// or of an older load are dropped.
 class NotificationsCubit extends Cubit<NotificationsState> {
   NotificationsCubit(this._notifications) : super(const NotificationsState());
@@ -114,6 +114,7 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   final NotificationRepository _notifications;
 
   String? _userId;
+  StreamSubscription<void>? _changes;
   int _generation = 0;
   Future<void>? _inFlight;
   bool _again = false;
@@ -131,9 +132,17 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     _inFlight = null;
     _again = false;
     _marking.clear();
-    if (isClosed) return;
+    final old = _changes;
+    _changes = null;
+    await old?.cancel();
+    if (isClosed || userId != _userId) return;
     emit(const NotificationsState());
-    if (userId != null) await load();
+    if (userId == null) return;
+    // Every change (and every (re)join of the channel) reloads the head.
+    _changes = _notifications.changes(userId).listen((_) {
+      if (!isClosed) unawaited(load());
+    });
+    await load();
   }
 
   /// Loads (or reloads) the newest page and the unread count. A call during
@@ -277,4 +286,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   InboxActionFailure _failure(AppFailure failure) => InboxActionFailure((state.actionFailure?.seq ?? 0) + 1, failure);
 
   bool _isStale(int generation) => isClosed || generation != _generation;
+
+  @override
+  Future<void> close() async {
+    await _changes?.cancel();
+    return super.close();
+  }
 }

@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/notification_routes.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/notification.dart';
@@ -14,14 +16,18 @@ import '../../../shared/widgets/load_more_listener.dart';
 import '../cubit/notifications_cubit.dart';
 import 'widgets/notification_tile.dart';
 
-/// «Notificaciones» (HU-31 · COU-108, COU-181): the inbox, newest first,
-/// paged while scrolling. Opening one marks it as read; «Marcar todas»
-/// reads every unread one. Uses the app-wide [NotificationsCubit].
+/// «Notificaciones» (HU-31 · COU-108, COU-181, COU-180): the inbox, newest
+/// first, paged while scrolling and live with Realtime. Opening one marks it
+/// as read and, when its kind and ids are valid, opens its screen
+/// ([NotificationRoutes]); «Marcar todas» reads every unread one. Uses the
+/// app-wide [NotificationsCubit].
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
 
   void _open(BuildContext context, AppNotification notification) {
     unawaited(context.read<NotificationsCubit>().markRead(notification));
+    final location = NotificationRoutes.locationFor(notification.kind, notification.data);
+    if (location != null) unawaited(context.push(location));
   }
 
   @override
@@ -121,6 +127,7 @@ class NotificationsPage extends StatelessWidget {
             }
             final notification = items[index];
             return NotificationTile(
+              opensScreen: NotificationRoutes.locationFor(notification.kind, notification.data) != null,
               key: ValueKey('notification-${notification.id}'),
               notification: notification,
               time: notificationTime(notification.createdAt, timezone: timezone, today: today),

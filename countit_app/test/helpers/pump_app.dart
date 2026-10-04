@@ -157,5 +157,6 @@ MockNotificationRepository noNotifications() {
   when(repository.unreadCount).thenAnswer((_) async => 0);
   when(() => repository.markRead(any())).thenAnswer((_) async {});
   when(repository.markAllRead).thenAnswer((_) async {});
+  when(() => repository.changes(any())).thenAnswer((_) => const Stream.empty());
   return repository;
 }

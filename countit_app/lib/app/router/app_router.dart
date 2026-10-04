@@ -44,6 +44,7 @@ import '../../presentation/transactions/view/transaction_detail_page.dart';
 import '../../presentation/transactions/view/transaction_form_page.dart';
 import '../../presentation/wallets/view/wallet_detail_page.dart';
 import '../../presentation/wallets/view/wallet_form_page.dart';
+import '../../presentation/wallets/view/wallet_loader.dart';
 import '../config/app_config.dart';
 import '../links/auth_links.dart';
 import '../session/session_cubit.dart';
@@ -268,9 +269,15 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
         ),
         GoRoute(
           path: 'scheduled',
-          // Lists the rules of the wallet the detail screen loaded (ownership, shared).
-          redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
-          builder: (context, state) => ScheduledListPage(wallet: state.extra! as Wallet),
+          // Lists the rules of the wallet the detail screen loaded (ownership,
+          // shared); opened from a notification it loads the wallet first.
+          builder: (context, state) => state.extra is Wallet
+              ? ScheduledListPage(wallet: state.extra! as Wallet)
+              : WalletLoader(
+                  walletId: _walletId(state)!,
+                  title: 'Programados',
+                  builder: (wallet) => ScheduledListPage(wallet: wallet),
+                ),
         ),
         GoRoute(
           path: 'scheduled/new',
