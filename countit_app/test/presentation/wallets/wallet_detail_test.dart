@@ -1,5 +1,6 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
+import 'package:countit_app/data/dtos/family.dart';
 import 'package:countit_app/data/dtos/scheduled_transaction.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
@@ -14,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/budget_fixtures.dart';
+import '../../helpers/family_fixtures.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/transaction_fixtures.dart';
@@ -40,6 +42,7 @@ void main() {
   late MockAuthRepository auth;
   late MockBudgetRepository budgets;
   late MockTransactionRepository transactions;
+  late MockFamilyRepository families;
 
   setUpAll(Dates.init);
 
@@ -51,6 +54,7 @@ void main() {
     transactions = MockTransactionRepository();
     when(() => transactions.list(any())).thenAnswer((_) async => const TransactionPage([]));
     when(() => auth.sessionChanges).thenAnswer((_) => const Stream.empty());
+    families = noFamilies();
   });
 
   /// Home → detail of [wallet]; the edit route is a stand-in.
@@ -137,6 +141,10 @@ void main() {
               builder: (context, state) => Scaffold(body: Text('SCHEDULED ${(state.extra! as Wallet).name}')),
             ),
             GoRoute(
+              path: 'members',
+              builder: (context, state) => Scaffold(body: Text('MEMBERS ${(state.extra! as Wallet).name}')),
+            ),
+            GoRoute(
               path: 'budgets/:budgetId/edit',
               builder: (context, state) => Scaffold(
                 body: TextButton(
@@ -155,6 +163,7 @@ void main() {
       wallets: wallets,
       budgets: budgets,
       transactions: transactions,
+      families: families,
       router: router,
     );
     await tester.tap(find.text('HOME'));
@@ -449,5 +458,63 @@ void main() {
     await tester.tap(find.text('FUTURE DATE'));
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULE Matrícula'), findsOneWidget);
+  });
+
+  group('family (F07)', () {
+    testWidgets('«Familia» and the «Miembros» action open the members (COU-92)', (tester) async {
+      final wallet = walletFixture(id: 4, name: 'Pichincha', memberCount: 2);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet);
+      expect(find.bySemanticsLabel('Familia: Compartida con 2 miembros'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('wallet-members')));
+      await tester.pumpAndSettle();
+      expect(find.text('MEMBERS Pichincha'), findsOneWidget);
+
+      tester.state<NavigatorState>(find.byType(Navigator).last).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Acciones'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Miembros'));
+      await tester.pumpAndSettle();
+      expect(find.text('MEMBERS Pichincha'), findsOneWidget);
+    });
+
+    testWidgets('member side: who owns it', (tester) async {
+      final wallet = walletFixture(id: 4, isOwner: false, ownerName: 'Luis Andrade', memberCount: 1);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet);
+      expect(find.text('De Luis Andrade · 1 miembro'), findsOneWidget);
+    });
+
+    testWidgets('the author filter of a shared wallet offers its current members (COU-234 gap)', (tester) async {
+      final wallet = walletFixture(id: 4, memberCount: 1);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      when(() => families.membersOf(4)).thenAnswer(
+        (_) async => [
+          ownerFixture(),
+          memberFixture(),
+          memberFixture(userId: 'u3', displayName: 'Invitada', status: FamilyStatus.pending),
+        ],
+      );
+      await pumpDetail(tester, wallet);
+      await tester.tap(find.byKey(const ValueKey('transaction-filters')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cualquier miembro'));
+      await tester.pumpAndSettle();
+      expect(find.text('María Quishpe').last, findsOneWidget);
+      expect(find.text('Luis Andrade').last, findsOneWidget);
+      expect(find.text('Invitada'), findsNothing, reason: 'pending invitees have no movements');
+      verify(() => families.membersOf(4)).called(1);
+    });
+
+    testWidgets('a personal wallet never asks for members', (tester) async {
+      final wallet = walletFixture(id: 4);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet);
+      await tester.tap(find.byKey(const ValueKey('transaction-filters')));
+      await tester.pumpAndSettle();
+      expect(find.text('Registrado por'), findsNothing);
+      verifyNever(() => families.membersOf(any()));
+    });
   });
 }
