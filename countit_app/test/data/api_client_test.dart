@@ -64,6 +64,14 @@ void main() {
     expect(ended.single.key, 'session_revoked');
   });
 
+  test('a wrong password while reauthenticating does not sign the user out (audit A1)', () async {
+    await expectLater(
+      api.run<void>(() async => throw const FunctionException(status: 401, details: {'code': 'invalid_password'})),
+      throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.invalidCredentials)),
+    );
+    expect(ended, isEmpty);
+  });
+
   test('a 401 on the retry after reauth is also reported', () async {
     var calls = 0;
     await expectLater(

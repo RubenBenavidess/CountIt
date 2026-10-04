@@ -86,6 +86,15 @@ void main() {
     expect(deleted['wallet_id'], wallet['wallet_id']);
   }, skip: skip);
 
+  test('a wrong password while reauthenticating keeps the session (audit A1)', () async {
+    await expectLater(
+      auth.reauthenticate('Wrong2026x'),
+      throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.invalidCredentials)),
+    );
+    expect(auth.hasSession, isTrue);
+    expect(ended, isEmpty);
+  }, skip: skip);
+
   test('a session closed from another device gets 401 session_revoked and the app is told (COU-57)', () async {
     // Device B signs in with its own session.
     final other = SupabaseClient(

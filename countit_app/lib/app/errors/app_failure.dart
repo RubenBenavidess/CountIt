@@ -9,6 +9,10 @@ enum FailureKind {
   /// 401: no session, or the session was closed elsewhere → back to login.
   unauthenticated,
 
+  /// 401 for a wrong e-mail/password (login, reauthenticate, change-password,
+  /// delete-account): show the message, the session (if any) stays open.
+  invalidCredentials,
+
   /// 403 `reauth_required`: ask for the password, call `reauthenticate`, retry.
   reauthRequired,
 

@@ -31,6 +31,7 @@ extension PumpApp on WidgetTester {
       when(() => (authRepository as MockAuthRepository).sessionChanges).thenAnswer((_) => const Stream.empty());
     }
     final sessionCubit = session ?? SessionCubit(auth: authRepository, profiles: profileRepository);
+    if (session == null) addTearDown(sessionCubit.close);
 
     final app = router == null
         ? MaterialApp(

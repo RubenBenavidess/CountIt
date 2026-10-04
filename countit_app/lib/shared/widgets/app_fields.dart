@@ -220,13 +220,20 @@ class AppDateField extends StatelessWidget {
   Future<void> _pick(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: value ?? (lastDate.isBefore(DateTime.now()) ? lastDate : DateTime.now()),
+      initialDate: _clamp(value ?? DateTime.now()),
       firstDate: firstDate,
       lastDate: lastDate,
       locale: const Locale('es', 'EC'),
     );
     if (picked != null) onChanged(DateTime(picked.year, picked.month, picked.day));
   }
+
+  /// showDatePicker asserts that the initial date is within [firstDate, lastDate].
+  DateTime _clamp(DateTime day) => day.isBefore(firstDate)
+      ? firstDate
+      : day.isAfter(lastDate)
+      ? lastDate
+      : day;
 
   @override
   Widget build(BuildContext context) {
@@ -295,6 +302,9 @@ class AppDropdownField<T> extends StatelessWidget {
     return _Labeled(
       label: label,
       child: DropdownButtonFormField<T>(
+        // initialValue is only read once; the key rebuilds the field when the
+        // parent changes the value (e.g. a form reset or a pre-filled edit).
+        key: ValueKey<T?>(value),
         initialValue: value,
         isExpanded: true,
         hint: Text(hint, style: AppTypography.body.copyWith(color: AppColors.placeholder)),

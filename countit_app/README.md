@@ -41,7 +41,28 @@ flutter test test/live --dart-define=LIVE_API_URL=http://127.0.0.1:54321 --dart-
   --dart-define=LIVE_EMAIL=demo_ana@smoke.test --dart-define=LIVE_PASSWORD=<DEMO_PASSWORD>
 ```
 
+Release (ofuscado): `scripts/build_release.sh <staging|prod> [appbundle|apk|ipa]`.
+
 CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK debug en cada PR.
+
+## Seguridad
+
+| Control | Dónde |
+|---|---|
+| Sesión cifrada en Keystore/Keychain, nunca en preferencias | `lib/data/remote/secure_session_storage.dart` |
+| Sin secretos en la app (solo URL y *anon key*, públicas); `env/staging.json` y `env/prod.json` fuera de git | `env/`, `.gitignore` |
+| HTTPS obligatorio; HTTP solo en el flavor `local` y solo hacia 10.0.2.2/localhost; sin CAs instaladas por el usuario | `AppConfig`, `android/app/src/{main,local}/res/xml/network_security_config.xml` |
+| Sin respaldos en la nube ni copia a otro dispositivo | `AndroidManifest.xml` (`allowBackup=false`, `data_extraction_rules.xml`) |
+| Errores sin textos internos (5xx → mensaje genérico) | `ErrorMapper` |
+| 401 cierra la sesión; una contraseña incorrecta **no** | `ErrorMapper`, `ApiClient`, `SessionCubit` |
+| Acciones destructivas con confirmación de contraseña y un solo reintento | `ApiClient.run(onReauth:)` |
+| Logs solo en debug y con tokens, contraseñas y correos ocultos | `lib/app/logging/app_logger.dart` |
+| Capturas y grabación bloqueadas en pantallas sensibles (`SecureScreen`); contenido oculto en el selector de apps (`PrivacyCurtain`) | `lib/shared/widgets/secure_screen.dart` |
+| Builds de release ofuscados con símbolos aparte | `scripts/build_release.sh` |
+
+Pendiente (Linear, Q2 · Seguridad móvil): App Links/Universal Links verificados en lugar de solo `countit://`
+(requiere dominio, COU-109), detección informativa de root/jailbreak (COU-116), firma de release (COU-58),
+revisión OWASP MASVS (COU-119) y bloqueo de capturas en iOS.
 
 ## Arquitectura
 Capas `app/` (composición: config, tema, router, errores, sesión), `data/` (clientes y repositorios),
