@@ -56,6 +56,14 @@ void main() {
     families = SupabaseFamilyRepository(api, realtime);
   });
 
+  void invokeReturns(Map<String, dynamic> body) => when(
+    () => api.invoke(
+      any(),
+      body: any(named: 'body'),
+      onReauth: any(named: 'onReauth'),
+    ),
+  ).thenAnswer((_) async => body);
+
   void rpcReturns(Object? json) => when(
     () => api.rpc<dynamic>(
       any(),
@@ -108,16 +116,18 @@ void main() {
       verify(() => api.rpc<dynamic>('get_my_invitations')).called(1);
     });
 
-    test('invite: trimmed username; returns the pending membership', () async {
-      rpcReturns({'wallet_id': 4, 'user_id': 'u3', 'username': 'carlos_q', 'status': 'pending'});
+    test('invite: through the invite-member Edge Function with a trimmed username', () async {
+      invokeReturns({
+        'success': true,
+        'data': {'wallet_id': 4, 'user_id': 'u3', 'username': 'carlos_q', 'status': 'pending'},
+      });
       final member = await families.invite(4, '  carlos_q ');
       expect(member.isPending, isTrue);
-      verify(() => api.rpc<dynamic>('invite_family_member', params: {'p_wallet_id': 4, 'p_username': 'carlos_q'}))
-          .called(1);
+      verify(() => api.invoke('invite-member', body: {'walletId': 4, 'username': 'carlos_q'})).called(1);
     });
 
     test('invite: an unexpected body is a server failure', () async {
-      rpcReturns(null);
+      invokeReturns({'success': true});
       await expectLater(
         families.invite(4, 'carlos_q'),
         throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.server)),

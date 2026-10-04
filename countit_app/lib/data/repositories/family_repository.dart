@@ -19,9 +19,10 @@ abstract interface class FamilyRepository {
   /// The caller's pending invitations that are still in time, newest first.
   Future<List<FamilyInvitation>> myInvitations();
 
-  /// `invite_family_member` (owner): pending for 7 days. Errors: 404
-  /// `wallet_not_found`/`user_not_found`, 403 `feature_not_in_plan`, 429
-  /// `invitation_limit`, 400 `self_invitation`, 409 `already_member`,
+  /// Edge Function `invite-member` (owner): pending for 7 days. Rate limited to
+  /// 30 attempts per user a day (429 `rate_limited`, failed lookups included).
+  /// Errors: 404 `wallet_not_found`/`user_not_found`, 403 `feature_not_in_plan`,
+  /// 429 `invitation_limit`, 400 `self_invitation`, 409 `already_member`,
   /// `invitation_pending`, `family_member_limit_exceeded`, `family_limit_exceeded`.
   Future<FamilyMember> invite(int walletId, String username);
 
@@ -81,10 +82,8 @@ class SupabaseFamilyRepository implements FamilyRepository {
 
   @override
   Future<FamilyMember> invite(int walletId, String username) async {
-    final json = await _api.rpc<dynamic>(
-      'invite_family_member',
-      params: {'p_wallet_id': walletId, 'p_username': username.trim()},
-    );
+    final body = await _api.invoke('invite-member', body: {'walletId': walletId, 'username': username.trim()});
+    final json = body['data'];
     if (json is! Map) {
       throw const AppFailure(kind: FailureKind.server, message: ErrorMapper.genericMessage);
     }
