@@ -16,6 +16,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/wordmark.dart';
+import '../../families/cubit/invitations_cubit.dart';
 import '../../wallets/view/widgets/wallet_card.dart';
 import '../cubit/wallets_cubit.dart';
 
@@ -68,39 +69,54 @@ class _HomeViewState extends State<_HomeView> {
 
   void _openWallet(Wallet wallet) => unawaited(_open(AppRoutes.wallet(wallet.walletId), extra: wallet));
 
+  void _openInvitations() => unawaited(_open(AppRoutes.invitations));
+
   @override
   Widget build(BuildContext context) {
     final profile = context.select((SessionCubit c) => c.state.profile);
     final name = profile?.firstName?.trim().isNotEmpty ?? false ? profile!.firstName! : profile?.displayName ?? '';
     return Scaffold(
-      appBar: AppBar(title: const Wordmark(size: 22), titleSpacing: AppSpacing.screen),
-      body: BlocConsumer<WalletsCubit, LoadState<List<Wallet>>>(
-        // A failed reload keeps the list on screen and explains itself here.
-        listenWhen: (previous, current) => current.status == LoadStatus.failure && current.data != null,
-        listener: (context, state) => showFailureSnackBar(context, state.failure!),
-        builder: (context, state) {
-          final wallets = state.data;
-          return RefreshIndicator(
-            onRefresh: context.read<WalletsCubit>().load,
-            child: CustomScrollView(
-              key: const PageStorageKey('home-wallets'),
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: _Header(
-                      name: name,
-                      wallets: wallets,
-                      onCreate: wallets == null || wallets.isEmpty ? null : _create,
+      appBar: AppBar(
+        title: const Wordmark(size: 22),
+        titleSpacing: AppSpacing.screen,
+        actions: [
+          _InvitationsButton(onPressed: _openInvitations),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
+      // Accepting an invitation, being removed or leaving changes the shared
+      // wallets: Realtime bumps the revision and the list reloads.
+      body: BlocListener<InvitationsCubit, InvitationsState>(
+        listenWhen: (previous, current) => previous.revision != current.revision,
+        listener: (context, state) => unawaited(context.read<WalletsCubit>().load()),
+        child: BlocConsumer<WalletsCubit, LoadState<List<Wallet>>>(
+          // A failed reload keeps the list on screen and explains itself here.
+          listenWhen: (previous, current) => current.status == LoadStatus.failure && current.data != null,
+          listener: (context, state) => showFailureSnackBar(context, state.failure!),
+          builder: (context, state) {
+            final wallets = state.data;
+            return RefreshIndicator(
+              onRefresh: context.read<WalletsCubit>().load,
+              child: CustomScrollView(
+                key: const PageStorageKey('home-wallets'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _Header(
+                        name: name,
+                        wallets: wallets,
+                        onCreate: wallets == null || wallets.isEmpty ? null : _create,
+                      ),
                     ),
                   ),
-                ),
-                ..._body(context, state),
-              ],
-            ),
-          );
-        },
+                  ..._body(context, state),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -140,6 +156,7 @@ class _HomeViewState extends State<_HomeView> {
       else
         _WalletList(wallets: own, onOpen: _openWallet),
       const _SectionTitle('Compartidas conmigo'),
+      _PendingInvitations(onOpen: _openInvitations),
       if (shared.isEmpty)
         const _SliverNote(child: _NoSharedWallets())
       else
@@ -300,6 +317,79 @@ class _NoOwnWallets extends StatelessWidget {
           ),
           AppButton(label: 'Crear billetera', small: true, onPressed: onCreate),
         ],
+      ),
+    );
+  }
+}
+
+/// App bar entry to «Invitaciones» with the pending count (COU-91, COU-159).
+class _InvitationsButton extends StatelessWidget {
+  const _InvitationsButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.select((InvitationsCubit c) => c.state.pendingCount);
+    return IconButton(
+      key: const ValueKey('home-invitations'),
+      tooltip: switch (count) {
+        0 => 'Invitaciones',
+        1 => 'Invitaciones: 1 pendiente',
+        _ => 'Invitaciones: $count pendientes',
+      },
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      onPressed: onPressed,
+      // The tooltip already says how many: the number is not read twice.
+      icon: ExcludeSemantics(
+        child: Badge(
+          isLabelVisible: count > 0,
+          label: Text('$count'),
+          backgroundColor: AppColors.lavender,
+          textColor: AppColors.ink,
+          child: const Icon(Icons.mail_outline_rounded),
+        ),
+      ),
+    );
+  }
+}
+
+/// «Tienes N invitaciones» above the shared wallets while any is pending.
+class _PendingInvitations extends StatelessWidget {
+  const _PendingInvitations({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.select((InvitationsCubit c) => c.state.pendingCount);
+    if (count == 0) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return _SliverNote(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: AppCard(
+          key: const ValueKey('home-pending-invitations'),
+          outlined: true,
+          onTap: onOpen,
+          semanticLabel: count == 1
+              ? 'Tienes 1 invitación para compartir una billetera. Ver invitaciones'
+              : 'Tienes $count invitaciones para compartir billeteras. Ver invitaciones',
+          child: ExcludeSemantics(
+            child: Row(
+              spacing: AppSpacing.md,
+              children: [
+                const IconTile(Icons.mail_outline_rounded),
+                Expanded(
+                  child: Text(
+                    count == 1 ? 'Tienes 1 invitación pendiente' : 'Tienes $count invitaciones pendientes',
+                    style: AppTypography.label,
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

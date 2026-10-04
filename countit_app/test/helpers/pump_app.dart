@@ -11,6 +11,7 @@ import 'package:countit_app/data/repositories/profile_repository.dart';
 import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
+import 'package:countit_app/presentation/families/cubit/invitations_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -43,6 +44,7 @@ extension PumpApp on WidgetTester {
     ScheduledTransactionRepository? scheduled,
     FamilyRepository? families,
     SessionCubit? session,
+    InvitationsCubit? invitations,
     GoRouter? router,
     AppConfig config = testConfig,
     ThemeMode themeMode = ThemeMode.dark,
@@ -54,6 +56,10 @@ extension PumpApp on WidgetTester {
     }
     final sessionCubit = session ?? SessionCubit(auth: authRepository, profiles: profileRepository);
     if (session == null) addTearDown(sessionCubit.close);
+    final familyRepository = families ?? noFamilies();
+    // Not following anyone unless the test starts it: no invitations, no badge.
+    final invitationsCubit = invitations ?? InvitationsCubit(familyRepository);
+    if (invitations == null) addTearDown(invitationsCubit.close);
 
     final app = router == null
         ? MaterialApp(
@@ -80,9 +86,15 @@ extension PumpApp on WidgetTester {
           RepositoryProvider<ScheduledTransactionRepository>.value(
             value: scheduled ?? MockScheduledTransactionRepository(),
           ),
-          RepositoryProvider<FamilyRepository>.value(value: families ?? noFamilies()),
+          RepositoryProvider<FamilyRepository>.value(value: familyRepository),
         ],
-        child: BlocProvider<SessionCubit>.value(value: sessionCubit, child: app),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<SessionCubit>.value(value: sessionCubit),
+            BlocProvider<InvitationsCubit>.value(value: invitationsCubit),
+          ],
+          child: app,
+        ),
       ),
     );
     await pump();
