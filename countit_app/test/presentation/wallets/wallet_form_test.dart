@@ -221,7 +221,8 @@ void main() {
       await tapButton(tester, 'Crear billetera');
       expect(find.text('Alcanzaste el límite de tu plan'), findsOneWidget);
       expect(find.text('Alcanzaste el límite de billeteras de tu plan'), findsOneWidget);
-      expect(find.text('• 3 billeteras'), findsOneWidget);
+      expect(find.text('Billeteras'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
       await tester.tap(find.text('Entendido'));
       await tester.pumpAndSettle();
       expect(find.text('Crear billetera'), findsOneWidget, reason: 'the form stays open');

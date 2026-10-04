@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
 
-/// «Count It!» brand lockup: the logo on the left and the wordmark with «It!»
-/// in Lavender Grey. The logo's «C» is light, so light theme uses a dark variant.
+/// «Count It!» brand lockup: the wordmark (with «It!» in Lavender Grey) and
+/// the logo on its right. The logo's «C» is light, so light theme uses a dark variant.
 class Wordmark extends StatelessWidget {
   const Wordmark({super.key, this.size = 26});
 
@@ -34,11 +34,6 @@ class Wordmark extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: size * 0.4,
           children: [
-            Image.asset(
-              theme.brightness == Brightness.dark ? darkBackgroundLogo : lightBackgroundLogo,
-              height: size * 1.3,
-              filterQuality: FilterQuality.medium,
-            ),
             Text.rich(
               TextSpan(
                 text: 'Count ',
@@ -50,6 +45,11 @@ class Wordmark extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            Image.asset(
+              theme.brightness == Brightness.dark ? darkBackgroundLogo : lightBackgroundLogo,
+              height: size * 1.3,
+              filterQuality: FilterQuality.medium,
             ),
           ],
         ),
