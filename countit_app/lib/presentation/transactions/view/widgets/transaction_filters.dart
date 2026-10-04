@@ -36,18 +36,26 @@ extension TransactionFilterLabels on TransactionFilter {
 
 /// Opens the filters sheet; returns the new filter, or null when dismissed.
 ///
-/// [authors] (`user_id` → name) is offered only in shared wallets.
+/// [authors] (`user_id` → name) is offered only in shared wallets; the
+/// budget filter only when one wallet is listed ([showBudget]).
 Future<TransactionFilter?> showTransactionFilters(
   BuildContext context, {
   required TransactionFilter current,
   required List<Budget> budgets,
   required Map<String, String> authors,
   required DateTime today,
+  bool showBudget = true,
 }) => showAppBottomSheet<TransactionFilter>(
   context,
   title: 'Filtrar movimientos',
   builder: (_) => Flexible(
-    child: TransactionFilterForm(initial: current, budgets: budgets, authors: authors, today: today),
+    child: TransactionFilterForm(
+      initial: current,
+      budgets: budgets,
+      authors: authors,
+      today: today,
+      showBudget: showBudget,
+    ),
   ),
 );
 
@@ -70,12 +78,16 @@ class TransactionFilterForm extends StatefulWidget {
     required this.budgets,
     required this.authors,
     required this.today,
+    this.showBudget = true,
   });
 
   final TransactionFilter initial;
   final List<Budget> budgets;
   final Map<String, String> authors;
   final DateTime today;
+
+  /// Budgets belong to one wallet: hidden when the list mixes several.
+  final bool showBudget;
 
   @override
   State<TransactionFilterForm> createState() => _TransactionFilterFormState();
@@ -182,16 +194,17 @@ class _TransactionFilterFormState extends State<TransactionFilterForm> {
                 ),
               ],
             ),
-          AppDropdownField<String>(
-            label: 'Presupuesto',
-            value: _budgetValue,
-            options: [
-              const AppOption(_all, 'Todos'),
-              const AppOption(_none, 'Sin presupuesto'),
-              for (final b in widget.budgets) AppOption(b.budgetId.toString(), b.name),
-            ],
-            onChanged: _setBudget,
-          ),
+          if (widget.showBudget)
+            AppDropdownField<String>(
+              label: 'Presupuesto',
+              value: _budgetValue,
+              options: [
+                const AppOption(_all, 'Todos'),
+                const AppOption(_none, 'Sin presupuesto'),
+                for (final b in widget.budgets) AppOption(b.budgetId.toString(), b.name),
+              ],
+              onChanged: _setBudget,
+            ),
           if (widget.authors.isNotEmpty)
             AppDropdownField<String>(
               label: 'Registrado por',

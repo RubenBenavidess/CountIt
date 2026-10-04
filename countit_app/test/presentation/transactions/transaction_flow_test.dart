@@ -98,7 +98,7 @@ class _Transactions implements TransactionRepository {
 
   @override
   Future<TransactionPage> list(
-    int walletId, {
+    int? walletId, {
     TransactionFilter filter = const TransactionFilter(),
     TransactionCursor? after,
     int limit = TransactionRepository.pageSize,

@@ -122,18 +122,23 @@ class TransactionListState extends Equatable {
   List<Object?> get props => [status, items, next, loadingMore, failure, moreFailure, filter, knownAuthors];
 }
 
-/// HU-17: the transactions of one wallet, newest first, loaded page by page
-/// and filtered (COU-231, COU-232, COU-234).
+/// HU-17: the transactions of one wallet (or of every readable wallet when
+/// [walletId] is null: the «Movimientos» tab), newest first, loaded page by
+/// page and filtered (COU-231, COU-232, COU-234).
 ///
 /// Every [load] starts a new generation: answers of an older load or of a
 /// «load more» started before it are dropped, so a slow response can never
 /// mix pages of two different queries.
 class TransactionListCubit extends Cubit<TransactionListState> {
-  TransactionListCubit(this._transactions, {required this.walletId}) : super(TransactionListState());
+  // ignore: prefer_initializing_formals (a private named parameter would rename the public one)
+  TransactionListCubit(this._transactions, {int? walletId}) : _walletId = walletId, super(TransactionListState());
 
   final TransactionRepository _transactions;
-  final int walletId;
+  int? _walletId;
   int _generation = 0;
+
+  /// The wallet listed; null lists them all.
+  int? get walletId => _walletId;
 
   /// (Re)loads the first page; the current rows stay visible meanwhile.
   Future<void> load() async {
@@ -147,7 +152,7 @@ class TransactionListCubit extends Cubit<TransactionListState> {
       ),
     );
     try {
-      final page = await _transactions.list(walletId, filter: state.filter);
+      final page = await _transactions.list(_walletId, filter: state.filter);
       if (_isStale(generation)) return;
       emit(
         state.copyWith(
@@ -173,7 +178,7 @@ class TransactionListCubit extends Cubit<TransactionListState> {
     final generation = _generation;
     emit(state.copyWith(loadingMore: true, moreFailure: () => null));
     try {
-      final page = await _transactions.list(walletId, filter: state.filter, after: cursor);
+      final page = await _transactions.list(_walletId, filter: state.filter, after: cursor);
       if (_isStale(generation)) return;
       emit(
         state.copyWith(
@@ -194,6 +199,15 @@ class TransactionListCubit extends Cubit<TransactionListState> {
   Future<void> applyFilter(TransactionFilter filter) async {
     if (filter == state.filter && state.status != TransactionListStatus.failure) return;
     emit(TransactionListState(filter: filter, knownAuthors: state.knownAuthors));
+    await load();
+  }
+
+  /// Lists another wallet (null: all). Budget and author filters belong to
+  /// the previous wallet and are dropped; type and dates stay.
+  Future<void> selectWallet(int? walletId) async {
+    if (walletId == _walletId) return;
+    _walletId = walletId;
+    emit(TransactionListState(filter: state.filter.withoutBudgetFilter().withoutAuthor()));
     await load();
   }
 

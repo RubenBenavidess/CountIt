@@ -42,6 +42,7 @@ import '../../presentation/statistics/view/projection_page.dart';
 import '../../presentation/statistics/view/statistics_page.dart';
 import '../../presentation/transactions/view/transaction_detail_page.dart';
 import '../../presentation/transactions/view/transaction_form_page.dart';
+import '../../presentation/transactions/view/transactions_page.dart';
 import '../../presentation/wallets/view/wallet_detail_page.dart';
 import '../../presentation/wallets/view/wallet_form_page.dart';
 import '../../presentation/wallets/view/wallet_loader.dart';
@@ -76,6 +77,10 @@ abstract final class AppRoutes {
   static const plans = '/plans';
   static const invitations = '/invitations';
   static const notifications = '/notifications';
+
+  /// Tabs «Movimientos» (every wallet) and «Estadísticas» (wallet selector).
+  static const movements = '/movements';
+  static const statisticsTab = '/statistics';
 
   static String adminUser(String userId) => '$adminUsers/$userId';
   static String editBank(int bankId) => '$adminBanks/$bankId/edit';
@@ -174,6 +179,14 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
       branches: [
         StatefulShellBranch(
           routes: [GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage())],
+        ),
+        StatefulShellBranch(
+          routes: [GoRoute(path: AppRoutes.movements, builder: (context, state) => const TransactionsPage())],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(path: AppRoutes.statisticsTab, builder: (context, state) => const StatisticsPage(asTab: true)),
+          ],
         ),
         StatefulShellBranch(
           routes: [GoRoute(path: AppRoutes.notifications, builder: (context, state) => const NotificationsPage())],

@@ -6,8 +6,9 @@ import '../../../app/theme/tokens.dart';
 import '../../notifications/cubit/notifications_cubit.dart';
 
 /// Signed-in shell (COU-168): bottom navigation whose tabs keep their own
-/// navigator and state (scroll position included) while switching.
-/// «Avisos» carries the unread badge (COU-111).
+/// navigator and state (scroll position included) while switching:
+/// «Inicio», «Movimientos» (every wallet), «Estadísticas», «Avisos» (with
+/// the unread badge, COU-111) and «Perfil».
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.shell});
 
@@ -15,8 +16,10 @@ class AppShell extends StatelessWidget {
 
   /// Branch index of each tab (same order as the router's branches).
   static const homeTab = 0;
-  static const notificationsTab = 1;
-  static const profileTab = 2;
+  static const movementsTab = 1;
+  static const statisticsTab = 2;
+  static const notificationsTab = 3;
+  static const profileTab = 4;
 
   void _select(int index) =>
       // Tapping the current tab again goes back to its first screen.
@@ -42,6 +45,16 @@ class AppShell extends StatelessWidget {
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: 'Inicio',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long_rounded),
+              label: 'Movimientos',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights_rounded),
+              label: 'Estadísticas',
             ),
             NavigationDestination(
               key: const ValueKey('tab-notifications'),

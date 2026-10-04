@@ -5,6 +5,7 @@ import 'package:countit_app/data/dtos/transaction.dart';
 Transaction transactionFixture({
   int id = 1,
   int walletId = 4,
+  String? walletName,
   String name = 'Almuerzo',
   TransactionType type = TransactionType.expense,
   double amount = 12.5,
@@ -18,6 +19,7 @@ Transaction transactionFixture({
 }) => Transaction(
   transactionId: id,
   walletId: walletId,
+  walletName: walletName,
   name: name,
   type: type,
   amountCents: (amount * 100).round(),

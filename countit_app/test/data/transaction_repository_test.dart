@@ -130,6 +130,15 @@ void main() {
       expect(query['or'], startsWith('(date.lt.2026-10-02'));
     });
 
+    test('without a wallet it lists every readable wallet: no wallet_id filter (RLS limits the rows)', () async {
+      selectReturns([]);
+      await transactions.list(null, filter: const TransactionFilter(type: TransactionType.income));
+      final query = requests.single.queryParameters;
+      expect(query.containsKey('wallet_id'), isFalse);
+      expect(query['type'], 'eq.income');
+      expect(query['order'], 'date.desc.nullslast,transaction_id.desc.nullslast');
+    });
+
     test('the empty filter adds nothing', () async {
       selectReturns([]);
       await transactions.list(4);

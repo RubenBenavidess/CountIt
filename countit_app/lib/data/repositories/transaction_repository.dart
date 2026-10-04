@@ -13,8 +13,10 @@ abstract interface class TransactionRepository {
 
   /// One page of [walletId]'s transactions matching [filter], newest first
   /// (`date.desc, transaction_id.desc`), starting [after] the previous page.
+  /// A null [walletId] lists every wallet the caller can read (own and
+  /// shared): `v_transactions` is `security_invoker` and RLS limits the rows.
   Future<TransactionPage> list(
-    int walletId, {
+    int? walletId, {
     TransactionFilter filter = const TransactionFilter(),
     TransactionCursor? after,
     int limit = pageSize,
@@ -74,7 +76,7 @@ class SupabaseTransactionRepository implements TransactionRepository {
 
   @override
   Future<TransactionPage> list(
-    int walletId, {
+    int? walletId, {
     TransactionFilter filter = const TransactionFilter(),
     TransactionCursor? after,
     int limit = TransactionRepository.pageSize,
@@ -82,7 +84,7 @@ class SupabaseTransactionRepository implements TransactionRepository {
     final rows = await _api.select(
       view,
       query: (q) {
-        var filtered = applyFilter(q.eq('wallet_id', walletId), filter);
+        var filtered = applyFilter(walletId == null ? q : q.eq('wallet_id', walletId), filter);
         if (after != null) filtered = filtered.or(keysetFilter(after));
         // One extra row tells whether another page exists without a count query.
         return filtered.order('date', ascending: false).order('transaction_id', ascending: false).limit(limit + 1);

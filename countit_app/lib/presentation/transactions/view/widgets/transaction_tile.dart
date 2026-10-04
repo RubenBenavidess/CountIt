@@ -16,6 +16,9 @@ extension TransactionLabels on Transaction {
   /// «+ $450,00» / «− $12,50»: the sign always travels with the colour.
   String get signedAmount => Money.signed(amount, income: isIncome);
 
+  /// Its wallet's name (the «Movimientos» tab lists several wallets).
+  String get walletLabel => walletName ?? 'Billetera';
+
   /// The author as shown; the API may send no name (API 1.1).
   String get authorLabel => authorName ?? 'Autor desconocido';
 
@@ -28,8 +31,9 @@ extension TransactionLabels on Transaction {
 
   /// What a screen reader announces for the row: type, name, amount with its
   /// sign in words, date, budget and author.
-  String semanticLabel({required bool showAuthor}) => [
+  String semanticLabel({required bool showAuthor, bool showWallet = false}) => [
     '${type.label} $name',
+    if (showWallet) 'Billetera $walletLabel',
     '${isIncome ? 'más' : 'menos'} ${Money.format(amount)}',
     Dates.long(date),
     hasBudget ? 'Presupuesto $budgetName' : 'Sin presupuesto',
@@ -41,12 +45,21 @@ extension TransactionLabels on Transaction {
 /// A transaction in the wallet list (HU-17 · COU-231): category, name,
 /// budget (and author in shared wallets) and the signed amount.
 class TransactionTile extends StatelessWidget {
-  const TransactionTile({super.key, required this.transaction, this.showAuthor = false, this.onTap});
+  const TransactionTile({
+    super.key,
+    required this.transaction,
+    this.showAuthor = false,
+    this.showWallet = false,
+    this.onTap,
+  });
 
   final Transaction transaction;
 
   /// Shared wallets say who registered each movement.
   final bool showAuthor;
+
+  /// A list of several wallets says which one each movement belongs to.
+  final bool showWallet;
   final VoidCallback? onTap;
 
   @override
@@ -54,10 +67,10 @@ class TransactionTile extends StatelessWidget {
     final palette = context.palette;
     final t = transaction;
     final color = t.isIncome ? palette.income : palette.expense;
-    final subtitle = showAuthor ? '${t.budgetLabel} · ${t.authorLabel}' : t.budgetLabel;
+    final subtitle = [if (showWallet) t.walletLabel, t.budgetLabel, if (showAuthor) t.authorLabel].join(' · ');
     return Semantics(
       button: onTap != null,
-      label: t.semanticLabel(showAuthor: showAuthor),
+      label: t.semanticLabel(showAuthor: showAuthor, showWallet: showWallet),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
