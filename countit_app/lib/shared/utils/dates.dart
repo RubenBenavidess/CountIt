@@ -72,6 +72,30 @@ abstract final class Dates {
   /// «octubre 2026».
   static String month(DateTime day) => DateFormat('MMMM y', locale).format(day);
 
+  // Built on first use (after [init] loaded the Spanish symbols) and reused:
+  // list headers format many days per frame.
+  static final _weekdayDayMonth = DateFormat("EEEE, d 'de' MMMM", locale);
+  static final _weekdayDayMonthYear = DateFormat("EEEE, d 'de' MMMM 'de' y", locale);
+
+  /// «jueves, 1 de octubre de 2026» (screen readers, detail screens).
+  static String long(DateTime day) => _weekdayDayMonthYear.format(day);
+
+  /// Header of a day in a list: «Hoy», «Ayer», «Jueves, 1 de octubre» (this
+  /// year) or «Martes, 30 de septiembre de 2025».
+  static String dayHeader(DateTime day, {required DateTime today}) {
+    final d = DateTime(day.year, day.month, day.day);
+    // UTC midnights: a daylight-saving change on the device never makes a day 23 h long.
+    final difference = DateTime.utc(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime.utc(d.year, d.month, d.day)).inDays;
+    if (difference == 0) return 'Hoy';
+    if (difference == 1) return 'Ayer';
+    final text = (d.year == today.year ? _weekdayDayMonth : _weekdayDayMonthYear).format(d);
+    return '${text[0].toUpperCase()}${text.substring(1)}';
+  }
+
   /// «Hoy», «Ayer», «30 sept» (same year) or «30 sept 2025» (intl es abbreviations).
   static String relative(DateTime day, {required DateTime today}) {
     final d = DateTime(day.year, day.month, day.day);

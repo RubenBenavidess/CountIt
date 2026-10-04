@@ -54,5 +54,13 @@ void main() {
       expect(Dates.relative(DateTime(2026, 9, 30), today: today), '30 sept');
       expect(Dates.relative(DateTime(2025, 9, 30), today: today), '30 sept 2025');
     });
+
+    test('dayHeader: today, yesterday, long date this year and with the year before', () {
+      expect(Dates.dayHeader(DateTime(2026, 10, 3), today: today), 'Hoy');
+      expect(Dates.dayHeader(DateTime(2026, 10, 2), today: today), 'Ayer');
+      expect(Dates.dayHeader(DateTime(2026, 10, 1), today: today), 'Jueves, 1 de octubre');
+      expect(Dates.dayHeader(DateTime(2025, 9, 30), today: today), 'Martes, 30 de septiembre de 2025');
+      expect(Dates.long(DateTime(2026, 10, 1)), 'jueves, 1 de octubre de 2026');
+    });
   });
 }

@@ -5,6 +5,7 @@ import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../state/load_state.dart';
 import 'app_button.dart';
+import 'app_card.dart';
 
 /// Nothing to show yet: icon, title, text and an optional action.
 class EmptyState extends StatelessWidget {
@@ -117,6 +118,60 @@ class LoadStateView<T> extends StatelessWidget {
     }
     if (empty != null && (isEmpty?.call(data) ?? false)) return empty!;
     return builder(context, data);
+  }
+}
+
+/// Outlined card with an icon, a message and an optional action: empty and
+/// error states of a section inside a longer screen (budgets, movements).
+class NoteCard extends StatelessWidget {
+  const NoteCard({super.key, required this.icon, required this.message, this.action});
+
+  final IconData icon;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      outlined: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: AppSpacing.md,
+        children: [
+          Row(
+            spacing: AppSpacing.md,
+            children: [
+              IconTile(icon),
+              Expanded(
+                child: Text(message, style: AppTypography.caption.copyWith(color: context.palette.muted)),
+              ),
+            ],
+          ),
+          ?action,
+        ],
+      ),
+    );
+  }
+}
+
+/// Placeholder card while a section's first load runs (the rest of the screen is usable).
+class SectionLoading extends StatelessWidget {
+  const SectionLoading({super.key, required this.label});
+
+  /// Announced by screen readers («Cargando presupuestos»).
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      outlined: true,
+      child: Center(
+        child: Semantics(
+          label: label,
+          child: const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 2.5)),
+        ),
+      ),
+    );
   }
 }
 

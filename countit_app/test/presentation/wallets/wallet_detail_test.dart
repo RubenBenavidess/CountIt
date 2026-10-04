@@ -1,5 +1,6 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
+import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
 import 'package:countit_app/presentation/budgets/view/budget_form_page.dart';
@@ -13,6 +14,7 @@ import 'package:mocktail/mocktail.dart';
 import '../../helpers/budget_fixtures.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/pump_app.dart';
+import '../../helpers/transaction_fixtures.dart';
 import '../../helpers/wallet_fixtures.dart';
 
 const _notFound = AppFailure(
@@ -35,6 +37,7 @@ void main() {
   late MockWalletRepository wallets;
   late MockAuthRepository auth;
   late MockBudgetRepository budgets;
+  late MockTransactionRepository transactions;
 
   setUpAll(Dates.init);
 
@@ -43,6 +46,8 @@ void main() {
     auth = MockAuthRepository();
     budgets = MockBudgetRepository();
     when(() => budgets.listByWallet(any())).thenAnswer((_) async => const []);
+    transactions = MockTransactionRepository();
+    when(() => transactions.list(any())).thenAnswer((_) async => const TransactionPage([]));
     when(() => auth.sessionChanges).thenAnswer((_) => const Stream.empty());
   });
 
@@ -91,23 +96,30 @@ void main() {
         ),
       ],
     );
-    await tester.pumpApp(const SizedBox(), auth: auth, wallets: wallets, budgets: budgets, router: router);
+    await tester.pumpApp(
+      const SizedBox(),
+      auth: auth,
+      wallets: wallets,
+      budgets: budgets,
+      transactions: transactions,
+      router: router,
+    );
     await tester.tap(find.text('HOME'));
     await tester.pumpAndSettle();
   }
 
-  Future<void> tapButton(WidgetTester tester, String label) async {
-    final button = find.widgetWithText(FilledButton, label);
-    await tester.ensureVisible(button);
+  /// «Eliminar» from the actions menu (owner only).
+  Future<void> openDelete(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('Acciones'));
     await tester.pumpAndSettle();
-    await tester.tap(button);
+    await tester.tap(find.text('Eliminar'));
     await tester.pumpAndSettle();
   }
 
   /// Confirms the «¿Eliminar…?» dialog. Pumps frames instead of settling:
-  /// the delete button spins while the password sheet is open.
+  /// the progress bar runs while the password sheet is open.
   Future<void> confirmDelete(WidgetTester tester) async {
-    await tapButton(tester, 'Eliminar billetera');
+    await openDelete(tester);
     expect(find.textContaining('¿Eliminar «'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
     for (var i = 0; i < 10; i++) {
@@ -174,6 +186,15 @@ void main() {
       expect(find.text('Saldo proyectado a fin de mes'), findsNothing);
       expect(find.text('Presupuestos'), findsOneWidget);
       expect(find.text('Movimientos'), findsOneWidget);
+    });
+
+    testWidgets('lists the wallet movements (COU-231)', (tester) async {
+      final wallet = walletFixture(id: 4);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      when(() => transactions.list(4)).thenAnswer((_) async => TransactionPage([transactionFixture(name: 'Taxi')]));
+      await pumpDetail(tester, wallet);
+      await tester.scrollUntilVisible(find.text('Taxi'), 300);
+      expect(find.text('Taxi'), findsOneWidget);
     });
 
     testWidgets('projection row only with the plan feature', (tester) async {
@@ -287,7 +308,7 @@ void main() {
 
     testWidgets('cancelling the confirmation dialog does not call the API', (tester) async {
       await pumpDetail(tester, wallet);
-      await tapButton(tester, 'Eliminar billetera');
+      await openDelete(tester);
       await tester.tap(find.widgetWithText(FilledButton, 'Cancelar'));
       await tester.pumpAndSettle();
       verifyNever(() => wallets.delete(any(), onReauth: any(named: 'onReauth')));
