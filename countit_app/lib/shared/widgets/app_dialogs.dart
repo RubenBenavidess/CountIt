@@ -44,6 +44,21 @@ Future<bool> showConfirmDialog(
   return confirmed ?? false;
 }
 
+/// «¿Descartar los cambios?» when leaving a form with unsaved edits; pops the
+/// route only when the user confirms.
+Future<void> confirmDiscardChanges(BuildContext context) async {
+  final navigator = Navigator.of(context);
+  final leave = await showConfirmDialog(
+    context,
+    title: '¿Descartar los cambios?',
+    message: 'Tienes cambios sin guardar.',
+    confirmLabel: 'Descartar',
+    cancelLabel: 'Seguir editando',
+    destructive: true,
+  );
+  if (leave) navigator.pop();
+}
+
 /// Bottom sheet of the design (radius 24, grabber, scrim) that grows with the keyboard.
 Future<T?> showAppBottomSheet<T>(BuildContext context, {required WidgetBuilder builder, String? title}) {
   return showModalBottomSheet<T>(

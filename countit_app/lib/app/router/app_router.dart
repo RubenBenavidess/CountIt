@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/dtos/transaction.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
@@ -20,6 +21,7 @@ import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
+import '../../presentation/transactions/view/transaction_form_page.dart';
 import '../../presentation/wallets/view/wallet_detail_page.dart';
 import '../../presentation/wallets/view/wallet_form_page.dart';
 import '../config/app_config.dart';
@@ -50,6 +52,9 @@ abstract final class AppRoutes {
   static String editWallet(int walletId) => '$wallets/$walletId/edit';
   static String newBudget(int walletId) => '$wallets/$walletId/budgets/new';
   static String editBudget(int walletId, int budgetId) => '$wallets/$walletId/budgets/$budgetId/edit';
+  static String newTransaction(int walletId) => '$wallets/$walletId/transactions/new';
+  static String editTransaction(int walletId, int transactionId) =>
+      '$wallets/$walletId/transactions/$transactionId/edit';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -160,6 +165,17 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
             final args = state.extra! as BudgetEditArgs;
             return BudgetFormPage(walletId: _walletId(state)!, initial: args.budget, canDelete: args.canDelete);
           },
+        ),
+        GoRoute(
+          path: 'transactions/new',
+          builder: (context, state) => TransactionFormPage(walletId: _walletId(state)!),
+        ),
+        GoRoute(
+          path: 'transactions/:transactionId/edit',
+          // Edits the transaction the wallet listed; without it, back to the wallet.
+          redirect: (context, state) => state.extra is Transaction ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) =>
+              TransactionFormPage(walletId: _walletId(state)!, initial: state.extra! as Transaction),
         ),
       ],
     ),

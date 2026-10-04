@@ -9,6 +9,7 @@ import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/budget.dart';
+import '../../../data/dtos/transaction.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
@@ -102,6 +103,13 @@ class _WalletDetailView extends StatelessWidget {
     if (saved == true && !budgets.isClosed) unawaited(budgets.load());
   }
 
+  /// Transaction form (register or edit): a save changes the balance, the
+  /// budgets' progress and the list, so all three reload.
+  Future<void> _openTransactionForm(BuildContext context, String location, {Object? extra}) async {
+    final saved = await context.push<bool>(location, extra: extra);
+    if (saved == true && context.mounted) unawaited(_refresh(context));
+  }
+
   /// Pull-to-refresh reloads the wallet, its budgets and its movements together.
   Future<void> _refresh(BuildContext context) => Future.wait([
     context.read<WalletDetailCubit>().load(),
@@ -170,6 +178,15 @@ class _WalletDetailView extends StatelessWidget {
                 ),
             ],
           ),
+          floatingActionButton: wallet == null
+              ? null
+              : FloatingActionButton.extended(
+                  key: const ValueKey('transaction-new'),
+                  tooltip: 'Registrar un movimiento',
+                  onPressed: () => _openTransactionForm(context, AppRoutes.newTransaction(wallet.walletId)),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Movimiento'),
+                ),
           body: wallet == null
               ? (state.wallet.status == LoadStatus.failure && state.exit == null
                     ? ErrorView.failure(state.wallet.failure!, onRetry: context.read<WalletDetailCubit>().load)
@@ -180,6 +197,15 @@ class _WalletDetailView extends StatelessWidget {
                     onLoadMore: context.read<TransactionListCubit>().loadMore,
                     child: _DetailBody(
                       wallet: wallet,
+                      onOpenTransaction: (transaction) {
+                        final userId = context.read<SessionCubit>().state.profile?.userId;
+                        if (!transaction.canBeManagedBy(userId, walletIsOwner: wallet.isOwner)) return;
+                        _openTransactionForm(
+                          context,
+                          AppRoutes.editTransaction(wallet.walletId, transaction.transactionId),
+                          extra: transaction,
+                        );
+                      },
                       onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
                       onOpenBudget: (budget) => _openBudgetForm(
                         context,
@@ -202,9 +228,15 @@ class _WalletDetailView extends StatelessWidget {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.wallet, required this.onCreateBudget, required this.onOpenBudget});
+  const _DetailBody({
+    required this.wallet,
+    required this.onCreateBudget,
+    required this.onOpenBudget,
+    required this.onOpenTransaction,
+  });
 
   final Wallet wallet;
+  final ValueChanged<Transaction> onOpenTransaction;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
 
@@ -249,8 +281,9 @@ class _DetailBody extends StatelessWidget {
           sliver: BudgetSection(onCreate: onCreateBudget, onOpen: onOpenBudget),
         ),
         SliverPadding(
-          padding: padding.copyWith(top: AppSpacing.xxl, bottom: AppSpacing.xxl),
-          sliver: TransactionSection(showAuthor: wallet.isShared),
+          // Room below the last movement for the floating «Movimiento» button.
+          padding: padding.copyWith(top: AppSpacing.xxl, bottom: 96),
+          sliver: TransactionSection(showAuthor: wallet.isShared, onOpen: onOpenTransaction),
         ),
       ],
     );

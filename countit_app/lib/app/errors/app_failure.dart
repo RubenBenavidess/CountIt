@@ -69,6 +69,9 @@ class AppFailure extends Equatable implements Exception {
   /// True when the session is gone and the app must return to login.
   bool get endsSession => kind == FailureKind.unauthenticated;
 
+  /// A plan quota (`<x>_limit_exceeded`, 409): the UI offers the plans.
+  bool get isQuota => key?.endsWith('_limit_exceeded') ?? false;
+
   @override
   List<Object?> get props => [kind, message, key, status, fieldErrors, retryAfter];
 
