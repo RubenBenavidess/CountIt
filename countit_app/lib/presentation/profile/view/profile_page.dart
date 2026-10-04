@@ -16,7 +16,7 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_layout.dart';
 import '../cubit/profile_cubits.dart';
-import 'plan_highlights.dart';
+import 'plan_details.dart';
 
 /// Profile and account actions (HU-05, design Perfil · COU-143, COU-128, COU-148).
 class ProfilePage extends StatelessWidget {
@@ -154,42 +154,126 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final highlights = planHighlights(plan);
+    final palette = context.palette;
+    final quotas = planQuotas(plan);
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('TU PLAN', style: AppTypography.overline.copyWith(color: palette.muted)),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: AppSpacing.md,
+            children: [
+              Expanded(child: Text(plan.name, style: AppTypography.title)),
+              if (plan.validUntil != null)
+                _Pill(icon: Icons.event_outlined, text: 'Vence el ${Dates.date(plan.validUntil!)}'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Divider(height: 1, color: palette.line),
+          const SizedBox(height: AppSpacing.md),
+          Text('LÍMITES', style: AppTypography.overline.copyWith(color: palette.muted)),
+          const SizedBox(height: AppSpacing.xs),
+          for (final quota in quotas) _QuotaRow(quota: quota),
+          const SizedBox(height: AppSpacing.md),
+          Text('FUNCIONES', style: AppTypography.overline.copyWith(color: palette.muted)),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final feature in planFeatures(plan)) _FeatureChip(feature: feature)],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// «Billeteras ··· 10»: icon tile, label on the left, value on the right.
+class _QuotaRow extends StatelessWidget {
+  const _QuotaRow({required this.quota});
+
+  final PlanQuota quota;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
+      child: Row(
         spacing: AppSpacing.md,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('TU PLAN', style: AppTypography.overline.copyWith(color: AppColors.muted)),
-                    Text(plan.name, style: AppTypography.title),
-                  ],
-                ),
-              ),
-              if (plan.validUntil != null)
-                Text(
-                  'Vence el ${Dates.date(plan.validUntil!)}',
-                  style: AppTypography.caption.copyWith(color: AppColors.muted),
-                ),
-            ],
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: palette.surface2, borderRadius: BorderRadius.circular(AppRadii.sm)),
+            child: Icon(quota.icon, size: 18, color: AppColors.lavender),
           ),
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final line in highlights)
-                SizedBox(
-                  width: 150,
-                  child: Text(line, style: AppTypography.caption.copyWith(color: AppColors.muted)),
-                ),
-            ],
-          ),
+          Expanded(child: Text(quota.label, style: AppTypography.caption.copyWith(fontSize: 14))),
+          Text(quota.value, style: AppTypography.label),
+        ],
+      ),
+    );
+  }
+}
+
+/// Feature badge: check when included, lock (muted) when it needs another plan.
+class _FeatureChip extends StatelessWidget {
+  const _FeatureChip({required this.feature});
+
+  final PlanFeature feature;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final color = feature.included ? Theme.of(context).colorScheme.onSurface : palette.muted;
+    return Semantics(
+      label: '${feature.label}: ${feature.included ? 'incluida' : 'no incluida en tu plan'}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
+        decoration: BoxDecoration(
+          color: feature.included ? palette.surface2 : null,
+          border: Border.all(color: palette.line),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.xs + 2,
+          children: [
+            Icon(
+              feature.included ? Icons.check_circle_rounded : Icons.lock_outline_rounded,
+              size: 16,
+              color: feature.included ? AppColors.lavender : palette.muted,
+            ),
+            Text(feature.label, style: AppTypography.caption.copyWith(color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: palette.surface2, borderRadius: BorderRadius.circular(AppRadii.pill)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: AppSpacing.xs,
+        children: [
+          Icon(icon, size: 14, color: palette.muted),
+          Text(text, style: AppTypography.caption.copyWith(fontSize: 12, color: palette.muted)),
         ],
       ),
     );

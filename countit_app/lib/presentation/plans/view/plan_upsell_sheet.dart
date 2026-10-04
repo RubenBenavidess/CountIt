@@ -7,7 +7,7 @@ import '../../../app/theme/tokens.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
-import '../../profile/view/plan_highlights.dart';
+import '../../profile/view/plan_details.dart';
 
 /// Upsell after a plan quota error (`<x>_limit_exceeded`, 409): the backend
 /// [message] plus what the current plan includes.
@@ -40,8 +40,15 @@ Future<void> showPlanUpsell(BuildContext context, {required String message}) {
                 spacing: AppSpacing.xs,
                 children: [
                   Text('TU PLAN: ${plan.name.toUpperCase()}', style: AppTypography.overline.copyWith(color: muted)),
-                  for (final line in planHighlights(plan))
-                    Text('• $line', style: AppTypography.caption.copyWith(color: muted)),
+                  for (final quota in planQuotas(plan))
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(quota.label, style: AppTypography.caption.copyWith(color: muted)),
+                        ),
+                        Text(quota.value, style: AppTypography.label),
+                      ],
+                    ),
                 ],
               ),
             ),

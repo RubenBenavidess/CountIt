@@ -31,7 +31,7 @@ class WelcomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Align(alignment: Alignment.centerLeft, child: Wordmark()),
+                    const Wordmark(),
                     const Spacer(),
                     Semantics(
                       header: true,

@@ -96,7 +96,7 @@ class _PrivacyCurtainState extends State<PrivacyCurtain> with WidgetsBindingObse
           const Positioned.fill(
             child: ColoredBox(
               color: AppColors.ink,
-              child: Center(child: Wordmark(size: 36)),
+              child: Center(child: Wordmark(size: 36, spread: false)),
             ),
           ),
       ],
