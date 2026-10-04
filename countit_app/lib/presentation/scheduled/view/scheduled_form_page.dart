@@ -376,6 +376,14 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
               child: FormScreenBody(
                 content: [
                   if (banner != null) AppBanner(tone: BannerTone.error, message: banner),
+                  AppMoneyField.hero(
+                    label: 'Monto',
+                    income: _type == TransactionType.income,
+                    controller: _amount,
+                    enabled: !busy,
+                    helper: 'En dólares, con hasta 2 decimales.',
+                    errorText: _fieldError(failure, _amountKeys) ?? _amountError,
+                  ),
                   AppChoiceChips<TransactionType>(
                     label: 'Tipo',
                     options: [for (final t in TransactionType.values) AppOption(t, t.label)],
@@ -395,13 +403,6 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
                     enabled: !busy,
                     errorText: _fieldError(failure, _nameKeys),
                     validator: ScheduledValidators.name,
-                  ),
-                  AppMoneyField(
-                    label: 'Monto',
-                    controller: _amount,
-                    enabled: !busy,
-                    helper: 'En dólares, con hasta 2 decimales.',
-                    errorText: _fieldError(failure, _amountKeys) ?? _amountError,
                   ),
                   AppChoiceChips<Periodicity>(
                     key: const ValueKey('scheduled-periodicity'),
