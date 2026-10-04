@@ -73,6 +73,9 @@ class AppTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
+  /// Style of the typed value.
+  static final inputStyle = AppTypography.body.copyWith(fontSize: 16);
+
   @override
   Widget build(BuildContext context) {
     return _Labeled(
@@ -96,7 +99,7 @@ class AppTextField extends StatelessWidget {
         forceErrorText: errorText,
         onChanged: onChanged,
         onFieldSubmitted: onSubmitted,
-        style: AppTypography.body.copyWith(fontSize: 16),
+        style: inputStyle,
         decoration: InputDecoration(
           hintText: hint,
           helperText: helper,
@@ -202,6 +205,9 @@ class AppMoneyField extends StatelessWidget {
   final bool enabled;
   final ValueChanged<String>? onChanged;
 
+  /// Style of the «$» prefix: the input's style ([AppTextField]) in bold.
+  static final prefixStyle = AppTextField.inputStyle.copyWith(fontWeight: FontWeight.w700);
+
   @override
   Widget build(BuildContext context) {
     return AppTextField(
@@ -214,9 +220,12 @@ class AppMoneyField extends StatelessWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [AmountInputFormatter()],
       onChanged: onChanged,
-      prefix: const Padding(
-        padding: EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.xs),
-        child: Text(r'$', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      // The decorator gives prefix icons a 48 px minimum height: without the
+      // Center the «$» would paint at the top of that box, above the value.
+      // Same font, size and line height as the input so both share a baseline.
+      prefix: Padding(
+        padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.xs),
+        child: Center(widthFactor: 1, child: Text(r'$', style: AppMoneyField.prefixStyle)),
       ),
     );
   }

@@ -66,6 +66,17 @@ void main() {
       expect(controller.text, '12,5');
     });
 
+    testWidgets('money field: the «\$» prefix shares the value\'s line box (same baseline)', (tester) async {
+      final controller = TextEditingController(text: '1234,56');
+      addTearDown(controller.dispose);
+      await tester.pumpApp(AppMoneyField(controller: controller));
+      final prefix = tester.getRect(find.text(r'$'));
+      final value = tester.getRect(find.byType(EditableText));
+      expect(prefix.height, moreOrLessEquals(value.height, epsilon: 0.5));
+      expect(prefix.top, moreOrLessEquals(value.top, epsilon: 0.5));
+      expect(prefix.right, lessThan(value.left));
+    });
+
     testWidgets('date field shows the date in Spanish and a placeholder', (tester) async {
       await tester.pumpApp(
         Column(
