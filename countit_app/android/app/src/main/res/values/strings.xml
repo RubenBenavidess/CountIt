@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification channel shown in the system settings (COU-106). -->
+    <string name="notification_channel_name">Count It!</string>
+    <string name="notification_channel_description">Invitaciones, presupuestos, pagos programados, tu plan y la seguridad de tu cuenta</string>
+</resources>

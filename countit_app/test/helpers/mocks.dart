@@ -7,9 +7,11 @@ import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/family_repository.dart';
 import 'package:countit_app/data/repositories/notification_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
+import 'package:countit_app/data/repositories/push_device_repository.dart';
 import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
+import 'package:countit_app/shared/platform/notification_permission.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -32,6 +34,10 @@ class MockScheduledTransactionRepository extends Mock implements ScheduledTransa
 class MockFamilyRepository extends Mock implements FamilyRepository {}
 
 class MockNotificationRepository extends Mock implements NotificationRepository {}
+
+class MockPushDeviceRepository extends Mock implements PushDeviceRepository {}
+
+class MockNotificationPermission extends Mock implements NotificationPermission {}
 
 class MockAnalysisRepository extends Mock implements AnalysisRepository {}
 

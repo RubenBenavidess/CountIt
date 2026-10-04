@@ -15,6 +15,7 @@ import '../../../shared/widgets/app_layout.dart';
 import '../../../shared/widgets/load_more_listener.dart';
 import '../cubit/notifications_cubit.dart';
 import 'widgets/notification_tile.dart';
+import 'widgets/push_permission_card.dart';
 
 /// «Notificaciones» (HU-31 · COU-108, COU-181, COU-180): the inbox, newest
 /// first, paged while scrolling and live with Realtime. Opening one marks it
@@ -47,6 +48,10 @@ class NotificationsPage extends StatelessWidget {
               key: const PageStorageKey('notifications'),
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 0),
+                  sliver: SliverToBoxAdapter(child: PushPermissionCard()),
+                ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screen,

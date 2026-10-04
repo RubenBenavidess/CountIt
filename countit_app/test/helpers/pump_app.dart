@@ -1,6 +1,7 @@
 import 'package:countit_app/app/app.dart';
 import 'package:countit_app/app/config/app_config.dart';
 import 'package:countit_app/app/errors/app_failure.dart';
+import 'package:countit_app/app/push/push_messaging.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/dtos/notification.dart';
@@ -19,6 +20,7 @@ import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
 import 'package:countit_app/presentation/families/cubit/invitations_cubit.dart';
 import 'package:countit_app/presentation/notifications/cubit/notifications_cubit.dart';
+import 'package:countit_app/shared/platform/notification_permission.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -56,6 +58,8 @@ extension PumpApp on WidgetTester {
     InvitationsCubit? invitations,
     NotificationRepository? notifications,
     NotificationsCubit? notificationsCubit,
+    PushMessaging pushMessaging = const NoopPushMessaging(),
+    NotificationPermission? notificationPermission,
     GoRouter? router,
     Stream<AppFailure>? planNotices,
     AppConfig config = testConfig,
@@ -104,6 +108,10 @@ extension PumpApp on WidgetTester {
           ),
           RepositoryProvider<FamilyRepository>.value(value: familyRepository),
           RepositoryProvider<NotificationRepository>.value(value: notificationRepository),
+          RepositoryProvider<PushMessaging>.value(value: pushMessaging),
+          RepositoryProvider<NotificationPermission>.value(
+            value: notificationPermission ?? MockNotificationPermission(),
+          ),
           RepositoryProvider<AnalysisRepository>.value(value: analysis ?? MockAnalysisRepository()),
           RepositoryProvider<AdminRepository>.value(value: admin ?? MockAdminRepository()),
         ],

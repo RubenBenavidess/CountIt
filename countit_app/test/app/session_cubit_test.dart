@@ -151,4 +151,47 @@ void main() {
     act: (c) => changes.add(SessionChange.signedIn),
     expect: () => [const SessionState.authenticated(_profile)],
   );
+
+  group('push hooks (COU-178)', () {
+    late List<String> order;
+
+    SessionCubit withHooks() => SessionCubit(
+      auth: auth,
+      profiles: profiles,
+      beforeSignOut: () async => order.add('unregister'),
+      onSessionLost: () async => order.add('lost'),
+    );
+
+    setUp(() {
+      order = [];
+      when(() => auth.signOut()).thenAnswer((_) async => order.add('signOut'));
+      when(() => auth.hasSession).thenReturn(true);
+      when(() => profiles.fetchMyProfile()).thenAnswer((_) async => _profile);
+    });
+
+    test('signing out unregisters the device before the session is closed', () async {
+      final cubit = withHooks();
+      addTearDown(cubit.close);
+      await cubit.restore();
+      await cubit.signOut();
+      expect(order, ['unregister', 'signOut']);
+    });
+
+    test('a 401 only reports the lost session (no server call is possible)', () async {
+      final cubit = withHooks();
+      addTearDown(cubit.close);
+      await cubit.restore();
+      await cubit.sessionEnded(_revoked);
+      expect(order, ['lost', 'signOut']);
+    });
+
+    test('signed out by the SDK (refresh rejected): session lost', () async {
+      final cubit = withHooks();
+      addTearDown(cubit.close);
+      await cubit.restore();
+      changes.add(SessionChange.signedOut);
+      await pumpEventQueue();
+      expect(order, ['lost']);
+    });
+  });
 }

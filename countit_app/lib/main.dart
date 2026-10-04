@@ -8,6 +8,9 @@ import 'app/app.dart';
 import 'app/config/app_config.dart';
 import 'app/links/auth_links.dart';
 import 'app/plans/plan_gate.dart';
+import 'app/push/push_messaging.dart';
+import 'app/push/push_open_handler.dart';
+import 'app/push/push_token_service.dart';
 import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'app/session/session_state.dart';
@@ -23,11 +26,13 @@ import 'data/repositories/budget_repository.dart';
 import 'data/repositories/family_repository.dart';
 import 'data/repositories/notification_repository.dart';
 import 'data/repositories/profile_repository.dart';
+import 'data/repositories/push_device_repository.dart';
 import 'data/repositories/scheduled_transaction_repository.dart';
 import 'data/repositories/transaction_repository.dart';
 import 'data/repositories/wallet_repository.dart';
 import 'presentation/families/cubit/invitations_cubit.dart';
 import 'presentation/notifications/cubit/notifications_cubit.dart';
+import 'shared/platform/notification_permission.dart';
 import 'shared/utils/dates.dart';
 
 Future<void> main() async {
@@ -54,7 +59,18 @@ Future<void> main() async {
   final FamilyRepository families = SupabaseFamilyRepository(api, realtime);
   final NotificationRepository notificationRepository = SupabaseNotificationRepository(api, realtime);
 
-  final session = SessionCubit(auth: auth, profiles: profiles);
+  // Push (HU-31): no-op until Firebase is configured (docs/PUSH.md); the
+  // token service, permission and open handler are already wired.
+  const PushMessaging messaging = NoopPushMessaging();
+  const NotificationPermission notificationPermission = PlatformNotificationPermission();
+  final pushTokens = PushTokenService(messaging: messaging, devices: SupabasePushDeviceRepository(api));
+
+  final session = SessionCubit(
+    auth: auth,
+    profiles: profiles,
+    beforeSignOut: pushTokens.signingOut,
+    onSessionLost: pushTokens.sessionLost,
+  );
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
   // A 403 feature_not_in_plan means the plan we know is stale or lacks the
   // function: offer the plans and reload the profile (COU-183).
@@ -75,7 +91,15 @@ Future<void> main() async {
     final user = signedInUser(state);
     unawaited(invitations.setUser(user));
     unawaited(notifications.setUser(user));
+    unawaited(pushTokens.setUser(user));
   });
+  final pushes = PushOpenHandler(
+    messaging: messaging,
+    isSignedIn: () => session.state.status == SessionStatus.authenticated,
+    navigate: (location) => navigateForNotification(router, location),
+    markRead: notifications.markReadById,
+    refreshInbox: () => unawaited(notifications.load()),
+  );
   // Back from the background: notifications may have arrived meanwhile.
   AppLifecycleListener(onResume: () => unawaited(notifications.load()));
   final links = AppLinks();
@@ -83,9 +107,10 @@ Future<void> main() async {
   // Links wait for the restored session: otherwise the splash redirect would
   // swallow a cold-start link.
   unawaited(
-    session.restore().whenComplete(
-      () => linkHandler.listen(initial: links.getInitialLink(), links: links.uriLinkStream),
-    ),
+    session.restore().whenComplete(() {
+      unawaited(linkHandler.listen(initial: links.getInitialLink(), links: links.uriLinkStream));
+      unawaited(pushes.start());
+    }),
   );
 
   runApp(
@@ -102,6 +127,8 @@ Future<void> main() async {
         RepositoryProvider.value(value: scheduled),
         RepositoryProvider.value(value: families),
         RepositoryProvider.value(value: notificationRepository),
+        RepositoryProvider.value(value: messaging),
+        RepositoryProvider.value(value: notificationPermission),
         RepositoryProvider.value(value: analysis),
         RepositoryProvider.value(value: admin),
       ],
@@ -111,7 +138,7 @@ Future<void> main() async {
           BlocProvider.value(value: invitations),
           BlocProvider.value(value: notifications),
         ],
-        child: CountItApp(router: router, planNotices: planNotices.featureNotInPlan),
+        child: CountItApp(router: router, planNotices: planNotices.featureNotInPlan, pushNotices: pushes.notices),
       ),
     ),
   );

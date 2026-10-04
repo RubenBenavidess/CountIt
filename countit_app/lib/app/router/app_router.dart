@@ -343,6 +343,17 @@ void navigateForAuthLink(GoRouter router, AuthLinkDestination destination) {
   }
 }
 
+/// Opens a notification's (validated) location from outside the widget tree
+/// (a tapped push): the inbox is a tab, every other destination is pushed
+/// over the current screen so back returns to it.
+void navigateForNotification(GoRouter router, String location) {
+  if (location == AppRoutes.notifications) {
+    router.go(location);
+  } else {
+    unawaited(router.push<Object?>(location));
+  }
+}
+
 /// Re-runs the router redirect whenever the session changes.
 class _StreamListenable extends ChangeNotifier {
   _StreamListenable(Stream<Object?> stream) {

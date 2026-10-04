@@ -11,10 +11,10 @@
 | Integración en dispositivo (más adelante, Q3 · COU-120) | `integration_test/` | `integration_test` |
 
 ## Utilidades (`test/helpers`)
-- `pumpApp(widget, {auth, profiles, wallets, banks, budgets, transactions, scheduled, families, notifications, notificationsCubit, analysis, session, router, config, themeMode})`: monta el widget con el tema del diseño, locale
+- `pumpApp(widget, {auth, profiles, wallets, banks, budgets, transactions, scheduled, families, notifications, notificationsCubit, pushMessaging, notificationPermission, analysis, session, router, config, themeMode})`: monta el widget con el tema del diseño, locale
   es-EC y los `RepositoryProvider`/`BlocProvider` de la raíz. Por defecto usa mocks; pasa los tuyos para controlar
   respuestas. Con `router` monta la app completa para probar navegación.
-- `mocks.dart`: `MockAuthRepository`, `MockProfileRepository`, `MockWalletRepository`, `MockBankRepository`, `MockBudgetRepository`, `MockTransactionRepository`, `MockScheduledTransactionRepository`, `MockAnalysisRepository`, `MockFamilyRepository` (`noFamilies()` en `pump_app.dart`: sin miembros ni invitaciones), `MockNotificationRepository` (`noNotifications()`: bandeja vacía), `MockApiClient`, `MockSecureStorage` (mocktail).
+- `mocks.dart`: `MockAuthRepository`, `MockProfileRepository`, `MockWalletRepository`, `MockBankRepository`, `MockBudgetRepository`, `MockTransactionRepository`, `MockScheduledTransactionRepository`, `MockAnalysisRepository`, `MockFamilyRepository` (`noFamilies()` en `pump_app.dart`: sin miembros ni invitaciones), `MockNotificationRepository` (`noNotifications()`: bandeja vacía), `MockPushDeviceRepository`, `MockNotificationPermission`; `FakePushMessaging` (`fake_push_messaging.dart`) controla tokens, rotaciones y mensajes push, `MockApiClient`, `MockSecureStorage` (mocktail).
 
 ## Convenciones
 - Nombres de test en inglés, describiendo el comportamiento: `'reauth cancelled: nothing is retried'`.
