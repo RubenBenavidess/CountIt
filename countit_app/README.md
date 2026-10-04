@@ -25,7 +25,12 @@ flutter run --flavor local --dart-define-from-file=env/local.json
 flutter run --flavor staging --dart-define-from-file=env/staging.json
 ```
 La configuración solo lleva valores públicos: URL y *anon key* de Supabase y, cuando se active el captcha (COU-25),
-`TURNSTILE_SITE_KEY`. Nada secreto va en la app. Los flavors de iOS (schemes y xcconfig) quedan pendientes: requieren
+`TURNSTILE_SITE_KEY` + `TURNSTILE_BASE_URL` (https de un hostname permitido en el sitio de Turnstile; la página del
+widget se carga bajo ese origen). Sin site key los formularios no muestran captcha. Nada secreto va en la app.
+
+**Enlaces de los correos** (`countit://auth/confirmed`, `countit://auth/reset-password`): el backend los usa si tiene
+`AUTH_EMAIL_REDIRECT_URL` y `PASSWORD_RESET_REDIRECT_URL` (ver su README) y la URL está en *Redirect URLs* de Auth.
+Probar en un emulador: `adb shell am start -W -a android.intent.action.VIEW -d "countit://auth/confirmed" ec.countit.app.local`. Los flavors de iOS (schemes y xcconfig) quedan pendientes: requieren
 Xcode para crearlos y verificarlos.
 
 ## Calidad
@@ -59,6 +64,10 @@ CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK d
 | Logs solo en debug y con tokens, contraseñas y correos ocultos | `lib/app/logging/app_logger.dart` |
 | Capturas y grabación bloqueadas en pantallas sensibles (`SecureScreen`); contenido oculto en el selector de apps (`PrivacyCurtain`) | `lib/shared/widgets/secure_screen.dart` |
 | Builds de release ofuscados con símbolos aparte | `scripts/build_release.sh` |
+| Captcha Turnstile en webview: site key validada, navegación limitada al origen del reto, token de un solo uso | `lib/shared/widgets/turnstile_field.dart` |
+| El enlace de confirmación no inicia sesión (el login pasa por la Edge Function); el de recuperación solo abre «nueva contraseña» | `lib/app/links/auth_links.dart`, `redirectFor` |
+| Contraseñas sin autocorrección ni sugerencias del teclado; mensajes de login y recuperación que no revelan si el correo existe | `AppTextField`, pantallas de `presentation/auth` |
+| 429: el botón se bloquea con cuenta regresiva según `Retry-After` | `ApiClient.invoke`, `CooldownButton` |
 
 Pendiente (Linear, Q2 · Seguridad móvil): App Links/Universal Links verificados en lugar de solo `countit://`
 (requiere dominio, COU-109), detección informativa de root/jailbreak (COU-116), firma de release (COU-58),
@@ -70,15 +79,20 @@ Capas `app/` (composición: config, tema, router, errores, sesión), `data/` (cl
 Cada carpeta tiene su README con reglas.
 
 - **Backend:** `ApiClient` (`lib/data/remote`) es la única puerta: RPC y vistas del esquema `api`, Edge Functions con
-  `x-device-id`, y todo error convertido en `AppFailure` (mensaje en español + clave estable del backend, `lib/app/errors`).
+  `x-device-id` (cliente HTTP propio para leer `Retry-After`), y todo error convertido en `AppFailure` (mensaje en español + clave estable del backend, `lib/app/errors`).
   Un 401 avisa a `SessionCubit`, que cierra la sesión y lleva al login. Las acciones destructivas pasan `onReauth`:
   ante `403 reauth_required` se pide la contraseña y se reintenta una vez.
 - **Sesión:** el login va por la Edge Function `login` y la sesión se entrega al SDK con `setSession`; se guarda en el
-  almacenamiento seguro del sistema (`SecureSessionStorage`).
+  almacenamiento seguro del sistema (`SecureSessionStorage`). `SessionCubit` tiene un estado `passwordRecovery` para el
+  enlace de recuperación; `AuthLinkHandler` (`lib/app/links`) traduce los enlaces de los correos en navegación.
+- **Formularios:** `SubmitCubit` (`lib/shared/state`) es la plantilla de todo formulario que envía una petición
+  (estado de carga, error con mensajes por campo, cuenta regresiva del 429, doble toque ignorado); `Validators`
+  replica las reglas del backend y `FormScreenBody` fija la acción principal abajo sin romper el teclado.
 - **Componentes** (`lib/shared/widgets`): `AppButton`, campos (`AppTextField`, `AppPasswordField`, `AppMoneyField`
   con máximo 2 decimales, `AppDateField`, `AppDropdownField`), `AppCard`, `AppBadge`, `AppProgressBar`,
   `showConfirmDialog` (devuelve `bool`), `showAppBottomSheet`, `EmptyState`/`LoadingView`/`ErrorView`,
-  `LoadStateView` para el `LoadState<T>` de los Cubits y `showAppSnackBar` (no se apilan).
-- **Formato** (`lib/shared/utils`): `Money` (`$3,836.80`, como el diseño; signo `+`/`−` en movimientos) y `Dates`
+  `LoadStateView` para el `LoadState<T>` de los Cubits y `showAppSnackBar` (no se apilan), `AppBanner`, `AppTopBar`,
+  `AppLink`, `CooldownButton`, `PasswordChecklist`, `IconTile` y `CaptchaSlot`/`TurnstileField`.
+- **Formato** (`lib/shared/utils`): `Money` (`$1.234,56`, estilo ecuatoriano acordado en COU-18; signo `+`/`−` en movimientos) y `Dates`
   (español, «Hoy»/«Ayer», y el «hoy» en la zona horaria del perfil, con America/Guayaquil por defecto).
 - **Navegación:** `go_router` con redirecciones por sesión y rol (`lib/app/router`).

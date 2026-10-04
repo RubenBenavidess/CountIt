@@ -21,6 +21,7 @@ const _url = String.fromEnvironment('LIVE_API_URL');
 const _anonKey = String.fromEnvironment('LIVE_ANON_KEY');
 const _email = String.fromEnvironment('LIVE_EMAIL');
 const _password = String.fromEnvironment('LIVE_PASSWORD');
+final _functionsUrl = Uri.parse('$_url/functions/v1');
 
 void main() {
   final skip = _url.isEmpty || _anonKey.isEmpty || _email.isEmpty || _password.isEmpty
@@ -40,7 +41,7 @@ void main() {
       postgrestOptions: const PostgrestClientOptions(schema: 'api'),
       authOptions: const AuthClientOptions(autoRefreshToken: false),
     );
-    api = ApiClient(client, deviceId: 'live-contract-test')..onSessionEnded = ended.add;
+    api = ApiClient(client, functionsUrl: _functionsUrl, deviceId: 'live-contract-test')..onSessionEnded = ended.add;
     auth = SupabaseAuthRepository(api);
     profiles = SupabaseProfileRepository(api);
   });
@@ -50,6 +51,27 @@ void main() {
       auth.login(email: _email, password: 'Wrong2026x'),
       throwsA(isA<AppFailure>().having((f) => f.key, 'key', 'invalid_credentials')),
     );
+  }, skip: skip);
+
+  test('register validation errors arrive per field (COU-105)', () async {
+    await expectLater(
+      auth.register(
+        email: 'live-contract@example.com',
+        password: 'Quito2026',
+        username: 'x',
+        firstName: 'Live',
+        lastName: 'Contract',
+      ),
+      throwsA(
+        isA<AppFailure>()
+            .having((f) => f.kind, 'kind', FailureKind.validation)
+            .having((f) => f.fieldErrors.keys, 'fields', contains('username')),
+      ),
+    );
+  }, skip: skip);
+
+  test('password reset request answers generically (COU-133)', () async {
+    await auth.requestPasswordReset(email: 'nobody-${DateTime.now().millisecondsSinceEpoch}@example.com');
   }, skip: skip);
 
   test('login through the Edge Function hands the session to the SDK; profile over schema api', () async {
@@ -104,7 +126,8 @@ void main() {
       authOptions: const AuthClientOptions(autoRefreshToken: false),
     );
     final otherEnded = <AppFailure>[];
-    final otherApi = ApiClient(other, deviceId: 'live-contract-test-b')..onSessionEnded = otherEnded.add;
+    final otherApi = ApiClient(other, functionsUrl: _functionsUrl, deviceId: 'live-contract-test-b')
+      ..onSessionEnded = otherEnded.add;
     await SupabaseAuthRepository(otherApi).login(email: _email, password: _password);
     await SupabaseProfileRepository(otherApi).fetchMyProfile();
 

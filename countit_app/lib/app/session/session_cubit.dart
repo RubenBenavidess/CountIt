@@ -17,7 +17,7 @@ class SessionCubit extends Cubit<SessionState> {
 
   final AuthRepository _auth;
   final ProfileRepository _profiles;
-  late final StreamSubscription<bool> _subscription;
+  late final StreamSubscription<SessionChange> _subscription;
 
   /// Decides the first route: profile when a session was restored, else login.
   Future<void> restore() async {
@@ -62,11 +62,25 @@ class SessionCubit extends Cubit<SessionState> {
     emit(const SessionState.unauthenticated());
   }
 
-  void _onSessionChanged(bool hasSession) {
-    if (hasSession && state.status != SessionStatus.authenticated) {
-      unawaited(refreshProfile());
-    } else if (!hasSession && state.status == SessionStatus.authenticated) {
-      emit(const SessionState.unauthenticated());
+  /// The new password was saved with the recovery session: enter the app
+  /// (design «Guardar y entrar»).
+  Future<void> recoveryCompleted() => refreshProfile();
+
+  void _onSessionChanged(SessionChange change) {
+    switch (change) {
+      case SessionChange.passwordRecovery:
+        emit(const SessionState.passwordRecovery());
+      case SessionChange.signedIn:
+        // A recovery session must not open the app before the new password is set.
+        if (state.status != SessionStatus.authenticated && state.status != SessionStatus.passwordRecovery) {
+          unawaited(refreshProfile());
+        }
+      case SessionChange.signedOut:
+        if (state.status != SessionStatus.unauthenticated && state.status != SessionStatus.unknown) {
+          emit(const SessionState.unauthenticated());
+        }
+      case SessionChange.updated:
+        break;
     }
   }
 

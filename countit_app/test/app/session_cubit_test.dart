@@ -31,12 +31,12 @@ const _revoked = AppFailure(
 void main() {
   late _MockAuth auth;
   late _MockProfiles profiles;
-  late StreamController<bool> changes;
+  late StreamController<SessionChange> changes;
 
   setUp(() {
     auth = _MockAuth();
     profiles = _MockProfiles();
-    changes = StreamController<bool>.broadcast();
+    changes = StreamController<SessionChange>.broadcast();
     when(() => auth.sessionChanges).thenAnswer((_) => changes.stream);
     when(() => auth.signOut()).thenAnswer((_) async {});
   });
@@ -104,7 +104,7 @@ void main() {
     'the SDK dropping the session (e.g. refresh token revoked) signs out',
     build: build,
     seed: () => const SessionState.authenticated(_profile),
-    act: (c) => changes.add(false),
+    act: (c) => changes.add(SessionChange.signedOut),
     expect: () => [const SessionState.unauthenticated()],
   );
 
@@ -116,5 +116,39 @@ void main() {
     seed: () => const SessionState.authenticated(_profile),
     act: (c) => c.signOut(),
     expect: () => [const SessionState.unauthenticated()],
+  );
+
+  blocTest<SessionCubit, SessionState>(
+    'the reset-password link opens the recovery state, not the app',
+    build: build,
+    seed: () => const SessionState.unauthenticated(),
+    act: (c) async {
+      changes.add(SessionChange.passwordRecovery);
+      await Future<void>.delayed(Duration.zero);
+      // Token refreshes or a late signedIn event must not leave the recovery screen.
+      changes
+        ..add(SessionChange.updated)
+        ..add(SessionChange.signedIn);
+    },
+    expect: () => [const SessionState.passwordRecovery()],
+    verify: (_) => verifyNever(() => profiles.fetchMyProfile()),
+  );
+
+  blocTest<SessionCubit, SessionState>(
+    'after the new password is saved the profile loads and the app opens',
+    setUp: () => when(() => profiles.fetchMyProfile()).thenAnswer((_) async => _profile),
+    build: build,
+    seed: () => const SessionState.passwordRecovery(),
+    act: (c) => c.recoveryCompleted(),
+    expect: () => [const SessionState.authenticated(_profile)],
+  );
+
+  blocTest<SessionCubit, SessionState>(
+    'a sign-in event loads the profile once',
+    setUp: () => when(() => profiles.fetchMyProfile()).thenAnswer((_) async => _profile),
+    build: build,
+    seed: () => const SessionState.unauthenticated(),
+    act: (c) => changes.add(SessionChange.signedIn),
+    expect: () => [const SessionState.authenticated(_profile)],
   );
 }

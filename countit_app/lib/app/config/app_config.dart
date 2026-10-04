@@ -20,6 +20,7 @@ class AppConfig {
     required this.supabaseUrl,
     required this.supabaseAnonKey,
     this.turnstileSiteKey,
+    this.turnstileBaseUrl,
   });
 
   /// Reads the compile-time defines; fails fast when a build forgot them.
@@ -28,7 +29,14 @@ class AppConfig {
     const url = String.fromEnvironment('SUPABASE_URL');
     const anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
     const turnstile = String.fromEnvironment('TURNSTILE_SITE_KEY');
-    return AppConfig.fromValues(env: env, url: url, anonKey: anonKey, turnstileSiteKey: turnstile);
+    const turnstileBase = String.fromEnvironment('TURNSTILE_BASE_URL');
+    return AppConfig.fromValues(
+      env: env,
+      url: url,
+      anonKey: anonKey,
+      turnstileSiteKey: turnstile,
+      turnstileBaseUrl: turnstileBase,
+    );
   }
 
   /// Validates raw values (used by [AppConfig.fromEnvironment] and tests).
@@ -37,6 +45,7 @@ class AppConfig {
     required String url,
     required String anonKey,
     String turnstileSiteKey = '',
+    String turnstileBaseUrl = '',
   }) {
     if (env.isEmpty || url.isEmpty || anonKey.isEmpty) {
       throw StateError('Missing build configuration: run with --dart-define-from-file=env/<local|staging|prod>.json');
@@ -49,11 +58,27 @@ class AppConfig {
     if (environment != AppEnvironment.local && uri.scheme != 'https') {
       throw ArgumentError.value(url, 'SUPABASE_URL', 'staging and prod require https');
     }
+    Uri? captchaBase;
+    if (turnstileSiteKey.isNotEmpty) {
+      // The key is interpolated into the widget page: only Cloudflare's alphabet.
+      if (!RegExp(r'^[0-9A-Za-z_-]{1,100}$').hasMatch(turnstileSiteKey)) {
+        throw ArgumentError.value(turnstileSiteKey, 'TURNSTILE_SITE_KEY', 'invalid site key');
+      }
+      captchaBase = Uri.tryParse(turnstileBaseUrl);
+      if (captchaBase == null || captchaBase.scheme != 'https' || captchaBase.host.isEmpty) {
+        throw ArgumentError.value(
+          turnstileBaseUrl,
+          'TURNSTILE_BASE_URL',
+          'https URL of a hostname allowed in Turnstile',
+        );
+      }
+    }
     return AppConfig(
       environment: environment,
       supabaseUrl: url,
       supabaseAnonKey: anonKey,
       turnstileSiteKey: turnstileSiteKey.isEmpty ? null : turnstileSiteKey,
+      turnstileBaseUrl: captchaBase,
     );
   }
 
@@ -64,6 +89,12 @@ class AppConfig {
   /// Cloudflare Turnstile site key (public). Null while Auth has no captcha
   /// enabled (local, and staging until COU-25); then the app skips the widget.
   final String? turnstileSiteKey;
+
+  /// Origin the widget page is loaded under; Turnstile only issues tokens for
+  /// hostnames listed in its site settings.
+  final Uri? turnstileBaseUrl;
+
+  bool get captchaEnabled => turnstileSiteKey != null;
 
   bool get isProduction => environment == AppEnvironment.prod;
 }

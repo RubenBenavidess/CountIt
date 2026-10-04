@@ -2,14 +2,26 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../remote/api_client.dart';
 
+/// What happened to the SDK session; [SessionCubit] decides what it means.
+enum SessionChange {
+  signedIn,
+
+  /// Opened from the password-reset e-mail: only a new password may be set.
+  passwordRecovery,
+
+  /// Tokens refreshed or user updated: same person, same state.
+  updated,
+  signedOut,
+}
+
 /// Authentication through the backend Edge Functions (rate limiting, captcha
 /// and lockout live there) with the session kept by the Supabase SDK.
 abstract interface class AuthRepository {
   /// True when a session (restored from secure storage or fresh) exists.
   bool get hasSession;
 
-  /// Emits whenever the SDK session changes (sign-in, refresh, sign-out).
-  Stream<bool> get sessionChanges;
+  /// Emits whenever the SDK session changes.
+  Stream<SessionChange> get sessionChanges;
 
   Future<void> login({required String email, required String password, String? captchaToken});
 
@@ -27,6 +39,13 @@ abstract interface class AuthRepository {
   /// Opens the 5-minute safe mode for the current session (HU-06).
   Future<DateTime> reauthenticate(String password);
 
+  /// Adopts the recovery session carried by `countit://auth/reset-password#…`
+  /// (emits [SessionChange.passwordRecovery]). Throws when the link expired.
+  Future<void> recoverSession(Uri link);
+
+  /// Sets the password with the current (recovery) session; Auth applies its policy.
+  Future<void> setNewPassword(String password);
+
   /// Local sign-out: forgets the session on this device.
   Future<void> signOut();
 }
@@ -42,7 +61,15 @@ class SupabaseAuthRepository implements AuthRepository {
   bool get hasSession => _auth.currentSession != null;
 
   @override
-  Stream<bool> get sessionChanges => _auth.onAuthStateChange.map((state) => state.session != null);
+  Stream<SessionChange> get sessionChanges => _auth.onAuthStateChange.map(
+    (state) => switch (state.event) {
+      AuthChangeEvent.passwordRecovery => SessionChange.passwordRecovery,
+      AuthChangeEvent.signedOut => SessionChange.signedOut,
+      AuthChangeEvent.initialSession || AuthChangeEvent.signedIn when state.session != null => SessionChange.signedIn,
+      AuthChangeEvent.initialSession || AuthChangeEvent.signedIn => SessionChange.signedOut,
+      _ => SessionChange.updated,
+    },
+  );
 
   @override
   Future<void> login({required String email, required String password, String? captchaToken}) async {
@@ -87,6 +114,12 @@ class SupabaseAuthRepository implements AuthRepository {
     final expiresAt = data is Map ? data['expiresAt'] : null;
     return expiresAt is String ? DateTime.parse(expiresAt) : DateTime.now().add(const Duration(minutes: 5));
   }
+
+  @override
+  Future<void> recoverSession(Uri link) => _api.run(() => _auth.getSessionFromUrl(link));
+
+  @override
+  Future<void> setNewPassword(String password) => _api.run(() => _auth.updateUser(UserAttributes(password: password)));
 
   @override
   Future<void> signOut() => _api.run(() => _auth.signOut());

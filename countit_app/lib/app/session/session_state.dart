@@ -11,6 +11,9 @@ enum SessionStatus {
 
   /// No session: login and the public auth screens only.
   unauthenticated,
+
+  /// Signed in through the password-reset link: the new-password screen only.
+  passwordRecovery,
 }
 
 class SessionState extends Equatable {
@@ -22,6 +25,8 @@ class SessionState extends Equatable {
 
   /// [message] explains an involuntary sign-out (e.g. the session was closed elsewhere).
   const SessionState.unauthenticated({String? message}) : this._(SessionStatus.unauthenticated, message: message);
+
+  const SessionState.passwordRecovery() : this._(SessionStatus.passwordRecovery);
 
   final SessionStatus status;
   final Profile? profile;

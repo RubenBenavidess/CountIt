@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/errors/error_mapper.dart';
+import 'package:countit_app/data/remote/edge_function_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -150,5 +152,73 @@ void main() {
   test('an AppFailure passes through untouched', () {
     const f = AppFailure(kind: FailureKind.notFound, message: 'x');
     expect(ErrorMapper.map(f), same(f));
+  });
+
+  group('Edge Functions (own HTTP client, COU-63)', () {
+    test('429 carries Retry-After to the UI', () {
+      final f = ErrorMapper.map(
+        const EdgeFunctionException(
+          status: 429,
+          body: {'error': 'Demasiados intentos', 'code': 'rate_limited'},
+          retryAfter: Duration(seconds: 900),
+        ),
+      );
+      expect(f.kind, FailureKind.rateLimited);
+      expect(f.retryAfter, const Duration(seconds: 900));
+      expect(f.message, 'Demasiados intentos');
+    });
+
+    test('validationErrors become per-field messages', () {
+      final f = ErrorMapper.map(
+        const EdgeFunctionException(
+          status: 400,
+          body: {
+            'code': 'validation_error',
+            'error': 'Errores de validación',
+            'validationErrors': [
+              {'field': 'username', 'message': 'El nombre de usuario debe tener al menos 5 caracteres'},
+            ],
+          },
+        ),
+      );
+      expect(f.kind, FailureKind.validation);
+      expect(f.fieldErrors['username'], 'El nombre de usuario debe tener al menos 5 caracteres');
+    });
+
+    test('captcha_failed has a Spanish fallback', () {
+      final f = ErrorMapper.map(const EdgeFunctionException(status: 400, body: {'code': 'captcha_failed'}));
+      expect(f.message, ErrorMapper.messages['captcha_failed']);
+    });
+
+    test('Retry-After parsing', () {
+      expect(EdgeFunctionException.parseRetryAfter('42'), const Duration(seconds: 42));
+      expect(EdgeFunctionException.parseRetryAfter(' 7 '), const Duration(seconds: 7));
+      expect(EdgeFunctionException.parseRetryAfter('0'), isNull);
+      expect(EdgeFunctionException.parseRetryAfter('Wed, 21 Oct 2026 07:28:00 GMT'), isNull);
+      expect(EdgeFunctionException.parseRetryAfter(null), isNull);
+    });
+
+    test('a dropped connection is a network failure', () {
+      expect(ErrorMapper.map(http.ClientException('Connection reset')).kind, FailureKind.network);
+    });
+  });
+
+  group('Supabase Auth with the recovery session', () {
+    test('same or weak password and expired links get Spanish messages', () {
+      expect(
+        ErrorMapper.map(
+          const AuthException('New password should be different', statusCode: '422', code: 'same_password'),
+        ).message,
+        'La nueva contraseña debe ser diferente a la actual',
+      );
+      expect(
+        ErrorMapper.map(AuthWeakPasswordException(message: 'weak', statusCode: '422', reasons: const [])).kind,
+        FailureKind.validation,
+      );
+      expect(
+        ErrorMapper.map(const AuthException('expired', statusCode: '403', code: 'otp_expired')).message,
+        ErrorMapper.messages['otp_expired'],
+      );
+    });
   });
 }

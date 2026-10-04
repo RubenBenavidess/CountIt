@@ -46,7 +46,7 @@ void main() {
   });
 
   testWidgets('PrivacyCurtain hides the content when the app leaves the foreground', (tester) async {
-    await tester.pumpApp(const PrivacyCurtain(child: Text(r'Saldo $2,140.50')));
+    await tester.pumpApp(const PrivacyCurtain(child: Text(r'Saldo $2.140,50')));
     expect(find.bySemanticsLabel('Count It!'), findsNothing);
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);

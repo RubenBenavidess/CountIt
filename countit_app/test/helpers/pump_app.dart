@@ -1,4 +1,5 @@
 import 'package:countit_app/app/app.dart';
+import 'package:countit_app/app/config/app_config.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
@@ -12,6 +13,13 @@ import 'package:mocktail/mocktail.dart';
 
 import 'mocks.dart';
 
+/// Local config without captcha (the Turnstile webview cannot run in widget tests).
+const testConfig = AppConfig(
+  environment: AppEnvironment.local,
+  supabaseUrl: 'http://localhost:54321',
+  supabaseAnonKey: 'anon',
+);
+
 extension PumpApp on WidgetTester {
   /// Pumps [widget] the way the app runs it: dark theme of the design,
   /// es-EC locale and the root providers, each replaceable by a fake.
@@ -23,6 +31,7 @@ extension PumpApp on WidgetTester {
     ProfileRepository? profiles,
     SessionCubit? session,
     GoRouter? router,
+    AppConfig config = testConfig,
     ThemeMode themeMode = ThemeMode.dark,
   }) async {
     final authRepository = auth ?? MockAuthRepository();
@@ -48,6 +57,7 @@ extension PumpApp on WidgetTester {
     await pumpWidget(
       MultiRepositoryProvider(
         providers: [
+          RepositoryProvider<AppConfig>.value(value: config),
           RepositoryProvider<AuthRepository>.value(value: authRepository),
           RepositoryProvider<ProfileRepository>.value(value: profileRepository),
         ],

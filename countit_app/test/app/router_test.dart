@@ -14,17 +14,36 @@ void main() {
       expect(redirectFor(s, AppRoutes.splash), isNull);
     });
 
-    test('without a session only public routes are reachable', () {
+    test('without a session only public routes are reachable; a fresh start shows the welcome', () {
       const s = SessionState.unauthenticated();
+      expect(redirectFor(s, AppRoutes.home), AppRoutes.welcome);
+      expect(redirectFor(s, AppRoutes.admin), AppRoutes.welcome);
+      expect(redirectFor(s, AppRoutes.splash), AppRoutes.welcome);
+      expect(redirectFor(s, AppRoutes.resetPassword), AppRoutes.welcome);
+      for (final route in AppRoutes.public) {
+        expect(redirectFor(s, route), isNull, reason: route);
+      }
+    });
+
+    test('an involuntary sign-out lands on login, where the reason is shown (COU-81)', () {
+      const s = SessionState.unauthenticated(message: 'Tu sesión ya no es válida');
       expect(redirectFor(s, AppRoutes.home), AppRoutes.login);
-      expect(redirectFor(s, AppRoutes.admin), AppRoutes.login);
       expect(redirectFor(s, AppRoutes.splash), AppRoutes.login);
-      expect(redirectFor(s, AppRoutes.login), isNull);
+    });
+
+    test('the recovery session only opens the new-password screen', () {
+      const s = SessionState.passwordRecovery();
+      expect(redirectFor(s, AppRoutes.home), AppRoutes.resetPassword);
+      expect(redirectFor(s, AppRoutes.login), AppRoutes.resetPassword);
+      expect(redirectFor(s, AppRoutes.admin), AppRoutes.resetPassword);
+      expect(redirectFor(s, AppRoutes.resetPassword), isNull);
     });
 
     test('signed in: auth screens and splash lead home', () {
       final s = SessionState.authenticated(_profile(UserRole.user));
       expect(redirectFor(s, AppRoutes.login), AppRoutes.home);
+      expect(redirectFor(s, AppRoutes.welcome), AppRoutes.home);
+      expect(redirectFor(s, AppRoutes.resetPassword), AppRoutes.home);
       expect(redirectFor(s, AppRoutes.splash), AppRoutes.home);
       expect(redirectFor(s, AppRoutes.home), isNull);
     });

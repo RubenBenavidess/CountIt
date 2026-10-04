@@ -66,5 +66,22 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Supabase Auth e-mail links (countit://auth/...), handled by AuthLinkHandler. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>ec.countit.app.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>countit</string>
+			</array>
+		</dict>
+	</array>
+	<!-- go_router must not treat the links as routes; app_links delivers them. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 </dict>
 </plist>

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/remote/edge_function_exception.dart';
 import 'app_failure.dart';
 
 /// Turns any error raised by the backend client into an [AppFailure]
@@ -34,16 +36,30 @@ abstract final class ErrorMapper {
     'rate_limited': 'Demasiados intentos. Intenta nuevamente más tarde',
     'invitation_limit': 'Alcanzaste el máximo de invitaciones por hoy',
     'validation_error': 'Revisa los datos ingresados',
+    'captcha_failed': 'La verificación anti-bots falló. Inténtalo de nuevo',
+    'username_taken': 'Ese nombre de usuario ya está en uso',
+    // Supabase Auth (new password with the recovery session, links).
+    'weak_password': 'La contraseña no cumple los requisitos de seguridad',
+    'same_password': 'La nueva contraseña debe ser diferente a la actual',
+    'otp_expired': 'El enlace venció o ya fue usado. Solicita uno nuevo',
+    'session_expired': 'El enlace venció. Solicita uno nuevo',
+    'session_not_found': 'El enlace venció. Solicita uno nuevo',
   };
 
   static AppFailure map(Object error) => switch (error) {
     AppFailure() => error,
     PostgrestException() => _fromPostgrest(error),
-    FunctionException() => _fromFunction(error),
+    EdgeFunctionException() => _fromEdgeFunction(error.status, error.body, error.retryAfter),
+    FunctionException() => _fromEdgeFunction(
+      error.status,
+      error.details is Map ? Map<String, dynamic>.from(error.details as Map) : const {},
+      null,
+    ),
     AuthException() => _fromAuth(error),
     SocketException() ||
     TimeoutException() ||
-    HttpException() => const AppFailure(kind: FailureKind.network, message: networkMessage),
+    HttpException() ||
+    http.ClientException() => const AppFailure(kind: FailureKind.network, message: networkMessage),
     _ => const AppFailure(kind: FailureKind.server, message: genericMessage),
   };
 
@@ -62,8 +78,7 @@ abstract final class ErrorMapper {
     return const AppFailure(kind: FailureKind.server, message: genericMessage);
   }
 
-  static AppFailure _fromFunction(FunctionException e) {
-    final body = e.details is Map ? Map<String, dynamic>.from(e.details as Map) : const <String, dynamic>{};
+  static AppFailure _fromEdgeFunction(int status, Map<String, dynamic> body, Duration? retryAfter) {
     final fieldErrors = <String, String>{};
     final raw = body['validationErrors'];
     if (raw is List) {
@@ -74,10 +89,11 @@ abstract final class ErrorMapper {
       }
     }
     return _build(
-      status: e.status,
+      status: status,
       key: body['code'] as String?,
       message: body['error'] as String?,
       fieldErrors: fieldErrors,
+      retryAfter: retryAfter,
     );
   }
 
@@ -91,6 +107,7 @@ abstract final class ErrorMapper {
     String? key,
     String? message,
     Map<String, String> fieldErrors = const {},
+    Duration? retryAfter,
   }) {
     final kind = _kindFor(status, key);
     final text = (message != null && message.trim().isNotEmpty)
@@ -102,6 +119,7 @@ abstract final class ErrorMapper {
       key: key,
       status: status,
       fieldErrors: fieldErrors,
+      retryAfter: retryAfter,
     );
   }
 

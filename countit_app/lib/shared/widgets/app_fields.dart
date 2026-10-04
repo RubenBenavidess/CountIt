@@ -25,18 +25,25 @@ class _Labeled extends StatelessWidget {
 }
 
 /// Text input with label, helper and error text (error replaces the helper).
+///
+/// Inside a `Form`, [validator] runs after the user touches the field and on
+/// `FormState.validate()`. [errorText] forces a message regardless (e.g. the
+/// server's `validationErrors` for this field).
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,
     required this.label,
     this.controller,
+    this.focusNode,
     this.hint,
     this.helper,
     this.errorText,
+    this.validator,
     this.enabled = true,
     this.obscureText = false,
     this.keyboardType,
     this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
     this.autofillHints,
     this.inputFormatters,
     this.maxLength,
@@ -48,13 +55,16 @@ class AppTextField extends StatelessWidget {
 
   final String label;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? hint;
   final String? helper;
   final String? errorText;
+  final FormFieldValidator<String>? validator;
   final bool enabled;
   final bool obscureText;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
   final Iterable<String>? autofillHints;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLength;
@@ -67,22 +77,31 @@ class AppTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Labeled(
       label: label,
-      child: TextField(
+      child: TextFormField(
         controller: controller,
+        focusNode: focusNode,
         enabled: enabled,
         obscureText: obscureText,
+        // Secrets never go to the keyboard's dictionary or suggestions.
+        autocorrect: !obscureText,
+        enableSuggestions: !obscureText,
         keyboardType: keyboardType,
         textInputAction: textInputAction,
+        textCapitalization: textCapitalization,
         autofillHints: autofillHints,
         inputFormatters: inputFormatters,
         maxLength: maxLength,
+        validator: validator,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        forceErrorText: errorText,
         onChanged: onChanged,
-        onSubmitted: onSubmitted,
+        onFieldSubmitted: onSubmitted,
         style: AppTypography.body.copyWith(fontSize: 16),
         decoration: InputDecoration(
           hintText: hint,
           helperText: helper,
-          errorText: errorText,
+          helperMaxLines: 3,
+          errorMaxLines: 3,
           prefixIcon: prefix,
           suffixIcon: suffix,
           counterText: '',
@@ -99,18 +118,24 @@ class AppPasswordField extends StatefulWidget {
     super.key,
     this.label = 'Contraseña',
     this.controller,
+    this.focusNode,
     this.errorText,
     this.helper,
+    this.validator,
     this.enabled = true,
     this.newPassword = false,
+    this.textInputAction,
     this.onSubmitted,
   });
 
   final String label;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? errorText;
   final String? helper;
+  final FormFieldValidator<String>? validator;
   final bool enabled;
+  final TextInputAction? textInputAction;
 
   /// Autofill hint: a new password (registration, change) vs the current one.
   final bool newPassword;
@@ -128,10 +153,13 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
     return AppTextField(
       label: widget.label,
       controller: widget.controller,
+      focusNode: widget.focusNode,
       errorText: widget.errorText,
       helper: widget.helper,
+      validator: widget.validator,
       enabled: widget.enabled,
       obscureText: !_visible,
+      textInputAction: widget.textInputAction,
       keyboardType: TextInputType.visiblePassword,
       autofillHints: [widget.newPassword ? AutofillHints.newPassword : AutofillHints.password],
       onSubmitted: widget.onSubmitted,
@@ -182,7 +210,7 @@ class AppMoneyField extends StatelessWidget {
       errorText: errorText,
       helper: helper,
       enabled: enabled,
-      hint: '0.00',
+      hint: '0,00',
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [AmountInputFormatter()],
       onChanged: onChanged,

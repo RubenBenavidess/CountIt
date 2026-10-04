@@ -31,8 +31,28 @@ void main() {
         url: 'https://x.supabase.co',
         anonKey: 'k',
         turnstileSiteKey: '0x4AAA',
+        turnstileBaseUrl: 'https://countit.example',
       );
       expect(withKey.turnstileSiteKey, '0x4AAA');
+      expect(withKey.captchaEnabled, isTrue);
+      expect(withKey.turnstileBaseUrl, Uri.parse('https://countit.example'));
+    });
+
+    test('a site key needs an https base URL and cannot inject markup', () {
+      expect(
+        () => AppConfig.fromValues(env: 'prod', url: 'https://x.supabase.co', anonKey: 'k', turnstileSiteKey: '0x4AAA'),
+        throwsArgumentError,
+      );
+      expect(
+        () => AppConfig.fromValues(
+          env: 'prod',
+          url: 'https://x.supabase.co',
+          anonKey: 'k',
+          turnstileSiteKey: "0x4'};alert(1);//",
+          turnstileBaseUrl: 'https://countit.example',
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('rejects unknown environments and relative URLs', () {

@@ -13,7 +13,9 @@ Future<SupabaseClient> initSupabase(AppConfig config) async {
     // The legacy anon JWT is accepted as a publishable key.
     publishableKey: config.supabaseAnonKey,
     postgrestOptions: const PostgrestClientOptions(schema: 'api'),
-    authOptions: FlutterAuthClientOptions(localStorage: SecureSessionStorage()),
+    // E-mail links are handled by AuthLinkHandler: a confirmation link must
+    // not sign in by itself and a reset link opens the recovery state.
+    authOptions: FlutterAuthClientOptions(localStorage: SecureSessionStorage(), detectSessionInUri: false),
     debug: false,
   );
   return supabase.client;
