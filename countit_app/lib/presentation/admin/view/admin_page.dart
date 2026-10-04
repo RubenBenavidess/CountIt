@@ -41,6 +41,13 @@ const adminSections = <AdminSection>[
     subtitle: 'Buscar usuarios, ver su rol y su plan',
     route: AppRoutes.adminUsers,
   ),
+  AdminSection(
+    key: 'admin-banks',
+    icon: Icons.account_balance_outlined,
+    title: 'Bancos',
+    subtitle: 'Crear, editar, colores y activación',
+    route: AppRoutes.adminBanks,
+  ),
 ];
 
 /// Administration hub (HU-27, HU-28 · COU-127): reachable by admin and

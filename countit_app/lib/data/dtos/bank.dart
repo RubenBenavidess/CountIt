@@ -25,3 +25,20 @@ class Bank extends Equatable {
   @override
   List<Object?> get props => [bankId, name, countryCode, isActive, color];
 }
+
+/// What an admin sends to create or edit a bank (`admin_create_bank`,
+/// `admin_update_bank` · HU-27).
+class BankInput extends Equatable {
+  const BankInput({required this.name, required this.countryCode, this.color});
+
+  final String name;
+
+  /// ISO 3166-1 alpha-2, uppercase (`EC`).
+  final String countryCode;
+
+  /// Opaque ARGB; null = no colour (wallets use the default).
+  final int? color;
+
+  @override
+  List<Object?> get props => [name, countryCode, color];
+}

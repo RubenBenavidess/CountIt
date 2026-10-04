@@ -34,3 +34,7 @@ int? parseHexColor(Object? value) {
 
 /// ISO timestamp → DateTime; null when missing or malformed.
 DateTime? parseTimestamp(Object? value) => value is String ? DateTime.tryParse(value) : null;
+
+/// Opaque ARGB → `#RRGGBB` (what the API stores); null stays null.
+String? toHexColor(int? argb) =>
+    argb == null ? null : '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
