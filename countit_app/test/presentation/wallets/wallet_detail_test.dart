@@ -112,6 +112,10 @@ void main() {
               ),
             ),
             GoRoute(
+              path: 'scheduled',
+              builder: (context, state) => Scaffold(body: Text('SCHEDULED ${(state.extra! as Wallet).name}')),
+            ),
+            GoRoute(
               path: 'budgets/:budgetId/edit',
               builder: (context, state) => Scaffold(
                 body: TextButton(
@@ -403,5 +407,15 @@ void main() {
       expect(find.text('Saldo inicial'), findsOneWidget);
       expect(find.text('No hay conexión.'), findsOneWidget);
     });
+  });
+
+  testWidgets('«Movimientos programados» opens the wallet\'s rules (COU-88)', (tester) async {
+    final wallet = walletFixture(id: 4, name: 'Pichincha');
+    when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+    await pumpDetail(tester, wallet);
+    expect(find.bySemanticsLabel(RegExp('^Movimientos programados')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('wallet-scheduled')));
+    await tester.pumpAndSettle();
+    expect(find.text('SCHEDULED Pichincha'), findsOneWidget);
   });
 }

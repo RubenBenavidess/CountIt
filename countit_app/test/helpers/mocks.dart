@@ -3,6 +3,7 @@ import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
 import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
+import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,6 +22,8 @@ class MockBankRepository extends Mock implements BankRepository {}
 class MockBudgetRepository extends Mock implements BudgetRepository {}
 
 class MockTransactionRepository extends Mock implements TransactionRepository {}
+
+class MockScheduledTransactionRepository extends Mock implements ScheduledTransactionRepository {}
 
 class MockApiClient extends Mock implements ApiClient {}
 

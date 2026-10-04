@@ -114,6 +114,11 @@ class _WalletDetailView extends StatelessWidget {
     if (saved == true && context.mounted) unawaited(_refresh(context));
   }
 
+  /// Scheduled rules (F06): they never move the balance until they run, so
+  /// nothing reloads on the way back.
+  void _openScheduled(BuildContext context, Wallet wallet) =>
+      unawaited(context.push<Object?>(AppRoutes.scheduled(wallet.walletId), extra: wallet));
+
   /// Filters sheet (COU-233): budgets come from the section above; authors
   /// only matter in shared wallets.
   Future<void> _editFilters(BuildContext context, Wallet wallet) async {
@@ -216,6 +221,7 @@ class _WalletDetailView extends StatelessWidget {
                     child: _DetailBody(
                       wallet: wallet,
                       onEditFilters: () => _editFilters(context, wallet),
+                      onOpenScheduled: () => _openScheduled(context, wallet),
                       onOpenTransaction: (transaction) => _openTransaction(
                         context,
                         AppRoutes.transaction(wallet.walletId, transaction.transactionId),
@@ -255,11 +261,13 @@ class _DetailBody extends StatelessWidget {
     required this.onOpenBudget,
     required this.onOpenTransaction,
     required this.onEditFilters,
+    required this.onOpenScheduled,
   });
 
   final Wallet wallet;
   final ValueChanged<Transaction> onOpenTransaction;
   final VoidCallback onEditFilters;
+  final VoidCallback onOpenScheduled;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
 
@@ -296,6 +304,8 @@ class _DetailBody extends StatelessWidget {
                   ),
                 ),
               ],
+              const SizedBox(height: AppSpacing.lg),
+              _ScheduledEntry(onTap: onOpenScheduled),
             ],
           ),
         ),
@@ -313,6 +323,45 @@ class _DetailBody extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Way into the wallet's scheduled rules (HU-16/HU-20 · COU-88).
+class _ScheduledEntry extends StatelessWidget {
+  const _ScheduledEntry({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      key: const ValueKey('wallet-scheduled'),
+      outlined: true,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: AppSpacing.md),
+      onTap: onTap,
+      semanticLabel: 'Movimientos programados: ingresos y gastos futuros que se registran solos',
+      child: ExcludeSemantics(
+        child: Row(
+          spacing: AppSpacing.md,
+          children: [
+            const IconTile(Icons.event_repeat_rounded),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Movimientos programados', style: AppTypography.label),
+                  Text(
+                    'Ingresos y gastos futuros que se registran solos',
+                    style: AppTypography.caption.copyWith(color: context.palette.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
     );
   }
 }
