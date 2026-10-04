@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../presentation/account/view/change_password_page.dart';
+import '../../presentation/account/view/delete_account_page.dart';
 import '../../presentation/admin/view/admin_page.dart';
 import '../../presentation/auth/view/check_email_page.dart';
 import '../../presentation/auth/view/email_confirmed_page.dart';
@@ -12,6 +14,8 @@ import '../../presentation/auth/view/register_page.dart';
 import '../../presentation/auth/view/reset_password_page.dart';
 import '../../presentation/auth/view/welcome_page.dart';
 import '../../presentation/home/view/home_page.dart';
+import '../../presentation/profile/view/edit_profile_page.dart';
+import '../../presentation/profile/view/profile_page.dart';
 import '../../presentation/splash/view/splash_page.dart';
 import '../config/app_config.dart';
 import '../links/auth_links.dart';
@@ -29,6 +33,10 @@ abstract final class AppRoutes {
   static const resetPassword = '/reset-password';
   static const home = '/';
   static const admin = '/admin';
+  static const profile = '/profile';
+  static const editProfile = '/profile/edit';
+  static const changePassword = '/profile/password';
+  static const deleteAccount = '/profile/delete';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -90,6 +98,15 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
     GoRoute(path: AppRoutes.resetPassword, builder: (context, state) => const ResetPasswordPage()),
     GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage()),
     GoRoute(path: AppRoutes.admin, builder: (context, state) => const AdminPage()),
+    GoRoute(
+      path: AppRoutes.profile,
+      builder: (context, state) => const ProfilePage(),
+      routes: [
+        GoRoute(path: 'edit', builder: (context, state) => const EditProfilePage()),
+        GoRoute(path: 'password', builder: (context, state) => const ChangePasswordPage()),
+        GoRoute(path: 'delete', builder: (context, state) => const DeleteAccountPage()),
+      ],
+    ),
   ],
 );
 

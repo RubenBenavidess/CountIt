@@ -68,6 +68,9 @@ CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK d
 | El enlace de confirmación no inicia sesión (el login pasa por la Edge Function); el de recuperación solo abre «nueva contraseña» | `lib/app/links/auth_links.dart`, `redirectFor` |
 | Contraseñas sin autocorrección ni sugerencias del teclado; mensajes de login y recuperación que no revelan si el correo existe | `AppTextField`, pantallas de `presentation/auth` |
 | 429: el botón se bloquea con cuenta regresiva según `Retry-After` | `ApiClient.invoke`, `CooldownButton` |
+| Cerrar sesión y eliminar la cuenta limpian primero el estado y luego el SDK borra los tokens locales, aunque falle la red | `SessionCubit.signOut` |
+| Acciones destructivas: hoja «Confirma que eres tú» (contraseña, 3 intentos / 2 min, cuenta bloqueada) | `presentation/account/view/reauth_sheet.dart` |
+| Exportación LOPDP en la caché privada; la anterior se borra al generar una nueva | `lib/shared/platform/file_sharer.dart` |
 
 Pendiente (Linear, Q2 · Seguridad móvil): App Links/Universal Links verificados en lugar de solo `countit://`
 (requiere dominio, COU-109), detección informativa de root/jailbreak (COU-116), firma de release (COU-58),
@@ -96,3 +99,17 @@ Cada carpeta tiene su README con reglas.
 - **Formato** (`lib/shared/utils`): `Money` (`$1.234,56`, estilo ecuatoriano acordado en COU-18; signo `+`/`−` en movimientos) y `Dates`
   (español, «Hoy»/«Ayer», y el «hoy» en la zona horaria del perfil, con America/Guayaquil por defecto).
 - **Navegación:** `go_router` con redirecciones por sesión y rol (`lib/app/router`).
+- **Cuenta:** perfil con plan y acciones, datos personales (con zona horaria IANA), cambiar contraseña, exportar datos
+  y eliminar cuenta. Para borrar algo: `api.rpc(..., onReauth: reauthPrompt(context, action: 'eliminar «Hogar»',
+  confirmLabel: 'Eliminar billetera'))`.
+
+## Rendimiento (reglas del árbol de widgets)
+- `const` en todo widget sin estado variable (lo exige el análisis).
+- Leer del estado lo mínimo: `context.select((SessionCubit c) => c.state.profile)` en vez de `watch` del Cubit
+  entero; `BlocConsumer` con `listenWhen`/`buildWhen` para efectos (navegar, limpiar un campo, snackbars).
+- Lo que cambia seguido se reconstruye solo: la cuenta regresiva (`CooldownButton`), el checklist de contraseña
+  (`ValueListenableBuilder` sobre el controller), el botón «Guardar» con cambios, la fila «Exportar» mientras carga.
+- Listas largas con `ListView.builder` (y `itemExtent` si la altura es fija); los formularios cortos se construyen
+  completos para que `validate()` revise todos los campos.
+- Diseño en una sola pasada: `SliverFillRemaining` en vez de `IntrinsicHeight` para fijar botones abajo.
+- Sin trabajo pesado en `build`: formatos (`NumberFormat`, regex) se crean una vez como `static final`.

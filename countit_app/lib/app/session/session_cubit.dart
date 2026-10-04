@@ -53,13 +53,17 @@ class SessionCubit extends Cubit<SessionState> {
     }
   }
 
-  Future<void> signOut() async {
+  /// Leaves the account on this device (COU-128). The state changes first, so
+  /// the screens with user data are gone even if the network call is slow;
+  /// the SDK forgets the local session before calling the server. [message]
+  /// is shown on the login screen (e.g. after deleting the account).
+  Future<void> signOut({String? message}) async {
+    emit(SessionState.unauthenticated(message: message));
     try {
       await _auth.signOut();
     } on AppFailure {
       // Sign-out must always succeed locally.
     }
-    emit(const SessionState.unauthenticated());
   }
 
   /// The new password was saved with the recovery session: enter the app

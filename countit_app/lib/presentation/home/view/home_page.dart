@@ -21,9 +21,9 @@ class HomePage extends StatelessWidget {
         title: const Wordmark(size: 24),
         actions: [
           IconButton(
-            tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.read<SessionCubit>().signOut(),
+            tooltip: 'Perfil',
+            icon: const Icon(Icons.person_outline_rounded),
+            onPressed: () => context.push(AppRoutes.profile),
           ),
         ],
       ),
@@ -35,7 +35,7 @@ class HomePage extends StatelessWidget {
           Text('Plan ${profile?.plan?.name ?? '—'}', style: textTheme.bodySmall),
           if (profile?.role.canAdminister ?? false) ...[
             const SizedBox(height: AppSpacing.xl),
-            OutlinedButton(onPressed: () => context.go(AppRoutes.admin), child: const Text('Administración')),
+            OutlinedButton(onPressed: () => context.push(AppRoutes.admin), child: const Text('Administración')),
           ],
         ],
       ),

@@ -2,6 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../remote/api_client.dart';
 
+/// The word the user types to confirm deleting the account (and the API expects).
+const accountDeletionWord = 'ELIMINAR';
+
 /// What happened to the SDK session; [SessionCubit] decides what it means.
 enum SessionChange {
   signedIn,
@@ -45,6 +48,14 @@ abstract interface class AuthRepository {
 
   /// Sets the password with the current (recovery) session; Auth applies its policy.
   Future<void> setNewPassword(String password);
+
+  /// HU-04: Auth closes every session; the Edge Function returns a fresh one
+  /// that replaces the local session. Returns false when no session came back
+  /// (the user must sign in again).
+  Future<bool> changePassword({required String currentPassword, required String newPassword});
+
+  /// HU-30: anonymizes the account; afterwards its tokens get 401.
+  Future<void> deleteAccount(String password);
 
   /// Local sign-out: forgets the session on this device.
   Future<void> signOut();
@@ -120,6 +131,21 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> setNewPassword(String password) => _api.run(() => _auth.updateUser(UserAttributes(password: password)));
+
+  @override
+  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
+    final body = await _api.invoke(
+      'change-password',
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+    );
+    if (body['session'] is! Map) return false;
+    await _adoptSession(body);
+    return true;
+  }
+
+  @override
+  Future<void> deleteAccount(String password) =>
+      _api.invoke('delete-account', body: {'password': password, 'confirmation': accountDeletionWord});
 
   @override
   Future<void> signOut() => _api.run(() => _auth.signOut());
