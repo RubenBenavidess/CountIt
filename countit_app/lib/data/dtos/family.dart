@@ -36,7 +36,7 @@ enum FamilyStatus {
 }
 
 /// A row of `api.v_family_members` (HU-24) or the membership a family RPC
-/// returns (`invite_family_member`, `remove_family_member`, …).
+/// returns (`invite-member`, `remove_family_member`, …).
 ///
 /// Only what the view exposes: username and display name, never e-mails.
 class FamilyMember extends Equatable {
