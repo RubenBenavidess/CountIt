@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 /// this class is only for display and user input.
 abstract final class Money {
   static final NumberFormat _style = NumberFormat('#,##0.00', 'es');
+  static final NumberFormat _input = NumberFormat('0.00', 'es');
   static final _noise = RegExp(r'[\s$]');
   static final _amount = RegExp(r'^\d+(\.\d{0,2})?$');
 
@@ -18,6 +19,10 @@ abstract final class Money {
     final text = '\$${_style.format(amount.abs())}';
     return amount < 0 ? '$minus$text' : text;
   }
+
+  /// An amount as the forms prefill it: `1234,50` (no symbol, no grouping),
+  /// which [parse] reads back unchanged.
+  static String input(num amount) => _input.format(amount.abs());
 
   /// With an explicit sign and a thin gap, for movements: `+ $450,00`, `− $212,00`.
   /// Zero has no sign. Colour never carries the meaning alone (design rule).

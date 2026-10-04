@@ -49,33 +49,39 @@ abstract final class Dates {
     return DateTime(parts[0], parts[1], parts[2]);
   }
 
+  // Built on first use (after [init] loaded the Spanish symbols) and reused:
+  // lists format many dates per frame and a DateFormat parses its pattern
+  // when created.
+  static final _api = DateFormat('yyyy-MM-dd', 'en_US');
+  static final _dayMonthYear = DateFormat('d MMM y', locale);
+  static final _dayMonth = DateFormat('d MMM', locale);
+  static final _hourMinute = DateFormat('HH:mm', locale);
+  static final _monthYear = DateFormat('MMMM y', locale);
+  static final _weekdayDayMonth = DateFormat("EEEE, d 'de' MMMM", locale);
+  static final _weekdayDayMonthYear = DateFormat("EEEE, d 'de' MMMM 'de' y", locale);
+
   /// Formats a calendar day for the API («2026-10-03»).
-  static String toApi(DateTime day) => DateFormat('yyyy-MM-dd').format(day);
+  static String toApi(DateTime day) => _api.format(day);
 
   /// «3 oct 2026».
-  static String date(DateTime day) => DateFormat('d MMM y', locale).format(day).replaceAll('.', '');
+  static String date(DateTime day) => _dayMonthYear.format(day).replaceAll('.', '');
 
   /// «3 oct 2026, 21:05».
-  static String dateTime(DateTime value) => '${date(value)}, ${DateFormat('HH:mm', locale).format(value)}';
+  static String dateTime(DateTime value) => '${date(value)}, ${_hourMinute.format(value)}';
 
   /// «21:05».
-  static String time(DateTime value) => DateFormat('HH:mm', locale).format(value);
+  static String time(DateTime value) => _hourMinute.format(value);
 
   /// «1 oct – 31 oct 2026»; the year on both ends when they differ
   /// («15 dic 2026 – 14 ene 2027»).
   static String range(DateTime start, DateTime end) {
     if (start.year != end.year) return '${date(start)} – ${date(end)}';
-    final first = DateFormat('d MMM', locale).format(start).replaceAll('.', '');
+    final first = _dayMonth.format(start).replaceAll('.', '');
     return '$first – ${date(end)}';
   }
 
   /// «octubre 2026».
-  static String month(DateTime day) => DateFormat('MMMM y', locale).format(day);
-
-  // Built on first use (after [init] loaded the Spanish symbols) and reused:
-  // list headers format many days per frame.
-  static final _weekdayDayMonth = DateFormat("EEEE, d 'de' MMMM", locale);
-  static final _weekdayDayMonthYear = DateFormat("EEEE, d 'de' MMMM 'de' y", locale);
+  static String month(DateTime day) => _monthYear.format(day);
 
   /// «jueves, 1 de octubre de 2026» (screen readers, detail screens).
   static String long(DateTime day) => _weekdayDayMonthYear.format(day);
@@ -102,7 +108,7 @@ abstract final class Dates {
     final difference = DateTime(today.year, today.month, today.day).difference(d).inDays;
     if (difference == 0) return 'Hoy';
     if (difference == 1) return 'Ayer';
-    if (d.year == today.year) return DateFormat('d MMM', locale).format(d).replaceAll('.', '');
+    if (d.year == today.year) return _dayMonth.format(d).replaceAll('.', '');
     return date(d);
   }
 }

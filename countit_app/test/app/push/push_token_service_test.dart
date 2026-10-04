@@ -51,6 +51,18 @@ void main() {
       verifyNever(() => devices.register('token-2', any()));
     });
 
+    test('quick user changes leave a single rotation listener, for the last user', () async {
+      final first = service.setUser('u1');
+      await service.setUser('u2');
+      await first;
+      messaging.refresh.add('token-2');
+      await pumpEventQueue();
+      verify(() => devices.register('token-2', 'android')).called(1);
+
+      await service.setUser(null);
+      expect(messaging.refresh.hasListener, isFalse);
+    });
+
     test('no token yet: nothing is registered', () async {
       messaging.token = null;
       await service.setUser('u1');

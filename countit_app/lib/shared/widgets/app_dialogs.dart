@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
@@ -83,4 +85,24 @@ Future<T?> showAppBottomSheet<T>(BuildContext context, {required WidgetBuilder b
       ),
     ),
   );
+}
+
+/// Asks «¿Descartar los cambios?» ([confirmDiscardChanges]) when the user
+/// leaves a form while [dirty]; otherwise the route pops as usual.
+class DiscardChangesGuard extends StatelessWidget {
+  const DiscardChangesGuard({super.key, required this.dirty, required this.child});
+
+  final bool dirty;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope<Object?>(
+      canPop: !dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(confirmDiscardChanges(context));
+      },
+      child: child,
+    );
+  }
 }

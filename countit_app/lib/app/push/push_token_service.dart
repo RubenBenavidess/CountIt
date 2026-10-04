@@ -37,8 +37,10 @@ class PushTokenService {
   Future<void> setUser(String? userId) async {
     if (userId == _userId) return;
     _userId = userId;
-    await _refresh?.cancel();
-    _refresh = null;
+    await _stopRefresh();
+    // Another user (or a sign-out) arrived while cancelling: that call owns
+    // the subscription now.
+    if (userId != _userId) return;
     if (userId == null || !_messaging.isAvailable || _messaging.platform == null) return;
     _refresh = _messaging.onTokenRefresh.listen((token) => unawaited(_register(userId, token)));
     try {
@@ -67,8 +69,7 @@ class PushTokenService {
     if (!_messaging.isAvailable) return;
     final token = _registered;
     _registered = null;
-    await _refresh?.cancel();
-    _refresh = null;
+    await _stopRefresh();
     if (token != null) {
       try {
         await _devices.unregister(token).timeout(_timeout);
@@ -86,9 +87,16 @@ class PushTokenService {
   Future<void> sessionLost() async {
     if (!_messaging.isAvailable) return;
     _registered = null;
-    await _refresh?.cancel();
-    _refresh = null;
+    await _stopRefresh();
     await _deleteLocal();
+  }
+
+  /// Detaches the rotation listener before awaiting its cancellation, so a
+  /// concurrent call never cancels (or leaks) a subscription it did not make.
+  Future<void> _stopRefresh() async {
+    final cancelling = _refresh?.cancel();
+    _refresh = null;
+    await cancelling;
   }
 
   Future<void> _deleteLocal() async {

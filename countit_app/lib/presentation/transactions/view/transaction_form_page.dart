@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../app/errors/app_failure.dart';
 import '../../../app/router/app_router.dart';
@@ -17,6 +16,7 @@ import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/state/load_state.dart';
 import '../../../shared/state/submit_cubit.dart';
 import '../../../shared/utils/dates.dart';
+import '../../../shared/utils/money.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/app_banner.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -73,8 +73,6 @@ class _TransactionFormView extends StatefulWidget {
 }
 
 class _TransactionFormViewState extends State<_TransactionFormView> {
-  static final _amountText = NumberFormat('0.00', 'es');
-
   /// Backend keys shown next to a field instead of the banner.
   static const _amountKeys = {'invalid_amount'};
   static const _dateKeys = {'future_date'};
@@ -84,7 +82,7 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.initial?.name ?? '');
   late final _amount = TextEditingController(
-    text: widget.initial == null ? '' : _amountText.format(Cents.toAmount(widget.initial!.amountCents)),
+    text: widget.initial == null ? '' : Money.input(Cents.toAmount(widget.initial!.amountCents)),
   );
 
   /// The user's calendar day: default date and the latest one allowed.
@@ -236,11 +234,8 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   @override
   Widget build(BuildContext context) {
     final dirty = _dirty;
-    return PopScope(
-      canPop: !dirty || _saved,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(confirmDiscardChanges(context));
-      },
+    return DiscardChangesGuard(
+      dirty: dirty && !_saved,
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar movimiento' : 'Nuevo movimiento'),
         body: BlocConsumer<TransactionFormCubit, SubmitState>(
