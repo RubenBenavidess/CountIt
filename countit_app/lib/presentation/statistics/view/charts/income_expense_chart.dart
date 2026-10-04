@@ -136,9 +136,29 @@ class BarLayout {
   final double width;
   final int count;
 
+  /// Widest bar: a year (12 pairs) on a tablet should still read as bars.
+  static const maxBar = 28.0;
+
+  /// Thinnest bar, even with 30 daily pairs on a narrow phone.
+  static const minBar = 2.0;
+
   double get plotLeft => axisWidth;
   double get plotWidth => math.max(0, width - axisWidth);
   double get slot => count == 0 ? 0 : plotWidth / count;
+
+  /// Space between two periods: clearly wider than [innerGap], so the eye
+  /// pairs income with its expense.
+  double get pairGap => (slot * 0.16).clamp(2.0, 16.0);
+
+  /// Space between the income and the expense bar of one period.
+  double get innerGap => (slot * 0.04).clamp(1.0, 3.0);
+
+  /// Width of each bar: proportional to the room of a period, within
+  /// [minBar] and [maxBar] (never wider than half the slot).
+  double get bar => math.min(((slot - pairGap - innerGap) / 2).clamp(minBar, maxBar), slot / 2);
+
+  /// Left edge of the income bar of period [index]; the pair is centred in its slot.
+  double pairLeft(int index) => plotLeft + slot * index + (slot - (bar * 2 + innerGap)) / 2;
 
   /// Bucket under [dx]; null outside the plot or without data.
   int? slotAt(double dx) {
@@ -191,14 +211,13 @@ class IncomeExpensePainter extends CustomPainter {
       );
     }
 
-    final group = slot * 0.72;
-    final bar = math.max(1.0, group / 2 - math.min(2, slot * 0.06));
+    final bar = layout.bar;
     final income = Paint()..color = theme.income;
     final expense = Paint()..color = theme.expense;
     for (var i = 0; i < series.length; i++) {
-      final left = layout.plotLeft + slot * i + (slot - group) / 2;
+      final left = layout.pairLeft(i);
       _bar(canvas, left, bar, series[i].incomeCents, top, plotHeight, income);
-      _bar(canvas, left + group - bar, bar, series[i].expenseCents, top, plotHeight, expense);
+      _bar(canvas, left + bar + layout.innerGap, bar, series[i].expenseCents, top, plotHeight, expense);
     }
 
     // First and last period under the plot.
@@ -214,7 +233,7 @@ class IncomeExpensePainter extends CustomPainter {
     if (cents <= 0 || top <= 0) return;
     // At least 2 px so a small amount is still visible next to a large one.
     final height = math.max(2.0, plotHeight * cents / top);
-    final radius = Radius.circular(math.min(3, width / 2));
+    final radius = Radius.circular(math.min(4, width / 2));
     canvas.drawRRect(
       RRect.fromRectAndCorners(
         Rect.fromLTWH(left, plotHeight - height, width, height),
