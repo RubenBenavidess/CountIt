@@ -20,12 +20,14 @@ import '../../../shared/utils/money.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/detail_rows.dart';
 import '../../../shared/widgets/load_more_listener.dart';
 import '../../account/view/reauth_sheet.dart';
 import '../../budgets/cubit/budget_list_cubit.dart';
 import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
 import '../../transactions/cubit/transaction_list_cubit.dart';
+import '../../transactions/view/transaction_detail_page.dart';
 import '../../transactions/view/transaction_section.dart';
 import '../../transactions/view/widgets/transaction_filters.dart';
 import '../cubit/wallet_detail_cubit.dart';
@@ -105,9 +107,9 @@ class _WalletDetailView extends StatelessWidget {
     if (saved == true && !budgets.isClosed) unawaited(budgets.load());
   }
 
-  /// Transaction form (register or edit): a save changes the balance, the
-  /// budgets' progress and the list, so all three reload.
-  Future<void> _openTransactionForm(BuildContext context, String location, {Object? extra}) async {
+  /// Transaction form or detail: a save or a deletion changes the balance,
+  /// the budgets' progress and the list, so all three reload.
+  Future<void> _openTransaction(BuildContext context, String location, {Object? extra}) async {
     final saved = await context.push<bool>(location, extra: extra);
     if (saved == true && context.mounted) unawaited(_refresh(context));
   }
@@ -199,7 +201,7 @@ class _WalletDetailView extends StatelessWidget {
               : FloatingActionButton.extended(
                   key: const ValueKey('transaction-new'),
                   tooltip: 'Registrar un movimiento',
-                  onPressed: () => _openTransactionForm(context, AppRoutes.newTransaction(wallet.walletId)),
+                  onPressed: () => _openTransaction(context, AppRoutes.newTransaction(wallet.walletId)),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Movimiento'),
                 ),
@@ -214,15 +216,17 @@ class _WalletDetailView extends StatelessWidget {
                     child: _DetailBody(
                       wallet: wallet,
                       onEditFilters: () => _editFilters(context, wallet),
-                      onOpenTransaction: (transaction) {
-                        final userId = context.read<SessionCubit>().state.profile?.userId;
-                        if (!transaction.canBeManagedBy(userId, walletIsOwner: wallet.isOwner)) return;
-                        _openTransactionForm(
-                          context,
-                          AppRoutes.editTransaction(wallet.walletId, transaction.transactionId),
-                          extra: transaction,
-                        );
-                      },
+                      onOpenTransaction: (transaction) => _openTransaction(
+                        context,
+                        AppRoutes.transaction(wallet.walletId, transaction.transactionId),
+                        extra: TransactionDetailArgs(
+                          transaction,
+                          canManage: transaction.canBeManagedBy(
+                            context.read<SessionCubit>().state.profile?.userId,
+                            walletIsOwner: wallet.isOwner,
+                          ),
+                        ),
+                      ),
                       onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
                       onOpenBudget: (budget) => _openBudgetForm(
                         context,
@@ -322,37 +326,37 @@ class _Figures extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final rows = <(String, String, Color?)>[
-      ('Tipo', wallet.type.displayLabel, null),
-      ('Saldo inicial', Money.format(wallet.initialBalance), null),
-      ('Ingresos totales', Money.signed(wallet.totalIncome, income: true), palette.income),
-      ('Gastos totales', Money.signed(wallet.totalExpenses, income: false), palette.expense),
-      ('Ingresos del mes', Money.signed(wallet.monthIncome, income: true), palette.income),
-      ('Gastos del mes', Money.signed(wallet.monthExpenses, income: false), palette.expense),
-      if (wallet.projectedBalance != null)
-        ('Saldo proyectado a fin de mes', Money.format(wallet.projectedBalance!), null),
-    ];
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          for (final (index, (label, value, color)) in rows.indexed) ...[
-            if (index > 0) Divider(height: 1, color: palette.line),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
-              child: Row(
-                spacing: AppSpacing.md,
-                children: [
-                  Expanded(
-                    child: Text(label, style: AppTypography.caption.copyWith(color: palette.muted)),
-                  ),
-                  Text(value, style: AppTypography.money.copyWith(fontSize: 15, color: color)),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+    return DetailRows(
+      rows: [
+        DetailRow('Tipo', wallet.type.displayLabel),
+        DetailRow('Saldo inicial', Money.format(wallet.initialBalance), money: true),
+        DetailRow(
+          'Ingresos totales',
+          Money.signed(wallet.totalIncome, income: true),
+          color: palette.income,
+          money: true,
+        ),
+        DetailRow(
+          'Gastos totales',
+          Money.signed(wallet.totalExpenses, income: false),
+          color: palette.expense,
+          money: true,
+        ),
+        DetailRow(
+          'Ingresos del mes',
+          Money.signed(wallet.monthIncome, income: true),
+          color: palette.income,
+          money: true,
+        ),
+        DetailRow(
+          'Gastos del mes',
+          Money.signed(wallet.monthExpenses, income: false),
+          color: palette.expense,
+          money: true,
+        ),
+        if (wallet.projectedBalance != null)
+          DetailRow('Saldo proyectado a fin de mes', Money.format(wallet.projectedBalance!), money: true),
+      ],
     );
   }
 }
