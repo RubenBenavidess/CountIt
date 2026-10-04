@@ -34,9 +34,24 @@ dart format lib test          # ancho 120 (analysis_options.yaml)
 flutter analyze
 flutter test
 ```
+Test de contrato **en vivo** contra un backend levantado (local o staging), con una cuenta demo
+(`scripts/seed-demo.sh` del backend). Se salta si no recibe las variables y no corre en CI:
+```bash
+flutter test test/live --dart-define=LIVE_API_URL=http://127.0.0.1:54321 --dart-define=LIVE_ANON_KEY=<anon> \
+  --dart-define=LIVE_EMAIL=demo_ana@smoke.test --dart-define=LIVE_PASSWORD=<DEMO_PASSWORD>
+```
+
 CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK debug en cada PR.
 
 ## Arquitectura
 Capas `app/` (composición: config, tema, router, errores, sesión), `data/` (clientes y repositorios),
 `presentation/` (features con View + Cubit) y `shared/` (componentes reutilizables). Estado con **flutter_bloc**.
 Cada carpeta tiene su README con reglas.
+
+- **Backend:** `ApiClient` (`lib/data/remote`) es la única puerta: RPC y vistas del esquema `api`, Edge Functions con
+  `x-device-id`, y todo error convertido en `AppFailure` (mensaje en español + clave estable del backend, `lib/app/errors`).
+  Un 401 avisa a `SessionCubit`, que cierra la sesión y lleva al login. Las acciones destructivas pasan `onReauth`:
+  ante `403 reauth_required` se pide la contraseña y se reintenta una vez.
+- **Sesión:** el login va por la Edge Function `login` y la sesión se entrega al SDK con `setSession`; se guarda en el
+  almacenamiento seguro del sistema (`SecureSessionStorage`).
+- **Navegación:** `go_router` con redirecciones por sesión y rol (`lib/app/router`).
