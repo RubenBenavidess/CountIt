@@ -9,6 +9,7 @@ import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/budget.dart';
+import '../../../data/dtos/profile.dart';
 import '../../../data/dtos/scheduled_transaction.dart';
 import '../../../data/dtos/transaction.dart';
 import '../../../data/dtos/wallet.dart';
@@ -29,6 +30,7 @@ import '../../budgets/cubit/budget_list_cubit.dart';
 import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
 import '../../families/cubit/family_members_cubit.dart';
+import '../../statistics/view/projection_page.dart';
 import '../../transactions/cubit/transaction_list_cubit.dart';
 import '../../transactions/view/transaction_detail_page.dart';
 import '../../transactions/view/transaction_section.dart';
@@ -136,6 +138,17 @@ class _WalletDetailView extends StatelessWidget {
   /// Statistics (F08 · COU-93): read only, nothing reloads on the way back.
   void _openStatistics(BuildContext context, Wallet wallet) =>
       unawaited(context.push<Object?>(AppRoutes.statistics(wallet.walletId), extra: wallet));
+
+  /// Projection (F08 · COU-99, COU-172): with the plan known to lack it the
+  /// plans sheet explains it instead of a screen the API would refuse (403).
+  void _openProjection(BuildContext context, Wallet wallet) {
+    final profile = context.read<SessionCubit>().state.profile;
+    if (!(profile?.allows(PlanFeatures.walletProjection) ?? true)) {
+      unawaited(showProjectionUpsell(context));
+      return;
+    }
+    unawaited(context.push<Object?>(AppRoutes.projection(wallet.walletId), extra: wallet));
+  }
 
   /// Members (F07 · COU-92): inviting, accepting or removing changes the
   /// member count and who may appear as author, so the wallet reloads.
@@ -270,6 +283,7 @@ class _WalletDetailView extends StatelessWidget {
                       onEditFilters: () => _editFilters(context, wallet),
                       onOpenScheduled: () => _openScheduled(context, wallet),
                       onOpenStatistics: () => _openStatistics(context, wallet),
+                      onOpenProjection: () => _openProjection(context, wallet),
                       onOpenMembers: () => _openMembers(context, wallet),
                       onOpenTransaction: (transaction) => _openTransaction(
                         context,
@@ -312,6 +326,7 @@ class _DetailBody extends StatelessWidget {
     required this.onEditFilters,
     required this.onOpenScheduled,
     required this.onOpenStatistics,
+    required this.onOpenProjection,
     required this.onOpenMembers,
   });
 
@@ -320,6 +335,7 @@ class _DetailBody extends StatelessWidget {
   final VoidCallback onEditFilters;
   final VoidCallback onOpenScheduled;
   final VoidCallback onOpenStatistics;
+  final VoidCallback onOpenProjection;
   final VoidCallback onOpenMembers;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
@@ -374,6 +390,24 @@ class _DetailBody extends StatelessWidget {
                 title: 'Estadísticas',
                 subtitle: 'Ingresos y gastos en el tiempo y por presupuesto',
                 onTap: onOpenStatistics,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Projection (HU-25 · COU-99): Contador Profesional only (COU-172).
+              Builder(
+                builder: (context) {
+                  final allowed = context.select(
+                    (SessionCubit c) => c.state.profile?.allows(PlanFeatures.walletProjection) ?? true,
+                  );
+                  return _EntryCard(
+                    key: const ValueKey('wallet-projection'),
+                    icon: allowed ? Icons.show_chart_rounded : Icons.lock_outline_rounded,
+                    title: 'Proyección de saldo',
+                    subtitle: allowed
+                        ? 'Tu saldo con los movimientos programados'
+                        : 'Disponible en el plan Contador Profesional',
+                    onTap: onOpenProjection,
+                  );
+                },
               ),
               const SizedBox(height: AppSpacing.md),
               _MembersEntry(wallet: wallet, onTap: onOpenMembers),

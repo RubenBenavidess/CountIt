@@ -175,6 +175,12 @@ class TrendGeometry {
 }
 
 final _axisDay = DateFormat('d MMM', Dates.locale);
+final _axisDayYear = DateFormat('d MMM y', Dates.locale);
+
+/// Axis date: «4 oct», or «4 oct 2027» when the chart spans two years
+/// (a one-year projection would otherwise read «4 oct … 4 oct»).
+String axisDay(DateTime day, {required bool withYear}) =>
+    (withYear ? _axisDayYear : _axisDay).format(day).replaceAll('.', '');
 
 class TrendLinePainter extends CustomPainter {
   TrendLinePainter({required this.geometry, required this.theme, this.stepped = false, this.selected});
@@ -241,10 +247,11 @@ class TrendLinePainter extends CustomPainter {
       canvas.drawCircle(at, 6, dot);
     }
 
-    final first = layoutLabel(_axisDay.format(points.first.date).replaceAll('.', ''), theme.label);
+    final withYear = points.first.date.year != points.last.date.year;
+    final first = layoutLabel(axisDay(points.first.date, withYear: withYear), theme.label);
     first.paint(canvas, Offset(left, height + 4));
     if (points.length > 1) {
-      final last = layoutLabel(_axisDay.format(points.last.date).replaceAll('.', ''), theme.label);
+      final last = layoutLabel(axisDay(points.last.date, withYear: withYear), theme.label);
       last.paint(canvas, Offset(size.width - last.width, height + 4));
     }
   }
