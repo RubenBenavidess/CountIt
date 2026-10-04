@@ -8,13 +8,17 @@ import '../../app/logging/app_logger.dart';
 import '../../app/theme/tokens.dart';
 import 'wordmark.dart';
 
-/// Blocks screenshots and screen recording while [child] is on screen
-/// (Android `FLAG_SECURE`; COU-115). Wrap screens that show passwords or
-/// financial data. Nested or overlapping uses are reference-counted.
+/// Blocks screenshots and screen recording while [child] is on screen and
+/// [enabled] (Android `FLAG_SECURE`; COU-115). The whole signed-in app is
+/// covered from the root ([SessionSecureScreen]); the auth screens with
+/// passwords add their own. Nested or overlapping uses are reference-counted.
 class SecureScreen extends StatefulWidget {
-  const SecureScreen({super.key, required this.child});
+  const SecureScreen({super.key, required this.child, this.enabled = true});
 
   final Widget child;
+
+  /// Toggling it keeps [child] mounted (no subtree rebuild from scratch).
+  final bool enabled;
 
   static const channel = MethodChannel('ec.countit.app/secure_screen');
   static int _active = 0;
@@ -38,15 +42,34 @@ class SecureScreen extends StatefulWidget {
 }
 
 class _SecureScreenState extends State<SecureScreen> {
+  bool _holding = false;
+
   @override
   void initState() {
     super.initState();
+    if (widget.enabled) _acquire();
+  }
+
+  @override
+  void didUpdateWidget(SecureScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enabled && !_holding) _acquire();
+    if (!widget.enabled && _holding) _release();
+  }
+
+  void _acquire() {
+    _holding = true;
     if (SecureScreen._active++ == 0) unawaited(SecureScreen._call('enable'));
+  }
+
+  void _release() {
+    _holding = false;
+    if (--SecureScreen._active == 0) unawaited(SecureScreen._call('disable'));
   }
 
   @override
   void dispose() {
-    if (--SecureScreen._active == 0) unawaited(SecureScreen._call('disable'));
+    if (_holding) _release();
     super.dispose();
   }
 

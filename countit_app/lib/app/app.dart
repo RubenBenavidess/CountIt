@@ -8,13 +8,18 @@ import '../shared/widgets/secure_screen.dart';
 import 'errors/app_failure.dart';
 import 'push/push_open_handler.dart';
 import 'router/app_router.dart';
+import 'session/session_cubit.dart';
+import 'session/session_secure_screen.dart';
 import 'theme/app_theme.dart';
 
 /// Root widget: theme, Spanish (Ecuador) locale and the router.
 class CountItApp extends StatelessWidget {
-  const CountItApp({super.key, required this.router, this.planNotices, this.pushNotices});
+  const CountItApp({super.key, required this.router, this.session, this.planNotices, this.pushNotices});
 
   final GoRouter router;
+
+  /// While signed in, screenshots and screen recording are blocked app-wide.
+  final SessionCubit? session;
 
   /// `403 feature_not_in_plan` answers (COU-183): each opens the plans sheet.
   final Stream<AppFailure>? planNotices;
@@ -37,9 +42,12 @@ class CountItApp extends StatelessWidget {
       supportedLocales: const [locale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: router,
-      // Hides the content in the app switcher (COU-115).
+      // Hides the content in the app switcher and blocks captures while
+      // signed in (COU-115).
       builder: (context, child) {
-        final content = child ?? const SizedBox.shrink();
+        final routed = child ?? const SizedBox.shrink();
+        final session = this.session;
+        final content = session == null ? routed : SessionSecureScreen(session: session, child: routed);
         final notices = planNotices;
         final pushes = pushNotices;
         final withPlans = notices == null

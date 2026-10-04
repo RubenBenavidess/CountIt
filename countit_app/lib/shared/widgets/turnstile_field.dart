@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../app/theme/tokens.dart';
 
@@ -31,6 +34,23 @@ class TurnstileField extends StatefulWidget {
 
   static const _challengeHost = 'challenges.cloudflare.com';
 
+  /// Turnstile tokens are opaque, URL-safe and well under 2 KB; anything
+  /// else reaching the channel is not a token and is dropped.
+  static final _token = RegExp(r'^[A-Za-z0-9._\-]{1,2048}$');
+
+  @visibleForTesting
+  static bool isToken(String value) => _token.hasMatch(value);
+
+  /// Only the page itself (`about:blank` while loading, the base URL host)
+  /// and Cloudflare's challenge, always over https.
+  @visibleForTesting
+  static bool allowsNavigation(String url, Uri baseUrl) {
+    if (url == 'about:blank' || url.startsWith('about:srcdoc')) return true;
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return false;
+    return uri.host == baseUrl.host || uri.host == _challengeHost;
+  }
+
   @visibleForTesting
   static String page(String siteKey) =>
       '''
@@ -59,7 +79,8 @@ class _TurnstileFieldState extends State<TurnstileField> {
   @override
   void initState() {
     super.initState();
-    _web = WebViewController()
+    // Camera, microphone and the like are never granted to web content.
+    _web = WebViewController(onPermissionRequest: (request) => request.deny())
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
       ..addJavaScriptChannel('Turnstile', onMessageReceived: (message) => _onMessage(message.message))
@@ -69,17 +90,20 @@ class _TurnstileFieldState extends State<TurnstileField> {
           onWebResourceError: (error) {
             if (error.isForMainFrame ?? false) _set(_Status.failed);
           },
-          onNavigationRequest: (request) {
-            final host = Uri.tryParse(request.url)?.host;
-            final allowed =
-                request.url.startsWith('about:') ||
-                host == widget.baseUrl.host ||
-                host == TurnstileField._challengeHost;
-            return allowed ? NavigationDecision.navigate : NavigationDecision.prevent;
-          },
+          onNavigationRequest: (request) => TurnstileField.allowsNavigation(request.url, widget.baseUrl)
+              ? NavigationDecision.navigate
+              : NavigationDecision.prevent,
         ),
-      )
-      ..loadHtmlString(TurnstileField.page(widget.siteKey), baseUrl: widget.baseUrl.toString());
+      );
+    final platform = _web.platform;
+    if (platform is AndroidWebViewController) {
+      // No local files, content providers, location or plain-http subresources.
+      unawaited(platform.setAllowFileAccess(false));
+      unawaited(platform.setAllowContentAccess(false));
+      unawaited(platform.setGeolocationEnabled(false));
+      unawaited(platform.setMixedContentMode(MixedContentMode.neverAllow));
+    }
+    unawaited(_web.loadHtmlString(TurnstileField.page(widget.siteKey), baseUrl: widget.baseUrl.toString()));
     widget.controller.addListener(_reset);
   }
 
@@ -93,9 +117,10 @@ class _TurnstileFieldState extends State<TurnstileField> {
   }
 
   void _onMessage(String message) {
-    if (message.startsWith('token:')) {
+    final token = message.startsWith('token:') ? message.substring(6) : null;
+    if (token != null && TurnstileField.isToken(token)) {
       _set(_Status.solved);
-      widget.onToken(message.substring(6));
+      widget.onToken(token);
     } else {
       _set(message == 'error' ? _Status.failed : _Status.ready);
       widget.onToken(null);
@@ -105,7 +130,7 @@ class _TurnstileFieldState extends State<TurnstileField> {
   void _reset() {
     widget.onToken(null);
     _set(_Status.ready);
-    _web.runJavaScript('resetTurnstile()');
+    unawaited(_web.runJavaScript('resetTurnstile()'));
   }
 
   void _set(_Status status) {
