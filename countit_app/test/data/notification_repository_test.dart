@@ -1,4 +1,5 @@
 import 'package:countit_app/data/dtos/notification.dart';
+import 'package:countit_app/data/remote/realtime_watcher.dart';
 import 'package:countit_app/data/repositories/notification_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -36,14 +37,35 @@ Map<String, dynamic> _row(int id, {String? readAt}) => {
   'read_at': readAt,
 };
 
+/// Realtime double: records the watched topics.
+class _FakeRealtime implements RealtimeWatcher {
+  final topics = <RealtimeTopic>[];
+
+  @override
+  Stream<void> watch(RealtimeTopic topic) {
+    topics.add(topic);
+    return const Stream.empty();
+  }
+}
+
 void main() {
   late MockApiClient api;
+  late _FakeRealtime realtime;
   late SupabaseNotificationRepository repository;
   late Uri request;
 
   setUp(() {
     api = MockApiClient();
-    repository = SupabaseNotificationRepository(api);
+    realtime = _FakeRealtime();
+    repository = SupabaseNotificationRepository(api, realtime);
+  });
+
+  test('changes: Realtime on public.notifications filtered by the user (COU-182)', () {
+    repository.changes('u1');
+    final topic = realtime.topics.single;
+    expect(topic.table, 'notifications');
+    expect(topic.column, 'user_id');
+    expect(topic.value, 'u1');
   });
 
   void selectReturns(List<Map<String, dynamic>> rows) =>

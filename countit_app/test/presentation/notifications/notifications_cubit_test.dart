@@ -25,6 +25,7 @@ void main() {
     cubit = NotificationsCubit(repository);
     when(() => repository.markRead(any())).thenAnswer((_) async {});
     when(repository.markAllRead).thenAnswer((_) async {});
+    when(() => repository.changes(any())).thenAnswer((_) => const Stream.empty());
   });
 
   tearDown(() => cubit.close());
@@ -201,6 +202,51 @@ void main() {
       expect(cubit.state.items.every((n) => !n.isRead), isTrue);
       expect(cubit.state.unread, 3);
       expect(cubit.state.actionFailure?.failure, _network);
+    });
+  });
+
+  group('live with Realtime (COU-182)', () {
+    late StreamController<void> live;
+    late bool cancelled;
+
+    setUp(() {
+      cancelled = false;
+      live = StreamController<void>(onCancel: () => cancelled = true);
+      when(() => repository.changes('u1')).thenAnswer((_) => live.stream);
+    });
+
+    test('a change reloads the head and the badge', () async {
+      inboxReturns([notificationFixture(id: 1)]);
+      await cubit.setUser('u1');
+      inboxReturns([notificationFixture(id: 2, kind: NotificationKind.budgetExceeded), notificationFixture(id: 1)]);
+      live.add(null);
+      await pumpEventQueue();
+      expect(cubit.state.items.map((n) => n.id), [2, 1]);
+      expect(cubit.state.unread, 2);
+    });
+
+    test('signing out closes the channel and later signals do nothing', () async {
+      inboxReturns([notificationFixture(id: 1)]);
+      await cubit.setUser('u1');
+      await cubit.setUser(null);
+      expect(cancelled, isTrue);
+      expect(cubit.state, const NotificationsState());
+    });
+
+    test('another account gets its own channel', () async {
+      inboxReturns(const []);
+      await cubit.setUser('u1');
+      when(() => repository.changes('u2')).thenAnswer((_) => const Stream.empty());
+      await cubit.setUser('u2');
+      expect(cancelled, isTrue);
+      verify(() => repository.changes('u2')).called(1);
+    });
+
+    test('closing the cubit closes the channel', () async {
+      inboxReturns(const []);
+      await cubit.setUser('u1');
+      await cubit.close();
+      expect(cancelled, isTrue);
     });
   });
 }

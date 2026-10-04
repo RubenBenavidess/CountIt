@@ -50,8 +50,9 @@ Future<void> main() async {
   final ScheduledTransactionRepository scheduled = SupabaseScheduledTransactionRepository(api);
   final AnalysisRepository analysis = SupabaseAnalysisRepository(api);
   final AdminRepository admin = SupabaseAdminRepository(api);
-  final FamilyRepository families = SupabaseFamilyRepository(api, SupabaseRealtimeWatcher(client));
-  final NotificationRepository notificationRepository = SupabaseNotificationRepository(api);
+  final realtime = SupabaseRealtimeWatcher(client);
+  final FamilyRepository families = SupabaseFamilyRepository(api, realtime);
+  final NotificationRepository notificationRepository = SupabaseNotificationRepository(api, realtime);
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
