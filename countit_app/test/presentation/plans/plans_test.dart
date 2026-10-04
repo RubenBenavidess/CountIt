@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/mocks.dart';
+import '../../helpers/plan_fixtures.dart';
 import '../../helpers/pump_app.dart';
 
 const _proLimits = {
@@ -205,6 +206,33 @@ void main() {
       expect(find.bySemanticsLabel('Regular, tu plan actual'), findsOneWidget);
       await tester.scrollUntilVisible(find.byKey(const ValueKey('plan-offer-3')), 300);
       expect(find.text(r'$4,99 al mes'), findsOneWidget);
+    });
+
+    testWidgets('the catalogue comes from v_plans: a failure shows retry, which reloads it', (tester) async {
+      final plans = FakePlanRepository(
+        failure: const AppFailure(kind: FailureKind.network, message: 'Sin conexión'),
+      );
+      await tester.pumpApp(const PlansPage(), auth: auth, plans: plans, session: sessionWith(_profile(_regular)));
+      await tester.pumpAndSettle();
+      expect(find.text('No pudimos cargar esto'), findsOneWidget);
+      plans.failure = null;
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plan-offer-2')), findsOneWidget);
+      expect(find.text('Gestión financiera extendida con acceso a familias.'), findsOneWidget);
+      expect(plans.calls, 2);
+    });
+
+    testWidgets('«Mi plan» without the catalogue still shows the plan, without its description', (tester) async {
+      final plans = FakePlanRepository(
+        failure: const AppFailure(kind: FailureKind.network, message: 'Sin conexión'),
+      );
+      final until = DateTime(_today.year + 1, _today.month, 1);
+      await tester.pumpApp(const MyPlanPage(), auth: auth, plans: plans, session: sessionWith(_profile(_pro(until))));
+      await tester.pumpAndSettle();
+      expect(find.text('Contador Profesional'), findsOneWidget);
+      expect(find.text('Gestión ilimitada con vistas analíticas.'), findsNothing);
+      expect(find.text('No pudimos cargar esto'), findsNothing);
     });
   });
 

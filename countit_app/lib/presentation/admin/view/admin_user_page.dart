@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/errors/app_failure.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/admin.dart';
-import '../../../data/dtos/plan_catalog.dart';
+import '../../../data/dtos/plan_offer.dart';
 import '../../../data/dtos/profile.dart';
 import '../../../data/repositories/admin_repository.dart';
+import '../../../data/repositories/plan_repository.dart';
 import '../../../shared/utils/dates.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -17,6 +19,7 @@ import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
 import '../../../shared/widgets/detail_rows.dart';
+import '../../plans/cubit/plan_catalog_cubit.dart';
 import '../cubit/admin_user_cubit.dart';
 import 'widgets/admin_choice.dart';
 import 'widgets/role_guard.dart';
@@ -56,10 +59,22 @@ class _AdminUserView extends StatelessWidget {
     final cubit = context.read<AdminUserCubit>();
     final user = cubit.state.user;
     final today = _today(context);
-    final choice = await showPlanChoiceSheet(context, user: user, today: today);
+    final List<PlanOffer> offers;
+    try {
+      offers = await context.read<PlanRepository>().list();
+    } on AppFailure catch (failure) {
+      if (context.mounted) showFailureSnackBar(context, failure);
+      return;
+    }
+    if (!context.mounted) return;
+    if (offers.isEmpty) {
+      showAppSnackBar(context, 'No hay planes disponibles. Intenta más tarde.', kind: SnackKind.error);
+      return;
+    }
+    final choice = await showPlanChoiceSheet(context, user: user, today: today, offers: offers);
     if (choice == null || !context.mounted) return;
     final (offer, until) = choice;
-    final current = PlanCatalog.byName(user.planName);
+    final current = offerById(offers, user.planId);
     final downgrade = current != null && (offer.plan.monthlyPriceCents ?? 0) < (current.plan.monthlyPriceCents ?? 0);
     final confirmed = await showConfirmDialog(
       context,
@@ -205,15 +220,17 @@ String enforcedSummary(PlanAssignment assignment) {
   return 'Por el nuevo plan ${parts.join(', ')}.';
 }
 
-/// Plan and «valid until» for a user (superadmin); null when cancelled.
+/// Plan among [offers] (`v_plans`, not empty) and «valid until» for a user
+/// (superadmin); null when cancelled.
 Future<(PlanOffer, DateTime)?> showPlanChoiceSheet(
   BuildContext context, {
   required AdminUser user,
   required DateTime today,
+  required List<PlanOffer> offers,
 }) {
   final first = AdminUserCubit.firstValidUntil(today);
-  final current = PlanCatalog.byName(user.planName);
-  var selected = current ?? PlanCatalog.all.first;
+  final current = offerById(offers, user.planId);
+  var selected = current ?? offers.first;
   // Default: a month, or the current end when it is still ahead.
   final currentEnd = user.planValidUntil;
   var until = currentEnd != null && !currentEnd.isBefore(first)
@@ -231,12 +248,14 @@ Future<(PlanOffer, DateTime)?> showPlanChoiceSheet(
           AdminChoiceGroup<PlanOffer>(
             label: 'Plan',
             options: [
-              for (final offer in PlanCatalog.all)
+              for (final offer in offers)
                 AdminChoice(
                   offer,
                   offer.name,
                   key: ValueKey('plan-choice-${offer.planId}'),
-                  caption: offer.planId == current?.planId ? 'Plan actual' : offer.description,
+                  caption: offer.planId == current?.planId
+                      ? 'Plan actual'
+                      : (offer.description.isEmpty ? null : offer.description),
                 ),
             ],
             selected: selected,

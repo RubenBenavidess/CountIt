@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/errors/app_failure.dart';
 import '../../../data/dtos/admin.dart';
-import '../../../data/dtos/plan_catalog.dart';
+import '../../../data/dtos/plan_offer.dart';
 import '../../../data/dtos/profile.dart';
 import '../../../data/repositories/admin_repository.dart';
 import 'admin_failures.dart';
@@ -70,7 +70,11 @@ class AdminUserCubit extends Cubit<AdminUserState> {
     }
     return _run(AdminUserAction.plan, () async {
       final assignment = await _admin.setUserPlan(state.user.userId, planId: offer.planId, validUntil: validUntil);
-      final user = state.user.copyWith(planName: assignment.planName, planValidUntil: assignment.validUntil);
+      final user = state.user.copyWith(
+        planId: assignment.planId,
+        planName: assignment.planName,
+        planValidUntil: assignment.validUntil,
+      );
       return AdminUserState(user: user, done: AdminUserAction.plan, assignment: assignment);
     });
   }

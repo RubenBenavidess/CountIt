@@ -4,6 +4,7 @@ import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/session/session_state.dart';
 import 'package:countit_app/data/dtos/admin.dart';
 import 'package:countit_app/data/dtos/profile.dart';
+import 'package:countit_app/data/repositories/plan_repository.dart';
 import 'package:countit_app/presentation/admin/cubit/admin_failures.dart';
 import 'package:countit_app/presentation/admin/view/admin_page.dart';
 import 'package:countit_app/presentation/admin/view/admin_user_page.dart';
@@ -16,6 +17,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/admin_fixtures.dart';
 import '../../helpers/mocks.dart';
+import '../../helpers/plan_fixtures.dart';
 import '../../helpers/pump_app.dart';
 
 /// The confirm button of the dialog (the screen has a button with the same text).
@@ -59,11 +61,18 @@ void main() {
     ],
   );
 
-  Future<void> pumpAt(WidgetTester tester, String location, UserRole role, {Object? extra}) async {
+  Future<void> pumpAt(
+    WidgetTester tester,
+    String location,
+    UserRole role, {
+    Object? extra,
+    PlanRepository? plans,
+  }) async {
     await tester.pumpApp(
       const SizedBox.shrink(),
       auth: auth,
       admin: admin,
+      plans: plans,
       session: sessionAs(role),
       router: router(location, extra: extra),
     );
@@ -174,6 +183,29 @@ void main() {
       verify(() => admin.setUserPlan('u-carlos', planId: 2, validUntil: DateTime(2028, 10, 4))).called(1);
       expect(find.text('Plan actualizado: Contador hasta el 4 oct 2028.'), findsOneWidget);
       expect(find.text('Contador'), findsOneWidget);
+    });
+
+    testWidgets('without the plan catalogue the change is not offered: an error and nothing sent', (tester) async {
+      await pumpAt(
+        tester,
+        AppRoutes.adminUser('u-carlos'),
+        UserRole.superadmin,
+        extra: adminUser(),
+        plans: FakePlanRepository(
+          failure: const AppFailure(kind: FailureKind.network, message: 'Sin conexión'),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('admin-change-plan')));
+      await tester.pumpAndSettle();
+      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(find.byKey(const ValueKey('plan-choice-1')), findsNothing);
+      verifyNever(
+        () => admin.setUserPlan(
+          any(),
+          planId: any(named: 'planId'),
+          validUntil: any(named: 'validUntil'),
+        ),
+      );
     });
 
     testWidgets('a downgrade warns that quotas apply right away; cancelling sends nothing', (tester) async {

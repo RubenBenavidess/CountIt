@@ -1,4 +1,3 @@
-import 'package:countit_app/data/dtos/plan_catalog.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,14 +91,6 @@ void main() {
       expect(UserRole.admin.isSuperadmin, isFalse);
       expect(UserRole.admin.canAdminister, isTrue);
       expect(UserRole.values.map((r) => r.label), ['Usuario', 'Administrador', 'Superadministrador']);
-    });
-
-    test('catalogue mirrors the backend seed: Regular free, ids 1..3', () {
-      expect(PlanCatalog.all.map((o) => o.planId), [1, 2, 3]);
-      expect(PlanCatalog.byId(PlanCatalog.regularId)!.plan.isPaid, isFalse);
-      expect(PlanCatalog.byName('Contador Profesional')!.plan.hasFeature(PlanFeatures.walletProjection), isTrue);
-      expect(PlanCatalog.byName('Contador')!.plan.quota('max_scheduled_transactions'), 10);
-      expect(PlanCatalog.byId(9), isNull);
     });
   });
 }

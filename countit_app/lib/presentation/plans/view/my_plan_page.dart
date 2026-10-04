@@ -6,13 +6,14 @@ import '../../../app/router/app_router.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
-import '../../../data/dtos/plan_catalog.dart';
 import '../../../data/dtos/profile.dart';
+import '../../../data/repositories/plan_repository.dart';
 import '../../../shared/utils/dates.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../cubit/plan_catalog_cubit.dart';
 import 'plan_details.dart';
 import 'widgets/plan_widgets.dart';
 
@@ -25,6 +26,17 @@ class MyPlanPage extends StatelessWidget {
   const MyPlanPage({super.key});
 
   @override
+  Widget build(BuildContext context) => BlocProvider(
+    // Only for the plan description: without the catalogue it is omitted.
+    create: (context) => PlanCatalogCubit(context.read<PlanRepository>())..load(),
+    child: const _MyPlanView(),
+  );
+}
+
+class _MyPlanView extends StatelessWidget {
+  const _MyPlanView();
+
+  @override
   Widget build(BuildContext context) {
     final profile = context.select((SessionCubit c) => c.state.profile);
     final plan = profile?.plan;
@@ -33,7 +45,10 @@ class MyPlanPage extends StatelessWidget {
       body: profile == null
           ? const LoadingView()
           : RefreshIndicator(
-              onRefresh: context.read<SessionCubit>().refreshProfile,
+              onRefresh: () => Future.wait([
+                context.read<SessionCubit>().refreshProfile(),
+                context.read<PlanCatalogCubit>().load(refresh: true),
+              ]),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.xxl),
@@ -62,7 +77,7 @@ class _PlanBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final price = planPrice(plan);
-    final description = PlanCatalog.byId(plan.planId)?.description;
+    final description = context.select((PlanCatalogCubit c) => c.byId(plan.planId)?.description);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.lg,
@@ -83,9 +98,10 @@ class _PlanBody extends StatelessWidget {
                   PlanValidityPill(plan: plan, today: today),
                 ],
               ),
-              if (price != null || description != null) const SizedBox(height: AppSpacing.xs),
+              if (price != null || (description?.isNotEmpty ?? false)) const SizedBox(height: AppSpacing.xs),
               if (price != null) Text(price, style: AppTypography.label),
-              if (description != null) Text(description, style: AppTypography.caption.copyWith(color: palette.muted)),
+              if (description != null && description.isNotEmpty)
+                Text(description, style: AppTypography.caption.copyWith(color: palette.muted)),
               const SizedBox(height: AppSpacing.lg),
               Divider(height: 1, color: palette.line),
               const SizedBox(height: AppSpacing.md),

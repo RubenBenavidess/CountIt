@@ -39,6 +39,7 @@ void main() {
       final user = page.items.single;
       expect(user.role, UserRole.superadmin);
       expect(user.planName, isNull);
+      expect(user.planId, isNull);
       expect(user.displayName, 'Carlos Pérez');
       verify(() => api.rpc<dynamic>('admin_list_users', params: {'p_limit': 31, 'p_offset': 0})).called(1);
     });
@@ -47,6 +48,7 @@ void main() {
       rpcReturns([adminUserJson()]);
       final user = (await admin.listUsers()).items.single;
       expect(user, adminUser());
+      expect(user.planId, 1);
     });
 
     test('an unexpected answer is a server failure', () async {

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/data/dtos/admin.dart';
-import 'package:countit_app/data/dtos/plan_catalog.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/presentation/admin/cubit/admin_failures.dart';
 import 'package:countit_app/presentation/admin/cubit/admin_user_cubit.dart';
@@ -13,6 +12,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/admin_fixtures.dart';
 import '../../helpers/mocks.dart';
+import '../../helpers/plan_fixtures.dart';
 
 const _network = AppFailure(kind: FailureKind.network, message: 'No hay conexión.');
 const _forbidden = AppFailure(kind: FailureKind.forbidden, message: 'Acceso denegado', key: 'forbidden', status: 403);
@@ -109,7 +109,7 @@ void main() {
 
   group('AdminUserCubit (COU-203, COU-204)', () {
     final today = DateTime(2026, 10, 4);
-    final contador = PlanCatalog.byId(2)!;
+    final contador = planOffer(2);
     final nowUtc = DateTime.utc(2026, 10, 4, 15);
 
     test('valid until must be after today (user zone and server UTC)', () {
