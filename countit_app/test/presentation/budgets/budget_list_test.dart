@@ -169,7 +169,9 @@ void main() {
       await tester.pumpApp(
         BlocProvider.value(
           value: cubit,
-          child: const CustomScrollView(slivers: [BudgetSection()]),
+          child: CustomScrollView(
+            slivers: [BudgetSection(onCreate: () {}, onOpen: (_) {})],
+          ),
         ),
       );
       return cubit;

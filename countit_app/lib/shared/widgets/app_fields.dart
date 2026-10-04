@@ -270,7 +270,8 @@ class AppDateField extends StatelessWidget {
       label: label,
       child: Semantics(
         button: true,
-        label: '$label: $text',
+        // The error is read too: excludeSemantics hides the decorator's text.
+        label: errorText == null ? '$label: $text' : '$label: $text. $errorText',
         excludeSemantics: true,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -346,6 +347,61 @@ class AppDropdownField<T> extends StatelessWidget {
             ),
         ],
         onChanged: enabled ? onChanged : null,
+      ),
+    );
+  }
+}
+
+/// Labeled single choice as chips (budget type, period…): every option
+/// visible at once, one tap to pick. [helper] explains the current choice.
+class AppChoiceChips<T> extends StatelessWidget {
+  const AppChoiceChips({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+    this.helper,
+    this.errorText,
+    this.enabled = true,
+  });
+
+  final String label;
+  final List<AppOption<T>> options;
+  final T? value;
+  final ValueChanged<T> onChanged;
+  final String? helper;
+  final String? errorText;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final error = errorText;
+    return _Labeled(
+      label: label,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpacing.sm,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final option in options)
+                ChoiceChip(
+                  key: ValueKey('choice-${option.value}'),
+                  label: Text(option.label),
+                  selected: option.value == value,
+                  onSelected: enabled ? (_) => onChanged(option.value) : null,
+                ),
+            ],
+          ),
+          if (error != null)
+            Text(error, style: AppTypography.caption.copyWith(color: Theme.of(context).colorScheme.error))
+          else if (helper != null)
+            Text(helper!, style: AppTypography.caption.copyWith(color: muted)),
+        ],
       ),
     );
   }
