@@ -212,8 +212,10 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           // Edits the rule the list showed; without it, back to the wallet.
           redirect: (context, state) =>
               state.extra is ScheduledEditArgs ? null : AppRoutes.wallet(_walletId(state) ?? 0),
-          builder: (context, state) =>
-              ScheduledFormPage(walletId: _walletId(state)!, initial: (state.extra! as ScheduledEditArgs).rule),
+          builder: (context, state) {
+            final args = state.extra! as ScheduledEditArgs;
+            return ScheduledFormPage(walletId: _walletId(state)!, initial: args.rule, canDelete: args.canDelete);
+          },
         ),
       ],
     ),

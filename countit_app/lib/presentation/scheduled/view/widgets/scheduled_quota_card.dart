@@ -32,6 +32,11 @@ class ScheduledQuota extends Equatable {
   /// The backend's own wording for the 409, for the upsell sheet.
   String get limitMessage => 'Alcanzaste el límite de ${limit ?? 0} transacciones programadas de tu plan';
 
+  /// Why a paused rule cannot run again yet.
+  String get resumeMessage =>
+      'Tienes ${usage?.running ?? 0} de ${limit ?? 0} programadas en ejecución, el máximo de tu plan. '
+      'Pausa o elimina otra para reanudar esta.';
+
   @override
   List<Object?> get props => [limit, usage, planName];
 }

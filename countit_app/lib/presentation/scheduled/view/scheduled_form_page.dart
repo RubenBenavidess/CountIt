@@ -17,6 +17,7 @@ import '../../../data/dtos/scheduled_transaction.dart';
 import '../../../data/dtos/transaction.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/scheduled_transaction_repository.dart';
+import '../../../shared/state/delete_cubit.dart';
 import '../../../shared/state/load_state.dart';
 import '../../../shared/state/submit_cubit.dart';
 import '../../../shared/utils/dates.dart';
@@ -28,11 +29,13 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../../account/view/reauth_sheet.dart';
 import '../../budgets/cubit/budget_list_cubit.dart';
 import '../../budgets/view/widgets/budget_selector_field.dart';
 import '../../plans/view/plan_upsell_sheet.dart';
 import '../../transactions/cubit/transaction_form_cubit.dart';
 import '../cubit/scheduled_form_cubit.dart';
+import '../cubit/scheduled_list_cubit.dart';
 
 /// What the list passes to the edit route: the listed rule and whether the
 /// caller may delete it ([ScheduledTransaction.canBeManagedBy]).
@@ -48,16 +51,25 @@ class ScheduledEditArgs {
 /// form with a future date hands its fields over). Pops with `true` after
 /// saving.
 class ScheduledFormPage extends StatelessWidget {
-  const ScheduledFormPage({super.key, required this.walletId, this.initial, this.draft});
+  const ScheduledFormPage({super.key, required this.walletId, this.initial, this.draft, this.canDelete = false});
 
   final int walletId;
   final ScheduledTransaction? initial;
   final ScheduledTransactionInput? draft;
 
+  /// Shows «Eliminar programado» (edit mode only; COU-154).
+  final bool canDelete;
+
   @override
   Widget build(BuildContext context) {
+    final ruleId = initial?.scheduledTransactionId;
     return MultiBlocProvider(
       providers: [
+        if (ruleId != null && canDelete)
+          BlocProvider(
+            create: (context) =>
+                ScheduledDeleteCubit(context.read<ScheduledTransactionRepository>(), scheduledTransactionId: ruleId),
+          ),
         BlocProvider(
           create: (context) => ScheduledFormCubit(
             context.read<ScheduledTransactionRepository>(),
@@ -70,16 +82,17 @@ class ScheduledFormPage extends StatelessWidget {
           create: (context) => BudgetListCubit(context.read<BudgetRepository>(), walletId: walletId)..load(),
         ),
       ],
-      child: _ScheduledFormView(initial: initial, draft: draft),
+      child: _ScheduledFormView(initial: initial, draft: draft, canDelete: canDelete && ruleId != null),
     );
   }
 }
 
 class _ScheduledFormView extends StatefulWidget {
-  const _ScheduledFormView({this.initial, this.draft});
+  const _ScheduledFormView({this.initial, this.draft, this.canDelete = false});
 
   final ScheduledTransaction? initial;
   final ScheduledTransactionInput? draft;
+  final bool canDelete;
 
   @override
   State<_ScheduledFormView> createState() => _ScheduledFormViewState();
@@ -285,6 +298,37 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
     }
   }
 
+  /// HU-20 (COU-154): confirmation, then the password if the session has
+  /// not confirmed it recently (`403 reauth_required`).
+  Future<void> _delete() async {
+    final cubit = context.read<ScheduledDeleteCubit>();
+    final name = widget.initial!.name;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: '¿Eliminar «$name»?',
+      message: 'Dejará de registrarse. Los movimientos que ya generó se conservan en la billetera.',
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await cubit.delete(
+      onReauth: reauthPrompt(context, action: 'eliminar «$name»', confirmLabel: 'Eliminar programado'),
+    );
+  }
+
+  void _onDeleteState(BuildContext context, DeleteState state) {
+    switch (state.status) {
+      case DeleteStatus.deleted:
+        showAppSnackBar(context, 'Eliminamos «${widget.initial!.name}»', kind: SnackKind.success);
+        setState(() => _saved = true);
+        context.pop(true);
+      case DeleteStatus.failure:
+        showFailureSnackBar(context, state.failure!);
+      case DeleteStatus.idle || DeleteStatus.deleting:
+        break;
+    }
+  }
+
   static String? _bannerError(AppFailure? failure) {
     if (failure == null || failure.isQuota) return null;
     if (failure.kind == FailureKind.notFound && !_budgetKeys.contains(failure.key)) return null;
@@ -468,6 +512,19 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
                     loading: busy,
                     onPressed: _editing && !dirty ? null : _save,
                   ),
+                  if (widget.canDelete)
+                    BlocConsumer<ScheduledDeleteCubit, DeleteState>(
+                      listenWhen: (previous, current) => previous.status != current.status,
+                      listener: _onDeleteState,
+                      builder: (context, delete) => AppButton(
+                        key: const ValueKey('scheduled-delete'),
+                        label: 'Eliminar programado',
+                        icon: Icons.delete_outline_rounded,
+                        variant: AppButtonVariant.danger,
+                        loading: delete.deleting,
+                        onPressed: busy ? null : _delete,
+                      ),
+                    ),
                 ],
               ),
             );
