@@ -2,10 +2,12 @@ import 'package:countit_app/app/app.dart';
 import 'package:countit_app/app/config/app_config.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
+import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
 import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
+import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -35,6 +37,7 @@ extension PumpApp on WidgetTester {
     WalletRepository? wallets,
     BankRepository? banks,
     BudgetRepository? budgets,
+    TransactionRepository? transactions,
     SessionCubit? session,
     GoRouter? router,
     AppConfig config = testConfig,
@@ -69,10 +72,25 @@ extension PumpApp on WidgetTester {
           RepositoryProvider<WalletRepository>.value(value: wallets ?? MockWalletRepository()),
           RepositoryProvider<BankRepository>.value(value: banks ?? MockBankRepository()),
           RepositoryProvider<BudgetRepository>.value(value: budgets ?? MockBudgetRepository()),
+          RepositoryProvider<TransactionRepository>.value(value: transactions ?? _emptyTransactions()),
         ],
         child: BlocProvider<SessionCubit>.value(value: sessionCubit, child: app),
       ),
     );
     await pump();
   }
+}
+
+/// Default transactions double: every wallet has no movements, so screens
+/// that embed the list (wallet detail) work without extra stubbing.
+MockTransactionRepository _emptyTransactions() {
+  final repository = MockTransactionRepository();
+  when(
+    () => repository.list(
+      any(),
+      after: any(named: 'after'),
+      limit: any(named: 'limit'),
+    ),
+  ).thenAnswer((_) async => const TransactionPage([]));
+  return repository;
 }

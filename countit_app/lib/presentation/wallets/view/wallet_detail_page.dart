@@ -11,17 +11,20 @@ import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/budget.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/budget_repository.dart';
+import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
 import '../../../shared/utils/money.dart';
-import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/load_more_listener.dart';
 import '../../account/view/reauth_sheet.dart';
 import '../../budgets/cubit/budget_list_cubit.dart';
 import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
+import '../../transactions/cubit/transaction_list_cubit.dart';
+import '../../transactions/view/transaction_section.dart';
 import '../cubit/wallet_detail_cubit.dart';
 import 'widgets/wallet_card.dart';
 import 'widgets/wallet_type_icon.dart';
@@ -44,6 +47,9 @@ class WalletDetailPage extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => BudgetListCubit(context.read<BudgetRepository>(), walletId: walletId)..load(),
+        ),
+        BlocProvider(
+          create: (context) => TransactionListCubit(context.read<TransactionRepository>(), walletId: walletId)..load(),
         ),
       ],
       child: const _WalletDetailView(),
@@ -96,9 +102,12 @@ class _WalletDetailView extends StatelessWidget {
     if (saved == true && !budgets.isClosed) unawaited(budgets.load());
   }
 
-  /// Pull-to-refresh reloads the wallet and its budgets together.
-  Future<void> _refresh(BuildContext context) =>
-      Future.wait([context.read<WalletDetailCubit>().load(), context.read<BudgetListCubit>().load()]);
+  /// Pull-to-refresh reloads the wallet, its budgets and its movements together.
+  Future<void> _refresh(BuildContext context) => Future.wait([
+    context.read<WalletDetailCubit>().load(),
+    context.read<BudgetListCubit>().load(),
+    context.read<TransactionListCubit>().load(),
+  ]);
 
   void _onMenu(BuildContext context, Wallet wallet, _MenuAction action) {
     switch (action) {
@@ -144,6 +153,9 @@ class _WalletDetailView extends StatelessWidget {
             ),
             titleSpacing: 0,
             title: Text(wallet?.name ?? 'Billetera', style: AppTypography.title, overflow: TextOverflow.ellipsis),
+            bottom: state.deleting
+                ? const PreferredSize(preferredSize: Size.fromHeight(2), child: LinearProgressIndicator(minHeight: 2))
+                : null,
             actions: [
               if (wallet != null)
                 PopupMenuButton<_MenuAction>(
@@ -164,20 +176,20 @@ class _WalletDetailView extends StatelessWidget {
                     : const LoadingView())
               : RefreshIndicator(
                   onRefresh: () => _refresh(context),
-                  child: _DetailBody(
-                    wallet: wallet,
-                    deleting: state.deleting,
-                    onEdit: () => _edit(context, wallet),
-                    onDelete: () => _delete(context, wallet),
-                    onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
-                    onOpenBudget: (budget) => _openBudgetForm(
-                      context,
-                      AppRoutes.editBudget(wallet.walletId, budget.budgetId),
-                      extra: BudgetEditArgs(
-                        budget,
-                        canDelete: budget.canBeDeletedBy(
-                          context.read<SessionCubit>().state.profile?.userId,
-                          walletIsOwner: wallet.isOwner,
+                  child: LoadMoreListener(
+                    onLoadMore: context.read<TransactionListCubit>().loadMore,
+                    child: _DetailBody(
+                      wallet: wallet,
+                      onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
+                      onOpenBudget: (budget) => _openBudgetForm(
+                        context,
+                        AppRoutes.editBudget(wallet.walletId, budget.budgetId),
+                        extra: BudgetEditArgs(
+                          budget,
+                          canDelete: budget.canBeDeletedBy(
+                            context.read<SessionCubit>().state.profile?.userId,
+                            walletIsOwner: wallet.isOwner,
+                          ),
                         ),
                       ),
                     ),
@@ -190,19 +202,9 @@ class _WalletDetailView extends StatelessWidget {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({
-    required this.wallet,
-    required this.deleting,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onCreateBudget,
-    required this.onOpenBudget,
-  });
+  const _DetailBody({required this.wallet, required this.onCreateBudget, required this.onOpenBudget});
 
   final Wallet wallet;
-  final bool deleting;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
 
@@ -248,32 +250,7 @@ class _DetailBody extends StatelessWidget {
         ),
         SliverPadding(
           padding: padding.copyWith(top: AppSpacing.xxl, bottom: AppSpacing.xxl),
-          sliver: SliverList.list(
-            children: [
-              const _UpcomingSection(
-                icon: Icons.receipt_long_outlined,
-                title: 'Movimientos',
-                message: 'Aquí verás los ingresos y gastos de esta billetera.',
-              ),
-              if (wallet.isOwner) ...[
-                const SizedBox(height: AppSpacing.xxl),
-                AppButton(
-                  label: 'Editar billetera',
-                  icon: Icons.edit_outlined,
-                  variant: AppButtonVariant.ghost,
-                  onPressed: deleting ? null : onEdit,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppButton(
-                  label: 'Eliminar billetera',
-                  icon: Icons.delete_outline_rounded,
-                  variant: AppButtonVariant.danger,
-                  loading: deleting,
-                  onPressed: onDelete,
-                ),
-              ],
-            ],
-          ),
+          sliver: TransactionSection(showAuthor: wallet.isShared),
         ),
       ],
     );
@@ -320,38 +297,6 @@ class _Figures extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// Space reserved for the movements (F05).
-class _UpcomingSection extends StatelessWidget {
-  const _UpcomingSection({required this.icon, required this.title, required this.message});
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpacing.md,
-      children: [
-        Semantics(header: true, child: Text(title, style: AppTypography.h2)),
-        AppCard(
-          outlined: true,
-          child: Row(
-            spacing: AppSpacing.md,
-            children: [
-              IconTile(icon),
-              Expanded(
-                child: Text(message, style: AppTypography.caption.copyWith(color: context.palette.muted)),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
