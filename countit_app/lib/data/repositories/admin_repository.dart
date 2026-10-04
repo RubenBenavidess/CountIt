@@ -2,6 +2,8 @@ import '../../app/errors/app_failure.dart';
 import '../../app/errors/error_mapper.dart';
 import '../../shared/utils/dates.dart';
 import '../dtos/admin.dart';
+import '../dtos/bank.dart';
+import '../dtos/json_parsing.dart';
 import '../dtos/profile.dart';
 import '../remote/api_client.dart';
 
@@ -24,6 +26,18 @@ abstract interface class AdminRepository {
 
   /// `admin_set_user_role` 🛡.
   Future<UserRole> setUserRole(String userId, UserRole role);
+
+  /// `v_banks` as an admin: every bank, active or not, ordered by name.
+  Future<List<Bank>> listBanks();
+
+  /// `admin_create_bank`: 409 `bank_name_taken`, 400 `invalid_country_code`/`invalid_color`.
+  Future<Bank> createBank(BankInput input);
+
+  /// `admin_update_bank`: replaces name, country and colour (null removes it).
+  Future<Bank> updateBank(int bankId, BankInput input);
+
+  /// `admin_set_bank_active`: wallets that use the bank keep it.
+  Future<Bank> setBankActive(int bankId, {required bool active});
 }
 
 class SupabaseAdminRepository implements AdminRepository {
@@ -62,6 +76,43 @@ class SupabaseAdminRepository implements AdminRepository {
     );
     if (json is! Map) throw _unexpected;
     return PlanAssignment.fromJson(Map<String, dynamic>.from(json));
+  }
+
+  @override
+  Future<List<Bank>> listBanks() async {
+    final rows = await _api.select('v_banks', query: (q) => q.order('name', ascending: true));
+    return rows.map(Bank.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<Bank> createBank(BankInput input) async => _bank(
+    await _api.rpc<dynamic>(
+      'admin_create_bank',
+      params: {'p_name': input.name, 'p_country_code': input.countryCode, 'p_color': ?toHexColor(input.color)},
+    ),
+  );
+
+  @override
+  Future<Bank> updateBank(int bankId, BankInput input) async => _bank(
+    await _api.rpc<dynamic>(
+      'admin_update_bank',
+      // An omitted colour removes it (contract): sent only when chosen.
+      params: {
+        'p_bank_id': bankId,
+        'p_name': input.name,
+        'p_country_code': input.countryCode,
+        'p_color': ?toHexColor(input.color),
+      },
+    ),
+  );
+
+  @override
+  Future<Bank> setBankActive(int bankId, {required bool active}) async =>
+      _bank(await _api.rpc<dynamic>('admin_set_bank_active', params: {'p_bank_id': bankId, 'p_active': active}));
+
+  static Bank _bank(Object? json) {
+    if (json is! Map) throw _unexpected;
+    return Bank.fromJson(Map<String, dynamic>.from(json));
   }
 
   @override

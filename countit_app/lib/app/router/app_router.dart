@@ -4,15 +4,18 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/dtos/admin.dart';
+import '../../data/dtos/bank.dart';
 import '../../data/dtos/profile.dart';
 import '../../data/dtos/scheduled_transaction.dart';
 import '../../data/dtos/transaction.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
+import '../../presentation/admin/view/admin_banks_page.dart';
 import '../../presentation/admin/view/admin_page.dart';
 import '../../presentation/admin/view/admin_user_page.dart';
 import '../../presentation/admin/view/admin_users_page.dart';
+import '../../presentation/admin/view/bank_form_page.dart';
 import '../../presentation/auth/view/check_email_page.dart';
 import '../../presentation/auth/view/email_confirmed_page.dart';
 import '../../presentation/auth/view/forgot_password_page.dart';
@@ -59,6 +62,8 @@ abstract final class AppRoutes {
   static const newWallet = '/wallets/new';
   static const admin = '/admin';
   static const adminUsers = '/admin/users';
+  static const adminBanks = '/admin/banks';
+  static const newBank = '/admin/banks/new';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
@@ -68,6 +73,7 @@ abstract final class AppRoutes {
   static const invitations = '/invitations';
 
   static String adminUser(String userId) => '$adminUsers/$userId';
+  static String editBank(int bankId) => '$adminBanks/$bankId/edit';
   static String wallet(int walletId) => '$wallets/$walletId';
   static String editWallet(int walletId) => '$wallets/$walletId/edit';
   static String newBudget(int walletId) => '$wallets/$walletId/budgets/new';
@@ -185,6 +191,19 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
               // Shows the user the list loaded; without it, back to the list.
               redirect: (context, state) => state.extra is AdminUser ? null : AppRoutes.adminUsers,
               builder: (context, state) => AdminUserPage(user: state.extra! as AdminUser),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: 'banks',
+          builder: (context, state) => const AdminBanksPage(),
+          routes: [
+            GoRoute(path: 'new', builder: (context, state) => const BankFormPage()),
+            GoRoute(
+              path: ':bankId/edit',
+              // Edits the bank the list showed; without it, back to the list.
+              redirect: (context, state) => state.extra is Bank ? null : AppRoutes.adminBanks,
+              builder: (context, state) => BankFormPage(initial: state.extra! as Bank),
             ),
           ],
         ),
