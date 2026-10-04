@@ -55,6 +55,32 @@ void main() {
       expect(const BarLayout(width: 344, count: 0).slotAt(200), isNull);
     });
 
+    test('bars: width follows the room of each period, within a minimum and a maximum', () {
+      // The old geometry gave ~6 px to each bar of 15 periods on a phone.
+      expect(const BarLayout(width: 344, count: 15).bar, greaterThan(7.5));
+      const daily = BarLayout(width: 344, count: 30);
+      const monthly = BarLayout(width: 344, count: 6);
+      expect(monthly.bar, greaterThan(daily.bar));
+      expect(const BarLayout(width: 1200, count: 6).bar, BarLayout.maxBar);
+      expect(const BarLayout(width: 120, count: 30).bar, greaterThanOrEqualTo(1.0));
+      expect(const BarLayout(width: 1200, count: 30).bar, greaterThan(daily.bar), reason: 'a tablet gives more room');
+    });
+
+    test('bars: each pair stays in its slot, clearly apart from the next one', () {
+      for (final (width, count) in const [(344.0, 30), (344.0, 15), (344.0, 12), (344.0, 6), (700.0, 13)]) {
+        final layout = BarLayout(width: width, count: count);
+        final pair = layout.bar * 2 + layout.innerGap;
+        for (var i = 0; i < count; i++) {
+          final left = layout.pairLeft(i);
+          expect(left, greaterThanOrEqualTo(layout.plotLeft + layout.slot * i - 1e-9));
+          expect(left + pair, lessThanOrEqualTo(layout.plotLeft + layout.slot * (i + 1) + 1e-9));
+        }
+        final between = layout.pairLeft(1) - (layout.pairLeft(0) + pair);
+        expect(between, greaterThanOrEqualTo(2), reason: '$count periods in $width px');
+        expect(between, greaterThan(layout.innerGap), reason: 'pairs read as pairs');
+      }
+    });
+
     test('trend: x by days, zero always inside the range', () {
       final geometry = TrendGeometry([
         TrendPoint(DateTime(2026, 10, 4), 50000),
