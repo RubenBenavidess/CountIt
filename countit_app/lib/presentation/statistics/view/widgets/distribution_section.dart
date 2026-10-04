@@ -42,7 +42,9 @@ class DistributionSection extends StatelessWidget {
   ];
 }
 
-/// One budget: name, signed amount and share, read as one sentence.
+/// One budget (COU-94): name, signed amount, share and a horizontal bar of
+/// that share, read as one sentence. The bar is a plain box (no painter):
+/// rows are built lazily and stay cheap.
 class BudgetShareRow extends StatelessWidget {
   const BudgetShareRow({super.key, required this.share, required this.income});
 
@@ -59,25 +61,57 @@ class BudgetShareRow extends StatelessWidget {
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Row(
-          spacing: AppSpacing.md,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 6,
           children: [
-            Expanded(
-              child: Text(share.budgetName, style: AppTypography.label, overflow: TextOverflow.ellipsis),
+            Row(
+              spacing: AppSpacing.md,
+              children: [
+                Expanded(
+                  child: Text(share.budgetName, style: AppTypography.label, overflow: TextOverflow.ellipsis),
+                ),
+                Text(
+                  amount,
+                  style: AppTypography.money.copyWith(fontSize: 14, color: income ? palette.income : palette.expense),
+                ),
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    Percent.format(share.pct),
+                    textAlign: TextAlign.end,
+                    style: AppTypography.caption.copyWith(color: palette.muted),
+                  ),
+                ),
+              ],
             ),
-            Text(
-              amount,
-              style: AppTypography.money.copyWith(fontSize: 14, color: income ? palette.income : palette.expense),
-            ),
-            SizedBox(
-              width: 56,
-              child: Text(
-                Percent.format(share.pct),
-                textAlign: TextAlign.end,
-                style: AppTypography.caption.copyWith(color: palette.muted),
-              ),
-            ),
+            ShareBar(fraction: share.pct / 100, color: income ? palette.income : palette.expense),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 6 px bar: [fraction] (0–1) of the width in [color] over the track.
+class ShareBar extends StatelessWidget {
+  const ShareBar({super.key, required this.fraction, required this.color});
+
+  final double fraction;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(3);
+    return Container(
+      height: 6,
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(color: context.palette.surface2, borderRadius: radius),
+      child: FractionallySizedBox(
+        widthFactor: fraction.clamp(0, 1),
+        heightFactor: 1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: color, borderRadius: radius),
         ),
       ),
     );

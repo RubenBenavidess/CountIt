@@ -57,4 +57,23 @@ void main() {
       expect(StatisticsBucket.parse('month').label, 'por mes');
     });
   });
+
+  group('chart aggregates (COU-96, COU-97)', () {
+    test('cumulative net after each bucket and the largest single bucket', () {
+      final stats = WalletStatistics.fromJson(statisticsJson());
+      final cumulative = stats.cumulativeNetCents;
+      expect(cumulative, hasLength(15));
+      expect(cumulative[1], 0);
+      expect(cumulative[2], 90000);
+      expect(cumulative[3], 90000 - 12050);
+      expect(cumulative.last, stats.totals.netCents);
+      expect(stats.peakBucketCents, 90000);
+    });
+
+    test('an empty series has no peak and stays at zero', () {
+      final stats = WalletStatistics.fromJson(statisticsJson(empty: true));
+      expect(stats.peakBucketCents, 0);
+      expect(stats.cumulativeNetCents.toSet(), {0});
+    });
+  });
 }
