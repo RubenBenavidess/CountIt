@@ -46,6 +46,8 @@ void main() {
       expect(redirectFor(s, AppRoutes.resetPassword), AppRoutes.home);
       expect(redirectFor(s, AppRoutes.splash), AppRoutes.home);
       expect(redirectFor(s, AppRoutes.home), isNull);
+      expect(redirectFor(s, AppRoutes.root), AppRoutes.home);
+      expect(redirectFor(s, AppRoutes.wallet(4)), isNull);
     });
 
     test('admin area only for admin and superadmin', () {

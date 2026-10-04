@@ -219,6 +219,16 @@ abstract final class AppTheme {
         showDragHandle: true,
         dragHandleColor: palette.line,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: palette.surface2,
+        surfaceTintColor: Colors.transparent,
+        height: 68,
+        labelTextStyle: WidgetStatePropertyAll(AppTypography.overline.copyWith(letterSpacing: 0, color: onSurface)),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(color: states.contains(WidgetState.selected) ? onSurface : palette.muted),
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: surface,
