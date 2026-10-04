@@ -91,6 +91,52 @@ void main() {
     });
   });
 
+  group('filters (COU-234)', () {
+    test('type, inclusive date range, budget and author become PostgREST filters', () async {
+      selectReturns([]);
+      await transactions.list(
+        4,
+        filter: TransactionFilter(
+          type: TransactionType.income,
+          from: DateTime(2026, 9, 1),
+          to: DateTime(2026, 9, 30),
+          budgetId: 3,
+          authorId: 'u2',
+        ),
+      );
+      final query = requests.single.queryParametersAll;
+      expect(query['wallet_id'], ['eq.4']);
+      expect(query['type'], ['eq.income']);
+      expect(query['date'], ['gte.2026-09-01', 'lte.2026-09-30']);
+      expect(query['budget_id'], ['eq.3']);
+      expect(query['user_id'], ['eq.u2']);
+    });
+
+    test('«Sin presupuesto» is budget_id=is.null', () async {
+      selectReturns([]);
+      await transactions.list(4, filter: const TransactionFilter(withoutBudget: true));
+      expect(requests.single.queryParameters['budget_id'], 'is.null');
+    });
+
+    test('filters and the keyset cursor combine on next pages', () async {
+      selectReturns([]);
+      await transactions.list(
+        4,
+        filter: const TransactionFilter(type: TransactionType.expense),
+        after: TransactionCursor(date: DateTime(2026, 10, 2), transactionId: 4),
+      );
+      final query = requests.single.queryParameters;
+      expect(query['type'], 'eq.expense');
+      expect(query['or'], startsWith('(date.lt.2026-10-02'));
+    });
+
+    test('the empty filter adds nothing', () async {
+      selectReturns([]);
+      await transactions.list(4);
+      expect(requests.single.queryParameters.keys.toSet(), {'select', 'wallet_id', 'order', 'limit'});
+    });
+  });
+
   group('getById', () {
     test('no row is transaction_not_found (404)', () async {
       selectReturns([]);

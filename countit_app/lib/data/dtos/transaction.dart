@@ -176,3 +176,71 @@ class TransactionInput extends Equatable {
   @override
   List<Object?> get props => [name, type, amountCents, date, budgetId];
 }
+
+/// Filters of the wallet list (HU-17 · COU-233, COU-234), translated to
+/// PostgREST filters by the repository. Every field is optional; the empty
+/// filter lists everything.
+class TransactionFilter extends Equatable {
+  const TransactionFilter({
+    this.type,
+    this.from,
+    this.to,
+    this.budgetId,
+    this.budgetName,
+    this.withoutBudget = false,
+    this.authorId,
+    this.authorName,
+  });
+
+  /// `type=eq.…`.
+  final TransactionType? type;
+
+  /// `date=gte.…` / `date=lte.…` (calendar days, inclusive).
+  final DateTime? from;
+  final DateTime? to;
+
+  /// `budget_id=eq.…`; [budgetName] only labels the active filter.
+  final int? budgetId;
+  final String? budgetName;
+
+  /// `budget_id=is.null` («Sin presupuesto»); excludes [budgetId].
+  final bool withoutBudget;
+
+  /// `user_id=eq.…`; [authorName] only labels the active filter.
+  final String? authorId;
+  final String? authorName;
+
+  bool get hasBudget => withoutBudget || budgetId != null;
+  bool get hasDates => from != null || to != null;
+
+  /// How many groups are active (type, dates, budget, author): the badge.
+  int get activeCount => [type != null, hasDates, hasBudget, authorId != null].where((on) => on).length;
+
+  bool get isEmpty => activeCount == 0;
+
+  TransactionFilter copyWith({
+    TransactionType? Function()? type,
+    DateTime? Function()? from,
+    DateTime? Function()? to,
+    ({int? id, String? name, bool without})? budget,
+    ({String? id, String? name})? author,
+  }) => TransactionFilter(
+    type: type == null ? this.type : type(),
+    from: from == null ? this.from : from(),
+    to: to == null ? this.to : to(),
+    budgetId: budget == null ? budgetId : (budget.without ? null : budget.id),
+    budgetName: budget == null ? budgetName : (budget.without ? null : budget.name),
+    withoutBudget: budget == null ? withoutBudget : budget.without,
+    authorId: author == null ? authorId : author.id,
+    authorName: author == null ? authorName : author.name,
+  );
+
+  /// Same filter without its dates / budget / author / type (chip removal).
+  TransactionFilter withoutDates() => copyWith(from: () => null, to: () => null);
+  TransactionFilter withoutBudgetFilter() => copyWith(budget: (id: null, name: null, without: false));
+  TransactionFilter withoutAuthor() => copyWith(author: (id: null, name: null));
+  TransactionFilter withoutType() => copyWith(type: () => null);
+
+  @override
+  List<Object?> get props => [type, from, to, budgetId, budgetName, withoutBudget, authorId, authorName];
+}

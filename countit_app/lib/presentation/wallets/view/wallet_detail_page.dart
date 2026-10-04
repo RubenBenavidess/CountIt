@@ -15,6 +15,7 @@ import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
+import '../../../shared/utils/dates.dart';
 import '../../../shared/utils/money.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -26,6 +27,7 @@ import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
 import '../../transactions/cubit/transaction_list_cubit.dart';
 import '../../transactions/view/transaction_section.dart';
+import '../../transactions/view/widgets/transaction_filters.dart';
 import '../cubit/wallet_detail_cubit.dart';
 import 'widgets/wallet_card.dart';
 import 'widgets/wallet_type_icon.dart';
@@ -108,6 +110,20 @@ class _WalletDetailView extends StatelessWidget {
   Future<void> _openTransactionForm(BuildContext context, String location, {Object? extra}) async {
     final saved = await context.push<bool>(location, extra: extra);
     if (saved == true && context.mounted) unawaited(_refresh(context));
+  }
+
+  /// Filters sheet (COU-233): budgets come from the section above; authors
+  /// only matter in shared wallets.
+  Future<void> _editFilters(BuildContext context, Wallet wallet) async {
+    final list = context.read<TransactionListCubit>();
+    final filter = await showTransactionFilters(
+      context,
+      current: list.state.filter,
+      budgets: context.read<BudgetListCubit>().state.data ?? const [],
+      authors: wallet.isShared ? list.state.knownAuthors : const {},
+      today: Dates.userToday(context.read<SessionCubit>().state.profile?.timezone),
+    );
+    if (filter != null && !list.isClosed) unawaited(list.applyFilter(filter));
   }
 
   /// Pull-to-refresh reloads the wallet, its budgets and its movements together.
@@ -197,6 +213,7 @@ class _WalletDetailView extends StatelessWidget {
                     onLoadMore: context.read<TransactionListCubit>().loadMore,
                     child: _DetailBody(
                       wallet: wallet,
+                      onEditFilters: () => _editFilters(context, wallet),
                       onOpenTransaction: (transaction) {
                         final userId = context.read<SessionCubit>().state.profile?.userId;
                         if (!transaction.canBeManagedBy(userId, walletIsOwner: wallet.isOwner)) return;
@@ -233,10 +250,12 @@ class _DetailBody extends StatelessWidget {
     required this.onCreateBudget,
     required this.onOpenBudget,
     required this.onOpenTransaction,
+    required this.onEditFilters,
   });
 
   final Wallet wallet;
   final ValueChanged<Transaction> onOpenTransaction;
+  final VoidCallback onEditFilters;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
 
@@ -283,7 +302,11 @@ class _DetailBody extends StatelessWidget {
         SliverPadding(
           // Room below the last movement for the floating «Movimiento» button.
           padding: padding.copyWith(top: AppSpacing.xxl, bottom: 96),
-          sliver: TransactionSection(showAuthor: wallet.isShared, onOpen: onOpenTransaction),
+          sliver: TransactionSection(
+            showAuthor: wallet.isShared,
+            onOpen: onOpenTransaction,
+            onEditFilters: onEditFilters,
+          ),
         ),
       ],
     );

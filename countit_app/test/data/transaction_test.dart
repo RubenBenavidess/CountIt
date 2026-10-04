@@ -76,4 +76,28 @@ void main() {
     });
     expect(TransactionInput.fromTransaction(transactionFixture(budgetId: 2)).budgetId, 2);
   });
+
+  group('TransactionFilter', () {
+    test('counts active groups; dates count once', () {
+      expect(const TransactionFilter().isEmpty, isTrue);
+      final f = TransactionFilter(
+        type: TransactionType.expense,
+        from: DateTime(2026, 10),
+        to: DateTime(2026, 10, 31),
+        withoutBudget: true,
+      );
+      expect(f.activeCount, 3);
+    });
+
+    test('a budget replaces «Sin presupuesto» and vice versa', () {
+      const none = TransactionFilter(withoutBudget: true);
+      final budget = none.copyWith(budget: (id: 3, name: 'Comida', without: false));
+      expect(budget.withoutBudget, isFalse);
+      expect(budget.budgetId, 3);
+      final back = budget.copyWith(budget: (id: 3, name: 'Comida', without: true));
+      expect(back.budgetId, isNull);
+      expect(back.withoutBudget, isTrue);
+      expect(back.withoutBudgetFilter().hasBudget, isFalse);
+    });
+  });
 }
