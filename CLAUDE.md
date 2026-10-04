@@ -2,8 +2,10 @@
 
 App móvil de **Count It!** (finanzas personales con billeteras compartidas, Ecuador, USD) en `countit_app/`. El backend
 es Supabase en [CountIt-Backend-Dev](https://github.com/RubenBenavidess/CountIt-Backend-Dev); su contrato
-(`docs/API.md`, hoy **1.2**, y `docs/api-schema.json`) manda: la app no inventa reglas que el backend no tenga.
+(`docs/API.md`, hoy **1.3**, y `docs/api-schema.json`) manda: la app no inventa reglas que el backend no tenga.
 UI en **español (es-EC)**; código, identificadores, comentarios y nombres de tests en **inglés**.
+
+Guía práctica para trabajar sin asistente (emulador, cuentas demo, comandos, CI, despliegue): Linear → documento *Desarrollo local y pruebas (guía sin Claude)*.
 
 Referencias: `countit_app/README.md` (ejecución, flavors, release, tabla de seguridad), `countit_app/docs/`
 (`SECURITY.md`, `RELEASE.md`, `PUSH.md`), `countit_app/test/README.md`, Linear *CountIt!* → proyecto
@@ -60,7 +62,9 @@ Flutter 3.47.6 · Dart 3.13 · Java 17 (`JAVA_HOME` del JBR de Android Studio). 
 - Commits en español. PR con `gh pr create -R RubenBenavidess/CountIt --base main` y cuerpo en español
   (**Spec, Context, What Changed, How to test**); CI (`flutter.yml`: formato, análisis, tests y APK debug) en verde
   → `gh pr merge <n> --squash --delete-branch`. Correcciones con commits nuevos; sin force-push.
-- Al cerrar trabajo de Linear, comentar la evidencia en el issue.
+- Al cerrar trabajo de Linear, comentar la evidencia en el issue (si Linear no está disponible, anotar en
+  `~/CountIt/linear-updates.md` para sincronizar después).
+- Invitar a la familia va por la Edge Function `invite-member` (contrato 1.3), no por el RPC.
 
 ## Gotchas
 - **Emulador en Wayland:** lanzarlo con `-feature -GuestAngle` (`emulator -avd CountIt_Pixel_8 -no-boot-anim
@@ -68,9 +72,10 @@ Flutter 3.47.6 · Dart 3.13 · Java 17 (`JAVA_HOME` del JBR de Android Studio). 
   levantarlo.
 - **Capturas negras:** con sesión iniciada `FLAG_SECURE` está activo; `adb exec-out screencap` sale negro. Para
   revisar la UI usar `uiautomator dump` (textos y etiquetas semánticas) o las pantallas sin sesión.
-- **Rate limit de login:** 5 por dispositivo cada 30 min y **cuentan los exitosos**; planificar las pruebas con
-  una sola sesión. Cuentas demo de staging `delivered+demo_<ana|carlos|lucia>@resend.dev` (contraseña fuera del
-  repo); no modificar sus datos de forma permanente.
+- **Rate limits de staging:** login 5 contraseñas incorrectas por dispositivo cada 30 min (los inicios correctos no
+  cuentan; capa por IP de 60 intentos cada 15 min), reautenticación 3 cada 2 min, invitar 30 intentos al día por usuario.
+  Cuentas demo `delivered+demo_<ana|carlos|lucia>@resend.dev` (contraseña en la guía de Linear); no modificar sus
+  datos de forma permanente.
 - Instalar un build nuevo encima de uno viejo sin la marca de instalación pide login otra vez (`FreshInstall`).
   Un APK firmado con otra clave (release vs debug) exige desinstalar antes.
 - `pubspec.lock` versionado y `--enforce-lockfile`: una dependencia nueva va con su lock en el mismo PR.
@@ -82,6 +87,8 @@ Flutter 3.47.6 · Dart 3.13 · Java 17 (`JAVA_HOME` del JBR de Android Studio). 
 
 ## Estado (04/10/2026)
 F01–F10 implementados en `main` (base, auth y cuenta, billeteras, presupuestos, movimientos, programadas, familias,
-estadísticas y proyección, bandeja en vivo, planes y administración). Pendiente de cuentas externas: **F09 push
-real** (Firebase, `docs/PUSH.md`) y **F11** publicación (Play Console, Apple Developer, keystore de subida COU-58,
-captcha COU-25, App Links con dominio propio).
+estadísticas y proyección, bandeja en vivo, planes y administración); navegación inferior Inicio · Movimientos ·
+Estadísticas · Perfil, animaciones (respetan «reducir movimiento») y monto grande coloreado al registrar movimientos.
+Pendiente de cuentas externas: **F09 push real** (Firebase, `docs/PUSH.md`), **captcha** COU-25 y **App Links**
+(sitio en Cloudflare Pages), flavors iOS (Xcode) y **F11** publicación (Play Console, Apple Developer, keystore COU-58).
+

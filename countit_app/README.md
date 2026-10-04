@@ -16,11 +16,20 @@ y `docs/api-schema.json` de ese repositorio. Diseño: lienzo *CountIt App* (toke
 | F10 | Planes (`v_plans`), gating, aviso de vencimiento y administración (usuarios, bancos, auditoría) | Hecho |
 | F11 | Publicación en tiendas | Pendiente de cuentas (Play Console, Apple Developer, keystore de subida, captcha) |
 
-Guía para agentes y convenciones del repo: [`CLAUDE.md`](../CLAUDE.md). Seguridad: [`docs/SECURITY.md`](docs/SECURITY.md).
+Guía para agentes y convenciones del repo: [`CLAUDE.md`](../CLAUDE.md). **Guía práctica** (emulador, cuentas demo, comandos, CI, despliegue): Linear → *Desarrollo local y pruebas (guía sin Claude)*. Seguridad: [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Requisitos
 - Flutter **3.47.6** (stable) · Dart 3.13 · Java 17 para Android.
 - Id de paquete: `ec.countit.app` (Android e iOS).
+
+## Probar rápido en el emulador
+```bash
+emulator -avd CountIt_Pixel_8 -no-boot-anim -feature -GuestAngle &   # Wayland/KDE: -feature -GuestAngle obligatorio
+cd countit_app && flutter pub get --enforce-lockfile
+flutter run --flavor staging --dart-define-from-file=env/staging.json  # r = hot reload, R = restart
+```
+Cuentas demo de staging: `delivered+demo_ana@resend.dev` (Contador Profesional), `…demo_lucia…` (Contador),
+`…demo_carlos…` (Regular); contraseña en la guía de Linear.
 
 ## Ejecutar
 Cada entorno es un *flavor* con su propio id, nombre e ícono, así pueden convivir instaladas (COU-40):
