@@ -115,6 +115,10 @@ void main() {
     );
 
     Future<void> pumpHome(WidgetTester tester) async {
+      // A tall phone, so both sections fit without scrolling.
+      tester.view.physicalSize = const Size(400, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpApp(const SizedBox(), auth: auth, wallets: wallets, session: await signedIn(), router: router());
     }
 
@@ -155,7 +159,7 @@ void main() {
     testWidgets('own and shared wallets in their sections; the empty state is gone', (tester) async {
       when(() => wallets.list()).thenAnswer(
         (_) async => [
-          walletFixture(id: 1, name: 'Ahorros', balance: 100),
+          walletFixture(id: 1, name: 'Viajes', balance: 100),
           walletFixture(id: 2, name: 'Casa compartida', isOwner: false, balance: 999),
         ],
       );
@@ -164,7 +168,7 @@ void main() {
       expect(find.text('Crea tu primera billetera'), findsNothing);
       expect(find.text('Mis billeteras'), findsOneWidget);
       expect(find.text('Compartidas conmigo'), findsOneWidget);
-      expect(find.text('Ahorros'), findsOneWidget);
+      expect(find.text('Viajes'), findsOneWidget);
       expect(find.text('Casa compartida'), findsOneWidget);
       // Only own wallets add up to the total.
       expect(find.text(r'$100,00'), findsWidgets);
@@ -205,14 +209,14 @@ void main() {
     });
 
     testWidgets('a failed refresh keeps the list and shows the error in a snackbar', (tester) async {
-      when(() => wallets.list()).thenAnswer((_) async => [walletFixture(name: 'Ahorros')]);
+      when(() => wallets.list()).thenAnswer((_) async => [walletFixture(name: 'Viajes')]);
       await pumpHome(tester);
       await tester.pumpAndSettle();
 
       when(() => wallets.list()).thenThrow(_network);
       await tester.fling(find.byType(CustomScrollView), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Ahorros'), findsOneWidget);
+      expect(find.text('Viajes'), findsOneWidget);
       expect(find.text('No hay conexión.'), findsOneWidget);
       expect(find.text('No pudimos cargar esto'), findsNothing);
     });
