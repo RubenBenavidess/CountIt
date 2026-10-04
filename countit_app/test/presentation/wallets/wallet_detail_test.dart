@@ -1,8 +1,8 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
-import 'package:countit_app/data/dtos/budget.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
+import 'package:countit_app/presentation/budgets/view/budget_form_page.dart';
 import 'package:countit_app/presentation/wallets/view/wallet_detail_page.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +28,8 @@ const _reauthRequired = AppFailure(
   status: 403,
 );
 const _network = AppFailure(kind: FailureKind.network, message: 'No hay conexión.');
+
+String _editLabel(BudgetEditArgs args) => 'EDIT BUDGET ${args.budget.name} canDelete=${args.canDelete}';
 
 void main() {
   late MockWalletRepository wallets;
@@ -81,7 +83,7 @@ void main() {
               builder: (context, state) => Scaffold(
                 body: TextButton(
                   onPressed: () => context.pop(false),
-                  child: Text('EDIT BUDGET ${(state.extra! as Budget).name}'),
+                  child: Text(_editLabel(state.extra! as BudgetEditArgs)),
                 ),
               ),
             ),
@@ -129,6 +131,16 @@ void main() {
       await pumpDetail(tester, wallet);
       expect(find.text('Mercado'), findsOneWidget);
 
+      await tester.tap(find.text('Mercado'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('EDIT BUDGET Mercado canDelete=false'),
+        findsOneWidget,
+        reason: 'a member who is not the author may edit but not delete',
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byKey(const ValueKey('budget-new')), warnIfMissed: false);
       await tester.pumpAndSettle();
       await tester.tap(find.text('NEW BUDGET'));
@@ -143,8 +155,8 @@ void main() {
       await pumpDetail(tester, wallet);
       await tester.tap(find.text('Mercado'));
       await tester.pumpAndSettle();
-      expect(find.text('EDIT BUDGET Mercado'), findsOneWidget);
-      await tester.tap(find.text('EDIT BUDGET Mercado'));
+      expect(find.text('EDIT BUDGET Mercado canDelete=true'), findsOneWidget, reason: 'the owner may delete');
+      await tester.tap(find.text('EDIT BUDGET Mercado canDelete=true'));
       await tester.pumpAndSettle();
       verify(() => budgets.listByWallet(4)).called(1);
     });

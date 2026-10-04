@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
+import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/budget.dart';
@@ -19,6 +20,7 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../account/view/reauth_sheet.dart';
 import '../../budgets/cubit/budget_list_cubit.dart';
+import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
 import '../cubit/wallet_detail_cubit.dart';
 import 'widgets/wallet_card.dart';
@@ -168,8 +170,17 @@ class _WalletDetailView extends StatelessWidget {
                     onEdit: () => _edit(context, wallet),
                     onDelete: () => _delete(context, wallet),
                     onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
-                    onOpenBudget: (budget) =>
-                        _openBudgetForm(context, AppRoutes.editBudget(wallet.walletId, budget.budgetId), extra: budget),
+                    onOpenBudget: (budget) => _openBudgetForm(
+                      context,
+                      AppRoutes.editBudget(wallet.walletId, budget.budgetId),
+                      extra: BudgetEditArgs(
+                        budget,
+                        canDelete: budget.canBeDeletedBy(
+                          context.read<SessionCubit>().state.profile?.userId,
+                          walletIsOwner: wallet.isOwner,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
         );
