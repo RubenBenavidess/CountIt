@@ -9,13 +9,24 @@ y `docs/api-schema.json` de ese repositorio. Diseño: lienzo *CountIt App* (toke
 - Id de paquete: `ec.countit.app` (Android e iOS).
 
 ## Ejecutar
-Cada entorno es un *flavor* con su propio id e ícono de nombre, así pueden convivir instaladas:
+Cada entorno es un *flavor* con su propio id, nombre e ícono, así pueden convivir instaladas (COU-40):
 
-| Flavor | Android id | Nombre | Config |
-|---|---|---|---|
-| `local` | `ec.countit.app.local` | Count It! Local | `env/local.json` (versionado) |
-| `staging` | `ec.countit.app.staging` | Count It! Staging | `env/staging.json` (copiar de `staging.example.json`; ignorado por git) |
-| `prod` | `ec.countit.app` | Count It! | `env/prod.json` (ignorado por git) |
+| Flavor | Android id | Nombre | Ícono | Config |
+|---|---|---|---|---|
+| `local` | `ec.countit.app.local` | Count It! Local | insignia «L» | `env/local.json` (versionado) |
+| `staging` | `ec.countit.app.staging` | Count It! Staging | insignia «S» | `env/staging.json` (copiar de `staging.example.json`; ignorado por git) |
+| `prod` | `ec.countit.app` | Count It! | logo | `env/prod.json` (ignorado por git) |
+
+**Ícono** (COU-55): adaptativo (fondo `#0D1B2A`, logo dentro de la zona segura de 66/108 dp), monocromo para los
+íconos temáticos de Android 13+, mipmaps *legacy* por densidad e `AppIcon` de iOS sin transparencia. Todos salen de
+`scripts/generate_brand_icons.py` (Pillow), que redibuja el logo con Manrope porque el original (101×131 px) no da
+para 432 px ni 1024 px; los flavors `local`/`staging` sobrescriben el *foreground* en `android/app/src/<flavor>/res`.
+
+**iOS:** hoy hay un único target (`ec.countit.app`, «Count It!»). Los flavors de iOS requieren Xcode (macOS) y se
+dejan para cuando exista la cuenta de Apple (COU-45): crear las configuraciones `Debug-<flavor>`/`Release-<flavor>`/
+`Profile-<flavor>` y un *scheme* compartido por flavor (mismo nombre que el flavor de Android), y en cada configuración
+`PRODUCT_BUNDLE_IDENTIFIER` = `ec.countit.app[.local|.staging]` y una variable `APP_DISPLAY_NAME` usada por
+`CFBundleDisplayName` en `Info.plist`. Verificar con `flutter build ios --no-codesign --flavor staging`.
 
 ```bash
 flutter pub get
@@ -34,8 +45,7 @@ o los PRs semanales de Dependabot, que también cubren las GitHub Actions, fijad
 
 **Enlaces de los correos** (`countit://auth/confirmed`, `countit://auth/reset-password`): el backend los usa si tiene
 `AUTH_EMAIL_REDIRECT_URL` y `PASSWORD_RESET_REDIRECT_URL` (ver su README) y la URL está en *Redirect URLs* de Auth.
-Probar en un emulador: `adb shell am start -W -a android.intent.action.VIEW -d "countit://auth/confirmed" ec.countit.app.local`. Los flavors de iOS (schemes y xcconfig) quedan pendientes: requieren
-Xcode para crearlos y verificarlos.
+Probar en un emulador: `adb shell am start -W -a android.intent.action.VIEW -d "countit://auth/confirmed" ec.countit.app.local`.
 
 ## Calidad
 ```bash
