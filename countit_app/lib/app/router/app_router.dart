@@ -18,6 +18,7 @@ import '../../presentation/auth/view/reset_password_page.dart';
 import '../../presentation/auth/view/welcome_page.dart';
 import '../../presentation/budgets/view/budget_form_page.dart';
 import '../../presentation/families/view/family_members_page.dart';
+import '../../presentation/families/view/invite_member_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
@@ -65,6 +66,7 @@ abstract final class AppRoutes {
   static String newScheduled(int walletId) => '$wallets/$walletId/scheduled/new';
   static String editScheduled(int walletId, int ruleId) => '$wallets/$walletId/scheduled/$ruleId/edit';
   static String members(int walletId) => '$wallets/$walletId/members';
+  static String inviteMember(int walletId) => '$wallets/$walletId/members/invite';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -224,6 +226,12 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           // Members of the wallet the detail screen loaded (name, ownership).
           redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
           builder: (context, state) => FamilyMembersPage(wallet: state.extra! as Wallet),
+        ),
+        GoRoute(
+          path: 'members/invite',
+          // Invites to the wallet the members screen showed (owner only; the API decides).
+          redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) => InviteMemberPage(wallet: state.extra! as Wallet),
         ),
       ],
     ),

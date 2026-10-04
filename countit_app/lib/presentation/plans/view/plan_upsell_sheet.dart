@@ -12,13 +12,20 @@ import '../../profile/view/plan_details.dart';
 /// Upsell after a plan quota error (`<x>_limit_exceeded`, 409): the backend
 /// [message] plus what the current plan includes.
 ///
+/// [title] changes the heading for a missing feature (403
+/// `feature_not_in_plan`) instead of a full quota.
+///
 /// There is no plan catalogue or self-service upgrade in the API yet (plans
 /// are assigned by an administrator), so the sheet explains and closes.
-Future<void> showPlanUpsell(BuildContext context, {required String message}) {
+Future<void> showPlanUpsell(
+  BuildContext context, {
+  required String message,
+  String title = 'Alcanzaste el límite de tu plan',
+}) {
   final plan = context.read<SessionCubit>().state.profile?.plan;
   return showAppBottomSheet<void>(
     context,
-    title: 'Alcanzaste el límite de tu plan',
+    title: title,
     builder: (context) {
       final muted = context.palette.muted;
       return Column(

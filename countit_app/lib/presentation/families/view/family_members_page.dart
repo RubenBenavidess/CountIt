@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../app/router/app_router.dart';
 
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
@@ -11,7 +16,9 @@ import '../../../shared/state/load_state.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../../plans/view/plan_upsell_sheet.dart';
 import '../cubit/family_members_cubit.dart';
+import 'invite_member_page.dart';
 import 'widgets/member_tile.dart';
 
 /// «Miembros» of a wallet (HU-24 · COU-92): the owner sees accepted members
@@ -37,6 +44,22 @@ class _FamilyMembersView extends StatelessWidget {
 
   final Wallet wallet;
 
+  /// HU-21 (COU-90): without families in the plan the sheet explains it
+  /// before a form the API would reject (403 `feature_not_in_plan`).
+  Future<void> _invite(BuildContext context) async {
+    final cubit = context.read<FamilyMembersCubit>();
+    final plan = context.read<SessionCubit>().state.profile?.plan;
+    if (plan != null && !plan.hasFeature('family_feature')) {
+      return showPlanUpsell(
+        context,
+        title: familiesNotInPlanTitle,
+        message: 'Compartir billeteras con tu familia está disponible en planes superiores.',
+      );
+    }
+    final invited = await context.push<bool>(AppRoutes.inviteMember(wallet.walletId), extra: wallet);
+    if (invited == true && !cubit.isClosed) unawaited(cubit.load());
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<FamilyMembersCubit>();
@@ -48,6 +71,16 @@ class _FamilyMembersView extends StatelessWidget {
               'Puedes ver sus movimientos y presupuestos y registrar los tuyos.';
     return Scaffold(
       appBar: const AppTopBar(title: 'Miembros'),
+      // COU-167: only the owner manages the family (the API decides anyway).
+      floatingActionButton: wallet.isOwner
+          ? FloatingActionButton.extended(
+              key: const ValueKey('member-invite'),
+              tooltip: 'Invitar a alguien a «${wallet.name}»',
+              onPressed: () => _invite(context),
+              icon: const Icon(Icons.person_add_alt_rounded),
+              label: const Text('Invitar'),
+            )
+          : null,
       body: RefreshIndicator(
         onRefresh: cubit.load,
         child: CustomScrollView(
@@ -89,10 +122,12 @@ class _FamilyMembersView extends StatelessWidget {
       return SliverFillRemaining(
         hasScrollBody: false,
         child: wallet.isOwner
-            ? const EmptyState(
+            ? EmptyState(
                 icon: Icons.group_add_outlined,
                 title: 'Solo tú usas esta billetera',
                 message: 'Invita a alguien por su nombre de usuario para compartirla.',
+                actionLabel: 'Invitar a alguien',
+                onAction: () => _invite(context),
               )
             : const EmptyState(
                 icon: Icons.group_off_outlined,
