@@ -19,7 +19,7 @@ class SplashPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             spacing: AppSpacing.md,
             children: [
-              const Wordmark(size: 44),
+              const Wordmark(size: 44, spread: false),
               Text('Cuéntalo todo.', style: Theme.of(context).textTheme.bodySmall),
               if (environment != AppEnvironment.prod)
                 Text(environment.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
