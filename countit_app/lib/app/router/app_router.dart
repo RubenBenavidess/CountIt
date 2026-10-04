@@ -27,6 +27,7 @@ import '../../presentation/scheduled/view/scheduled_form_page.dart';
 import '../../presentation/scheduled/view/scheduled_list_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
+import '../../presentation/statistics/view/statistics_page.dart';
 import '../../presentation/transactions/view/transaction_detail_page.dart';
 import '../../presentation/transactions/view/transaction_form_page.dart';
 import '../../presentation/wallets/view/wallet_detail_page.dart';
@@ -67,6 +68,7 @@ abstract final class AppRoutes {
   static String scheduled(int walletId) => '$wallets/$walletId/scheduled';
   static String newScheduled(int walletId) => '$wallets/$walletId/scheduled/new';
   static String editScheduled(int walletId, int ruleId) => '$wallets/$walletId/scheduled/$ruleId/edit';
+  static String statistics(int walletId) => '$wallets/$walletId/statistics';
   static String members(int walletId) => '$wallets/$walletId/members';
   static String inviteMember(int walletId) => '$wallets/$walletId/members/invite';
 
@@ -223,6 +225,14 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
             final args = state.extra! as ScheduledEditArgs;
             return ScheduledFormPage(walletId: _walletId(state)!, initial: args.rule, canDelete: args.canDelete);
           },
+        ),
+        GoRoute(
+          path: 'statistics',
+          // The wallet the detail screen passed only names the selector at once.
+          builder: (context, state) => StatisticsPage(
+            walletId: _walletId(state)!,
+            initial: state.extra is Wallet ? state.extra! as Wallet : null,
+          ),
         ),
         GoRoute(
           path: 'members',

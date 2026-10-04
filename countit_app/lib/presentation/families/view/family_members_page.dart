@@ -10,6 +10,7 @@ import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/family.dart';
+import '../../../data/dtos/profile.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/family_repository.dart';
 import '../../../shared/state/load_state.dart';
@@ -51,7 +52,7 @@ class _FamilyMembersView extends StatelessWidget {
   Future<void> _invite(BuildContext context) async {
     final cubit = context.read<FamilyMembersCubit>();
     final plan = context.read<SessionCubit>().state.profile?.plan;
-    if (plan != null && !plan.hasFeature('family_feature')) {
+    if (plan != null && !plan.hasFeature(PlanFeatures.families)) {
       return showPlanUpsell(
         context,
         title: familiesNotInPlanTitle,

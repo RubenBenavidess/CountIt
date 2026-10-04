@@ -56,3 +56,18 @@ abstract final class Money {
   /// True when [amount] has more than 2 decimals (the API answers 400 invalid_amount).
   static bool hasTooManyDecimals(num amount) => (amount * 100 - (amount * 100).round()).abs() > 1e-6;
 }
+
+/// Percentages in Spanish style: `12,5 %` (up to 1 decimal, non-breaking gap).
+abstract final class Percent {
+  static final NumberFormat _style = NumberFormat('#,##0.#', 'es');
+
+  /// `12,5 %`; the sign of negatives is dropped (use [change] for variations).
+  static String format(num value) => '${_style.format(value.abs())} %';
+
+  /// A variation with its sign: `+12,5 %`, `−3 %`, `0 %`.
+  static String change(num value) {
+    final rounded = (value * 10).round() / 10;
+    if (rounded == 0) return format(0);
+    return '${rounded > 0 ? '+' : Money.minus}${format(rounded)}';
+  }
+}
