@@ -4,6 +4,20 @@ App Android/iOS de finanzas personales con billeteras compartidas. El backend vi
 [CountIt-Backend-Dev](https://github.com/RubenBenavidess/CountIt-Backend-Dev) (Supabase); su contrato está en `docs/API.md`
 y `docs/api-schema.json` de ese repositorio. Diseño: lienzo *CountIt App* (tokens en `lib/app/theme/tokens.dart`).
 
+## Estado
+| Milestone | Contenido | Estado |
+|---|---|---|
+| F01 | Base: flavors, tema, componentes, capa de datos, endurecimiento | Hecho |
+| F02 | Autenticación pública y cuenta (perfil, contraseña, reautenticación, exportar, eliminar) | Hecho |
+| F03–F06 | Billeteras, presupuestos, movimientos y programadas | Hecho |
+| F07 | Familias: invitar, aceptar, quitar y abandonar, en vivo con Realtime | Hecho |
+| F08 | Estadísticas y proyección de saldo | Hecho |
+| F09 | Bandeja en vivo, badge y enrutado por `kind` | Hecho · **push real pendiente** de Firebase ([`docs/PUSH.md`](docs/PUSH.md)) |
+| F10 | Planes (`v_plans`), gating, aviso de vencimiento y administración (usuarios, bancos, auditoría) | Hecho |
+| F11 | Publicación en tiendas | Pendiente de cuentas (Play Console, Apple Developer, keystore de subida, captcha) |
+
+Guía para agentes y convenciones del repo: [`CLAUDE.md`](../CLAUDE.md). Seguridad: [`docs/SECURITY.md`](docs/SECURITY.md).
+
 ## Requisitos
 - Flutter **3.47.6** (stable) · Dart 3.13 · Java 17 para Android.
 - Id de paquete: `ec.countit.app` (Android e iOS).
