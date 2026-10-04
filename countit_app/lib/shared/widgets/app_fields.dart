@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
 import '../utils/dates.dart';
+import '../utils/money.dart';
+import 'motion.dart';
 
 /// Label above the control, as in the design (14 px, semibold).
 class _Labeled extends StatelessWidget {
@@ -190,9 +193,26 @@ class AmountInputFormatter extends TextInputFormatter {
 
 /// USD amount input («$» prefix, decimal keyboard, max 2 decimals).
 /// Read the value with `Money.parse(controller.text)`.
+///
+/// [AppMoneyField.hero] is the large, centred variant where the amount is the
+/// protagonist of the form (movements, scheduled movements): display type in
+/// the colour of its kind, with the sign always visible.
 class AppMoneyField extends StatelessWidget {
   const AppMoneyField({
     super.key,
+    this.label = 'Monto',
+    this.controller,
+    this.errorText,
+    this.helper,
+    this.enabled = true,
+    this.onChanged,
+  }) : income = null;
+
+  /// Large amount signed and coloured by kind: `+$` in `palette.income` or
+  /// `−$` in `palette.expense`. Colour and sign animate when [income] changes.
+  const AppMoneyField.hero({
+    super.key,
+    required bool this.income,
     this.label = 'Monto',
     this.controller,
     this.errorText,
@@ -208,11 +228,26 @@ class AppMoneyField extends StatelessWidget {
   final bool enabled;
   final ValueChanged<String>? onChanged;
 
+  /// Kind of the hero variant; null in the regular field.
+  final bool? income;
+
   /// Style of the «$» prefix: the input's style ([AppTextField]) in bold.
   static final prefixStyle = AppTextField.inputStyle.copyWith(fontWeight: FontWeight.w700);
 
   @override
   Widget build(BuildContext context) {
+    final income = this.income;
+    if (income != null) {
+      return _HeroMoneyField(
+        label: label,
+        income: income,
+        controller: controller,
+        errorText: errorText,
+        helper: helper,
+        enabled: enabled,
+        onChanged: onChanged,
+      );
+    }
     return AppTextField(
       label: label,
       controller: controller,
@@ -230,6 +265,207 @@ class AppMoneyField extends StatelessWidget {
         padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.xs),
         child: Center(widthFactor: 1, child: Text(r'$', style: AppMoneyField.prefixStyle)),
       ),
+    );
+  }
+}
+
+class _HeroMoneyField extends StatefulWidget {
+  const _HeroMoneyField({
+    required this.label,
+    required this.income,
+    required this.controller,
+    required this.errorText,
+    required this.helper,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool income;
+  final TextEditingController? controller;
+  final String? errorText;
+  final String? helper;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  State<_HeroMoneyField> createState() => _HeroMoneyFieldState();
+}
+
+class _HeroMoneyFieldState extends State<_HeroMoneyField> {
+  /// Display type of the design (Manrope 44, extra bold) with tabular figures.
+  static final style = AppTypography.display.copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+
+  /// Long amounts shrink down to this size, then scroll inside the field.
+  static const minFontSize = 22.0;
+
+  /// Room for the caret after the last digit.
+  static const caretSlack = 8.0;
+
+  static const placeholder = '0,00';
+
+  TextEditingController? _own;
+  final _focus = FocusNode();
+
+  TextEditingController get _controller => widget.controller ?? (_own ??= TextEditingController());
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    _own?.dispose();
+    super.dispose();
+  }
+
+  void _refresh() => setState(() {});
+
+  double _width(String text, TextStyle style, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final scheme = Theme.of(context).colorScheme;
+    final duration = AppMotion.of(context, AppMotion.medium);
+    final color = widget.income ? palette.income : palette.expense;
+    final sign = widget.income ? '+' : Money.minus;
+    final kind = widget.income ? 'ingreso' : 'gasto';
+    final error = widget.errorText;
+    final scaler = MediaQuery.textScalerOf(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpacing.sm,
+      children: [
+        ExcludeSemantics(
+          child: Text(
+            widget.label,
+            textAlign: TextAlign.center,
+            style: AppTypography.label.copyWith(color: palette.muted),
+          ),
+        ),
+        TweenAnimationBuilder<Color?>(
+          tween: ColorTween(end: color),
+          duration: duration,
+          curve: AppMotion.standard,
+          builder: (context, animated, _) => ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) => LayoutBuilder(
+              builder: (context, constraints) {
+                final text = _controller.text;
+                final shown = text.isEmpty ? placeholder : text;
+                // Shrink the type until sign, «$» and digits fit on one line.
+                final prefix = '$sign\$';
+                final natural = _width(prefix, style, scaler) + _width(shown, style, scaler) + caretSlack;
+                final fit = natural <= constraints.maxWidth ? 1.0 : constraints.maxWidth / natural;
+                final fontSize = (style.fontSize! * fit).clamp(minFontSize, style.fontSize!);
+                final sized = style.copyWith(fontSize: fontSize, color: animated);
+                final prefixWidth = _width(prefix, sized, scaler);
+                final fieldWidth = (_width(shown, sized, scaler) + caretSlack).clamp(
+                  caretSlack,
+                  (constraints.maxWidth - prefixWidth).clamp(caretSlack, double.infinity),
+                );
+                final value = text.isEmpty ? 'vacío' : '$text dólares';
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  excludeFromSemantics: true,
+                  onTap: widget.enabled ? _focus.requestFocus : null,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      ExcludeSemantics(
+                        child: AnimatedSwitcher(
+                          duration: duration,
+                          child: Text(prefix, key: ValueKey(prefix), style: sized),
+                        ),
+                      ),
+                      SizedBox(
+                        width: fieldWidth,
+                        child: MergeSemantics(
+                          child: Semantics(
+                            label: '${widget.label}, $kind',
+                            value: value,
+                            child: TextField(
+                              key: const ValueKey('hero-amount-input'),
+                              controller: _controller,
+                              focusNode: _focus,
+                              enabled: widget.enabled,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [AmountInputFormatter()],
+                              onChanged: widget.onChanged,
+                              style: sized,
+                              cursorColor: animated,
+                              maxLines: 1,
+                              decoration:
+                                  InputDecoration.collapsed(
+                                    hintText: placeholder,
+                                    hintStyle: sized.copyWith(color: AppColors.placeholder),
+                                  ).copyWith(
+                                    // The theme's input box would frame the digits: the
+                                    // underline below shows focus and errors instead.
+                                    filled: false,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        // Focus and error state, like the border of the other inputs.
+        Center(
+          child: AnimatedContainer(
+            duration: AppMotion.of(context, AppMotion.fast),
+            width: 120,
+            height: 2,
+            decoration: BoxDecoration(
+              color: error != null
+                  ? palette.expense
+                  : _focus.hasFocus
+                  ? scheme.primary
+                  : palette.line,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+          ),
+        ),
+        if (error != null)
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(color: palette.expense),
+          )
+        else if (widget.helper != null)
+          Text(
+            widget.helper!,
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(color: palette.muted),
+          ),
+      ],
     );
   }
 }

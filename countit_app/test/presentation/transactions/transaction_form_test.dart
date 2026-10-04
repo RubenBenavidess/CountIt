@@ -273,6 +273,17 @@ void main() {
       expect(find.text('12,345'), findsNothing, reason: 'the third decimal is rejected while typing');
     });
 
+    testWidgets('the amount leads the form, signed by type: «−\$» for expense, «+\$» for income', (tester) async {
+      await pumpForm(tester);
+      final amount = tester.getRect(find.text('−\$'));
+      expect(amount.top, lessThan(tester.getRect(find.widgetWithText(ChoiceChip, 'Gasto')).top));
+      expect(amount.top, lessThan(tester.getRect(field('Descripción')).top));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Ingreso'));
+      await tester.pumpAndSettle();
+      expect(find.text('−\$'), findsNothing);
+      expect(find.text('+\$'), findsOneWidget);
+    });
+
     testWidgets('income shows only income budgets; switching type drops a budget of the other type', (tester) async {
       when(() => transactions.create(any(), any())).thenAnswer((_) async => 30);
       await pumpForm(tester);
