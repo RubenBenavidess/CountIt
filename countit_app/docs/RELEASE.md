@@ -53,6 +53,15 @@ La firma, el script de build y el workflow están descritos en el [README](../RE
 - [ ] **Dependencias:** `pubspec.lock` versionado; sin avisos de seguridad abiertos de Dependabot.
 - [ ] **Backend:** la versión mínima de la API que usa la app ya está desplegada en producción.
 
+## Última verificación del build de release (04/10/2026)
+APK `staging` con `--obfuscate --split-debug-info` y R8, firmado con un keystore desechable fuera del repo, instalado
+en el emulador contra staging: login, inicio con billeteras, detalle con movimientos y presupuestos, programadas,
+estadísticas, proyección, bandeja, perfil, planes (`v_plans`), exportar datos (hoja de compartir) y cerrar sesión, sin
+errores en logcat ni datos sensibles en el log. No hicieron falta reglas de R8 nuevas. Comprobado: los `libapp.so`
+no llevan secciones `.debug` ni nombres de clases de Dart; el único JWT del binario es la *anon key* pública;
+permisos `INTERNET` y `POST_NOTIFICATIONS`; solo `MainActivity` exportada (más el receptor de `profileinstaller`,
+protegido por `android.permission.DUMP`).
+
 ## iOS (pendiente)
 Requiere la cuenta de Apple Developer (COU-45), flavors en Xcode (ver README) y `scripts/build_release.sh prod ipa`
 en macOS. Mismas reglas de versión: `CFBundleShortVersionString` = semver y `CFBundleVersion` = BUILD.
