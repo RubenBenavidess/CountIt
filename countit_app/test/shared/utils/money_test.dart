@@ -48,6 +48,14 @@ void main() {
     });
   });
 
+  group('Money.input (form prefill)', () {
+    test('comma decimals, no symbol or grouping, read back by parse', () {
+      expect(Money.input(1234.5), '1234,50');
+      expect(Money.input(0.05), '0,05');
+      expect(Money.parse(Money.input(98765.43)), 98765.43);
+    });
+  });
+
   group('Percent', () {
     test('Spanish decimals with a non-breaking gap', () {
       expect(Percent.format(12.5), '12,5\u00A0%');

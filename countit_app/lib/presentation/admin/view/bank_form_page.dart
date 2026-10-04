@@ -117,11 +117,8 @@ class _BankFormViewState extends State<_BankFormView> {
   Widget build(BuildContext context) {
     final muted = context.palette.muted;
     final adjusted = _color != null && WalletColors.readable(Color(_color!)) != Color(_color!);
-    return PopScope(
-      canPop: !_dirty || _saved,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(confirmDiscardChanges(context));
-      },
+    return DiscardChangesGuard(
+      dirty: _dirty && !_saved,
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar banco' : 'Nuevo banco'),
         body: BlocConsumer<BankFormCubit, SubmitState>(

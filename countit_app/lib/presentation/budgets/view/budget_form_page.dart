@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../app/errors/app_failure.dart';
 import '../../../app/router/app_router.dart';
@@ -13,6 +12,7 @@ import '../../../data/dtos/json_parsing.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../shared/state/submit_cubit.dart';
 import '../../../shared/utils/dates.dart';
+import '../../../shared/utils/money.dart';
 import '../../../shared/widgets/app_banner.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_dialogs.dart';
@@ -74,15 +74,13 @@ class _BudgetFormView extends StatefulWidget {
 }
 
 class _BudgetFormViewState extends State<_BudgetFormView> {
-  static final _amountText = NumberFormat('0.00', 'es');
-
   /// Keys whose message is shown next to its field instead of the banner.
   static const _fieldKeys = {'budget_name_taken', 'budget_type_locked', 'invalid_amount', 'invalid_date_range'};
 
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.initial?.name ?? '');
   late final _limit = TextEditingController(
-    text: widget.initial == null ? '' : _amountText.format(Cents.toAmount(widget.initial!.limitCents)),
+    text: widget.initial == null ? '' : Money.input(Cents.toAmount(widget.initial!.limitCents)),
   );
 
   /// The user's calendar day: default start and centre of the pickers.
@@ -245,11 +243,8 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
   @override
   Widget build(BuildContext context) {
     final dirty = _dirty;
-    return PopScope(
-      canPop: !dirty || _saved,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(confirmDiscardChanges(context));
-      },
+    return DiscardChangesGuard(
+      dirty: dirty && !_saved,
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar presupuesto' : 'Nuevo presupuesto'),
         body: BlocConsumer<BudgetFormCubit, SubmitState>(

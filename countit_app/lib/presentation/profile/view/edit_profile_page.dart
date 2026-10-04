@@ -106,13 +106,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: _dirty,
-      builder: (context, dirty, child) => PopScope(
-        canPop: !dirty,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) confirmDiscardChanges(context);
-        },
-        child: child!,
-      ),
+      builder: (context, dirty, child) => DiscardChangesGuard(dirty: dirty, child: child!),
       child: Scaffold(
         appBar: const AppTopBar(title: 'Datos personales'),
         body: BlocBuilder<EditProfileCubit, SubmitState>(

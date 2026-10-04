@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../app/errors/app_failure.dart';
 import '../../../app/router/app_router.dart';
@@ -56,8 +55,6 @@ class _WalletFormView extends StatefulWidget {
 class _WalletFormViewState extends State<_WalletFormView> {
   static const nameMax = 50;
   static const descriptionMax = 255;
-  static final _amountText = NumberFormat('0.00', 'es');
-
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.initial?.name ?? '');
   late final _description = TextEditingController(text: widget.initial?.description ?? '');
@@ -77,7 +74,7 @@ class _WalletFormViewState extends State<_WalletFormView> {
 
   String _initialBalanceText() {
     final cents = widget.initial?.initialBalanceCents ?? 0;
-    return cents == 0 ? '' : _amountText.format(Cents.toAmount(cents));
+    return cents == 0 ? '' : Money.input(Cents.toAmount(cents));
   }
 
   Bank? _initialBank() {
@@ -208,11 +205,8 @@ class _WalletFormViewState extends State<_WalletFormView> {
   @override
   Widget build(BuildContext context) {
     final dirty = _dirty;
-    return PopScope(
-      canPop: !dirty || _saved,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(confirmDiscardChanges(context));
-      },
+    return DiscardChangesGuard(
+      dirty: dirty && !_saved,
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar billetera' : 'Nueva billetera'),
         body: BlocConsumer<WalletFormCubit, SubmitState>(

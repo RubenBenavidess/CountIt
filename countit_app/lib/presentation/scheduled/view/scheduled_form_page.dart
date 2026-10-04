@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../app/errors/app_failure.dart';
 import '../../../app/router/app_router.dart';
@@ -21,6 +20,7 @@ import '../../../shared/state/delete_cubit.dart';
 import '../../../shared/state/load_state.dart';
 import '../../../shared/state/submit_cubit.dart';
 import '../../../shared/utils/dates.dart';
+import '../../../shared/utils/money.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/app_banner.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -99,8 +99,6 @@ class _ScheduledFormView extends StatefulWidget {
 }
 
 class _ScheduledFormViewState extends State<_ScheduledFormView> {
-  static final _amountText = NumberFormat('0.00', 'es');
-
   /// Backend keys shown next to a field instead of the banner.
   static const _nameKeys = {'max_length'};
   static const _amountKeys = {'invalid_amount'};
@@ -142,7 +140,7 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
 
   late final _name = TextEditingController(text: _seed.name);
   late final _amount = TextEditingController(
-    text: _seed.amountCents > 0 ? _amountText.format(Cents.toAmount(_seed.amountCents)) : '',
+    text: _seed.amountCents > 0 ? Money.input(Cents.toAmount(_seed.amountCents)) : '',
   );
   late final _interval = TextEditingController(text: '${_seed.interval}');
   late TransactionType _type = _seed.type;
@@ -362,11 +360,8 @@ class _ScheduledFormViewState extends State<_ScheduledFormView> {
       for (final p in Periodicity.values)
         if (p != Periodicity.oneTime || _canBeOneTime || _periodicity == Periodicity.oneTime) p,
     ];
-    return PopScope(
-      canPop: !dirty || _saved,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(confirmDiscardChanges(context));
-      },
+    return DiscardChangesGuard(
+      dirty: dirty && !_saved,
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar programado' : 'Programar movimiento'),
         body: BlocConsumer<ScheduledFormCubit, SubmitState>(
