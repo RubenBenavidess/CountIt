@@ -21,6 +21,7 @@ import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
+import '../../presentation/transactions/view/transaction_detail_page.dart';
 import '../../presentation/transactions/view/transaction_form_page.dart';
 import '../../presentation/wallets/view/wallet_detail_page.dart';
 import '../../presentation/wallets/view/wallet_form_page.dart';
@@ -53,6 +54,7 @@ abstract final class AppRoutes {
   static String newBudget(int walletId) => '$wallets/$walletId/budgets/new';
   static String editBudget(int walletId, int budgetId) => '$wallets/$walletId/budgets/$budgetId/edit';
   static String newTransaction(int walletId) => '$wallets/$walletId/transactions/new';
+  static String transaction(int walletId, int transactionId) => '$wallets/$walletId/transactions/$transactionId';
   static String editTransaction(int walletId, int transactionId) =>
       '$wallets/$walletId/transactions/$transactionId/edit';
 
@@ -169,6 +171,14 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
         GoRoute(
           path: 'transactions/new',
           builder: (context, state) => TransactionFormPage(walletId: _walletId(state)!),
+        ),
+        GoRoute(
+          path: 'transactions/:transactionId',
+          // Shows the transaction the wallet listed; without it, back to the wallet.
+          redirect: (context, state) =>
+              state.extra is TransactionDetailArgs ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) =>
+              TransactionDetailPage(walletId: _walletId(state)!, args: state.extra! as TransactionDetailArgs),
         ),
         GoRoute(
           path: 'transactions/:transactionId/edit',

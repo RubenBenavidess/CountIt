@@ -4,6 +4,7 @@ import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
 import 'package:countit_app/presentation/budgets/view/budget_form_page.dart';
+import 'package:countit_app/presentation/transactions/view/transaction_detail_page.dart';
 import 'package:countit_app/presentation/wallets/view/wallet_detail_page.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:flutter/material.dart';
@@ -88,6 +89,18 @@ void main() {
               builder: (context, state) => Scaffold(
                 body: TextButton(onPressed: () => context.pop(true), child: const Text('NEW TRANSACTION')),
               ),
+            ),
+            GoRoute(
+              path: 'transactions/:transactionId',
+              builder: (context, state) {
+                final args = state.extra! as TransactionDetailArgs;
+                return Scaffold(
+                  body: TextButton(
+                    onPressed: () => context.pop(false),
+                    child: Text('DETAIL ${args.transaction.name} canManage=${args.canManage}'),
+                  ),
+                );
+              },
             ),
             GoRoute(
               path: 'transactions/:transactionId/edit',
@@ -227,7 +240,7 @@ void main() {
       verify(() => transactions.list(4)).called(2);
     });
 
-    testWidgets('tapping a movement edits it when the caller may (owner); a member who is not the author cannot', (
+    testWidgets('tapping a movement opens its detail; only the owner or the author may manage it (COU-241)', (
       tester,
     ) async {
       when(() => transactions.list(4))
@@ -238,10 +251,12 @@ void main() {
       await tester.scrollUntilVisible(find.text('Taxi'), 300);
       await tester.tap(find.text('Taxi'));
       await tester.pumpAndSettle();
-      expect(find.text('EDIT TRANSACTION Taxi'), findsOneWidget);
+      expect(find.text('DETAIL Taxi canManage=true'), findsOneWidget, reason: 'the wallet owner manages any movement');
     });
 
-    testWidgets('a member cannot open someone else\'s movement', (tester) async {
+    testWidgets('a member sees someone else\'s movement read-only; closing without changes does not reload', (
+      tester,
+    ) async {
       when(() => transactions.list(4))
           .thenAnswer((_) async => TransactionPage([transactionFixture(name: 'Taxi', userId: 'someone-else')]));
       final shared = walletFixture(id: 4, isOwner: false, memberCount: 1);
@@ -250,7 +265,10 @@ void main() {
       await tester.scrollUntilVisible(find.text('Taxi'), 300);
       await tester.tap(find.text('Taxi'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('EDIT TRANSACTION'), findsNothing);
+      expect(find.text('DETAIL Taxi canManage=false'), findsOneWidget);
+      await tester.tap(find.text('DETAIL Taxi canManage=false'));
+      await tester.pumpAndSettle();
+      verify(() => transactions.list(4)).called(1);
     });
 
     testWidgets('projection row only with the plan feature', (tester) async {
