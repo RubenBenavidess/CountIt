@@ -105,9 +105,10 @@ CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK d
 | 401 cierra la sesión; una contraseña incorrecta **no** | `ErrorMapper`, `ApiClient`, `SessionCubit` |
 | Acciones destructivas con confirmación de contraseña y un solo reintento | `ApiClient.run(onReauth:)` |
 | Logs solo en debug y con tokens, contraseñas y correos ocultos | `lib/app/logging/app_logger.dart` |
-| Capturas y grabación bloqueadas en pantallas sensibles (`SecureScreen`); contenido oculto en el selector de apps (`PrivacyCurtain`) | `lib/shared/widgets/secure_screen.dart` |
+| Capturas y grabación bloqueadas en toda la app con sesión y en las pantallas de contraseñas (`SessionSecureScreen`, `SecureScreen`); contenido oculto en el selector de apps (`PrivacyCurtain`) | `lib/shared/widgets/secure_screen.dart` |
 | Builds de release ofuscados (Dart y R8) con símbolos aparte; firma con keystore fuera del repo | `scripts/build_release.sh`, `android/app/build.gradle.kts` |
-| Captcha Turnstile en webview: site key validada, navegación limitada al origen del reto, token de un solo uso | `lib/shared/widgets/turnstile_field.dart` |
+| Captcha Turnstile en webview: site key validada, navegación https limitada al origen del reto, sin archivos ni permisos web, token de un solo uso | `lib/shared/widgets/turnstile_field.dart` |
+| Reinstalar no recupera la sesión anterior (iOS conserva el Keychain); cerrar sesión borra las exportaciones | `lib/data/remote/fresh_install.dart`, `SystemFileSharer` |
 | El enlace de confirmación no inicia sesión (el login pasa por la Edge Function); el de recuperación solo abre «nueva contraseña» | `lib/app/links/auth_links.dart`, `redirectFor` |
 | Contraseñas sin autocorrección ni sugerencias del teclado; mensajes de login y recuperación que no revelan si el correo existe | `AppTextField`, pantallas de `presentation/auth` |
 | 429: el botón se bloquea con cuenta regresiva según `Retry-After` | `ApiClient.invoke`, `CooldownButton` |
@@ -115,9 +116,9 @@ CI (`.github/workflows/flutter.yml`): formato, análisis, tests y build de APK d
 | Acciones destructivas: hoja «Confirma que eres tú» (contraseña, 3 intentos / 2 min, cuenta bloqueada) | `presentation/account/view/reauth_sheet.dart` |
 | Exportación LOPDP en la caché privada; la anterior se borra al generar una nueva | `lib/shared/platform/file_sharer.dart` |
 
-Pendiente (Linear, Q2 · Seguridad móvil): App Links/Universal Links verificados en lugar de solo `countit://`
-(requiere dominio, COU-109), detección informativa de root/jailbreak (COU-116), keystore de subida (COU-58, Ruben),
-revisión OWASP MASVS (COU-119) y bloqueo de capturas en iOS.
+Revisión OWASP MASVS-L1, riesgos residuales y checklist: [`docs/SECURITY.md`](docs/SECURITY.md). Pendiente (Linear,
+Q2): App Links/Universal Links verificados (requiere dominio, COU-109), detección informativa de root/jailbreak
+(COU-116), keystore de subida (COU-58, Ruben) y bloqueo de capturas en iOS (COU-115).
 
 ## Arquitectura
 Capas `app/` (composición: config, tema, router, errores, sesión), `data/` (clientes y repositorios),

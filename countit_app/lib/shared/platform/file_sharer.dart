@@ -14,9 +14,22 @@ abstract interface class FileSharer {
 class SystemFileSharer implements FileSharer {
   const SystemFileSharer();
 
+  static Future<Directory> _folder() async => Directory('${(await getTemporaryDirectory()).path}/exports');
+
+  /// Deletes every export (the personal data of `export_my_data`): called when
+  /// the session ends, so the next user of the device never finds them.
+  static Future<void> clearExports() async {
+    try {
+      final folder = await _folder();
+      if (folder.existsSync()) await folder.delete(recursive: true);
+    } on Exception {
+      // Best effort: the OS may also clear the cache.
+    }
+  }
+
   @override
   Future<void> shareJson({required String fileName, required String contents, String? subject}) async {
-    final folder = Directory('${(await getTemporaryDirectory()).path}/exports');
+    final folder = await _folder();
     if (folder.existsSync()) await folder.delete(recursive: true);
     await folder.create(recursive: true);
     final file = File('${folder.path}/$fileName');

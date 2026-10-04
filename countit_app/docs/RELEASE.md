@@ -46,7 +46,7 @@ La firma, el script de build y el workflow están descritos en el [README](../RE
 - [ ] **Firma:** `.aab` firmado con la clave de subida (no la debug): `jarsigner -verify -verbose -certs <aab>` o el
   aviso de Play. El keystore y sus contraseñas solo en el gestor de contraseñas y en los secretos de GitHub.
 - [ ] **Permisos del manifest:** revisar el manifest fusionado (`build/app/intermediates/merged_manifests/prodRelease/`
-  o `aapt dump permissions` del APK). Hoy: solo `INTERNET` (y el permiso interno `DYNAMIC_RECEIVER_NOT_EXPORTED`).
+  o `aapt dump permissions` del APK). Hoy: `INTERNET`, `POST_NOTIFICATIONS` (y el permiso interno `DYNAMIC_RECEIVER_NOT_EXPORTED`).
   Cualquier permiso nuevo de un plugin se justifica o se elimina con `tools:node="remove"`, y se refleja en el
   formulario *Data safety* (COU-139).
 - [ ] **Red:** `network_security_config` de `main` sin *cleartext* ni CAs de usuario; `allowBackup=false`.

@@ -94,7 +94,7 @@ extension PumpApp on WidgetTester {
             localizationsDelegates: GlobalMaterialLocalizations.delegates,
             home: Scaffold(body: widget),
           )
-        : CountItApp(router: router, planNotices: planNotices);
+        : CountItApp(router: router, session: sessionCubit, planNotices: planNotices);
 
     await pumpWidget(
       MultiRepositoryProvider(

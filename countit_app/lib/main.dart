@@ -15,6 +15,7 @@ import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'app/session/session_state.dart';
 import 'data/remote/api_client.dart';
+import 'data/remote/fresh_install.dart';
 import 'data/remote/install_id.dart';
 import 'data/remote/realtime_watcher.dart';
 import 'data/remote/supabase_setup.dart';
@@ -33,6 +34,7 @@ import 'data/repositories/transaction_repository.dart';
 import 'data/repositories/wallet_repository.dart';
 import 'presentation/families/cubit/invitations_cubit.dart';
 import 'presentation/notifications/cubit/notifications_cubit.dart';
+import 'shared/platform/file_sharer.dart';
 import 'shared/platform/notification_permission.dart';
 import 'shared/utils/dates.dart';
 
@@ -40,6 +42,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
   await Dates.init();
+  await FreshInstall.forgetPreviousInstall();
 
   final client = await initSupabase(config);
   final api = ApiClient(
@@ -70,8 +73,15 @@ Future<void> main() async {
   final session = SessionCubit(
     auth: auth,
     profiles: profiles,
-    beforeSignOut: pushTokens.signingOut,
-    onSessionLost: pushTokens.sessionLost,
+    // Leaving the account also removes local personal data (MASVS-STORAGE).
+    beforeSignOut: () async {
+      await pushTokens.signingOut();
+      await SystemFileSharer.clearExports();
+    },
+    onSessionLost: () async {
+      await pushTokens.sessionLost();
+      await SystemFileSharer.clearExports();
+    },
   );
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
   // A 403 feature_not_in_plan means the plan we know is stale or lacks the
@@ -141,7 +151,12 @@ Future<void> main() async {
           BlocProvider.value(value: invitations),
           BlocProvider.value(value: notifications),
         ],
-        child: CountItApp(router: router, planNotices: planNotices.featureNotInPlan, pushNotices: pushes.notices),
+        child: CountItApp(
+          router: router,
+          session: session,
+          planNotices: planNotices.featureNotInPlan,
+          pushNotices: pushes.notices,
+        ),
       ),
     ),
   );
