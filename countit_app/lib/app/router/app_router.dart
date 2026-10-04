@@ -19,6 +19,7 @@ import '../../presentation/budgets/view/budget_form_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
+import '../../presentation/scheduled/view/scheduled_list_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
 import '../../presentation/transactions/view/transaction_detail_page.dart';
@@ -57,6 +58,7 @@ abstract final class AppRoutes {
   static String transaction(int walletId, int transactionId) => '$wallets/$walletId/transactions/$transactionId';
   static String editTransaction(int walletId, int transactionId) =>
       '$wallets/$walletId/transactions/$transactionId/edit';
+  static String scheduled(int walletId) => '$wallets/$walletId/scheduled';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -186,6 +188,12 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           redirect: (context, state) => state.extra is Transaction ? null : AppRoutes.wallet(_walletId(state) ?? 0),
           builder: (context, state) =>
               TransactionFormPage(walletId: _walletId(state)!, initial: state.extra! as Transaction),
+        ),
+        GoRoute(
+          path: 'scheduled',
+          // Lists the rules of the wallet the detail screen loaded (ownership, shared).
+          redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) => ScheduledListPage(wallet: state.extra! as Wallet),
         ),
       ],
     ),
