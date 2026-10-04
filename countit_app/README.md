@@ -28,6 +28,10 @@ La configuración solo lleva valores públicos: URL y *anon key* de Supabase y, 
 `TURNSTILE_SITE_KEY` + `TURNSTILE_BASE_URL` (https de un hostname permitido en el sitio de Turnstile; la página del
 widget se carga bajo ese origen). Sin site key los formularios no muestran captcha. Nada secreto va en la app.
 
+**Dependencias:** `pubspec.yaml` declara rangos (`^`) y `pubspec.lock` (versionado) fija las versiones exactas; el CI
+instala con `flutter pub get --enforce-lockfile` y falla si no coinciden. Actualiza a propósito (`flutter pub upgrade`
+o los PRs semanales de Dependabot, que también cubren las GitHub Actions, fijadas por SHA) y sube el lock en el mismo PR.
+
 **Enlaces de los correos** (`countit://auth/confirmed`, `countit://auth/reset-password`): el backend los usa si tiene
 `AUTH_EMAIL_REDIRECT_URL` y `PASSWORD_RESET_REDIRECT_URL` (ver su README) y la URL está en *Redirect URLs* de Auth.
 Probar en un emulador: `adb shell am start -W -a android.intent.action.VIEW -d "countit://auth/confirmed" ec.countit.app.local`. Los flavors de iOS (schemes y xcconfig) quedan pendientes: requieren
