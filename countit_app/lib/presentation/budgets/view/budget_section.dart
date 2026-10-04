@@ -15,9 +15,14 @@ import 'widgets/budget_card.dart';
 /// «Presupuestos» of the wallet detail (HU-12 · COU-219, COU-220), as one
 /// sliver: header, then loading, error, empty or the lazy list of cards.
 ///
-/// Needs a [BudgetListCubit] above it.
+/// Needs a [BudgetListCubit] above it. Owners and accepted members can
+/// create and edit budgets (the API decides): [onCreate] and [onOpen] are
+/// always offered.
 class BudgetSection extends StatelessWidget {
-  const BudgetSection({super.key});
+  const BudgetSection({super.key, required this.onCreate, required this.onOpen});
+
+  final VoidCallback onCreate;
+  final ValueChanged<Budget> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +33,21 @@ class BudgetSection extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Semantics(header: true, child: const Text('Presupuestos', style: AppTypography.h2)),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Semantics(header: true, child: const Text('Presupuestos', style: AppTypography.h2)),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('budget-new'),
+                  onPressed: onCreate,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Nuevo'),
+                  style: TextButton.styleFrom(minimumSize: const Size(AppSizes.iconButton, AppSizes.iconButton)),
+                ),
+              ],
+            ),
           ),
         ),
         BlocBuilder<BudgetListCubit, LoadState<List<Budget>>>(
@@ -70,7 +88,7 @@ class BudgetSection extends StatelessWidget {
       separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final budget = budgets[index];
-        return BudgetCard(key: ValueKey(budget.budgetId), budget: budget, today: today);
+        return BudgetCard(key: ValueKey(budget.budgetId), budget: budget, today: today, onTap: () => onOpen(budget));
       },
     );
   }

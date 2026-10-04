@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/dtos/budget.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
@@ -14,6 +15,7 @@ import '../../presentation/auth/view/login_page.dart';
 import '../../presentation/auth/view/register_page.dart';
 import '../../presentation/auth/view/reset_password_page.dart';
 import '../../presentation/auth/view/welcome_page.dart';
+import '../../presentation/budgets/view/budget_form_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
@@ -47,6 +49,8 @@ abstract final class AppRoutes {
 
   static String wallet(int walletId) => '$wallets/$walletId';
   static String editWallet(int walletId) => '$wallets/$walletId/edit';
+  static String newBudget(int walletId) => '$wallets/$walletId/budgets/new';
+  static String editBudget(int walletId, int budgetId) => '$wallets/$walletId/budgets/$budgetId/edit';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -144,6 +148,16 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           // (deep link, restored route) the detail loads it first.
           redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
           builder: (context, state) => WalletFormPage(initial: state.extra! as Wallet),
+        ),
+        GoRoute(
+          path: 'budgets/new',
+          builder: (context, state) => BudgetFormPage(walletId: _walletId(state)!),
+        ),
+        GoRoute(
+          path: 'budgets/:budgetId/edit',
+          // Like the wallet form: it edits the budget the detail screen listed.
+          redirect: (context, state) => state.extra is Budget ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) => BudgetFormPage(walletId: _walletId(state)!, initial: state.extra! as Budget),
         ),
       ],
     ),

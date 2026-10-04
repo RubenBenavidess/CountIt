@@ -1,5 +1,6 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
+import 'package:countit_app/data/dtos/budget.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
 import 'package:countit_app/presentation/wallets/view/wallet_detail_page.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../helpers/budget_fixtures.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/wallet_fixtures.dart';
@@ -68,6 +70,21 @@ void main() {
               path: 'edit',
               builder: (context, state) => const Scaffold(body: Text('EDIT FORM')),
             ),
+            GoRoute(
+              path: 'budgets/new',
+              builder: (context, state) => Scaffold(
+                body: TextButton(onPressed: () => context.pop(true), child: const Text('NEW BUDGET')),
+              ),
+            ),
+            GoRoute(
+              path: 'budgets/:budgetId/edit',
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(false),
+                  child: Text('EDIT BUDGET ${(state.extra! as Budget).name}'),
+                ),
+              ),
+            ),
           ],
         ),
       ],
@@ -103,6 +120,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+
+  group('budgets in the detail (COU-219, COU-224, COU-225)', () {
+    testWidgets('lists the wallet budgets; «Nuevo» opens the form and a save reloads them', (tester) async {
+      final wallet = walletFixture(id: 4, isOwner: false, memberCount: 1);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      when(() => budgets.listByWallet(4)).thenAnswer((_) async => [budgetFixture(name: 'Mercado')]);
+      await pumpDetail(tester, wallet);
+      expect(find.text('Mercado'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('budget-new')), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('NEW BUDGET'));
+      await tester.pumpAndSettle();
+      verify(() => budgets.listByWallet(4)).called(2);
+    });
+
+    testWidgets('tapping a card edits that budget; cancelling does not reload', (tester) async {
+      final wallet = walletFixture(id: 4);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      when(() => budgets.listByWallet(4)).thenAnswer((_) async => [budgetFixture(name: 'Mercado')]);
+      await pumpDetail(tester, wallet);
+      await tester.tap(find.text('Mercado'));
+      await tester.pumpAndSettle();
+      expect(find.text('EDIT BUDGET Mercado'), findsOneWidget);
+      await tester.tap(find.text('EDIT BUDGET Mercado'));
+      await tester.pumpAndSettle();
+      verify(() => budgets.listByWallet(4)).called(1);
+    });
+  });
 
   group('detail (COU-195, COU-211)', () {
     testWidgets('loads fresh data: totals, month and opening balance', (tester) async {

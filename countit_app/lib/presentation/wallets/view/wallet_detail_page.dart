@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
+import '../../../data/dtos/budget.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
@@ -86,6 +87,13 @@ class _WalletDetailView extends StatelessWidget {
     );
   }
 
+  /// Budget form (create or edit); the list reloads on the way back.
+  Future<void> _openBudgetForm(BuildContext context, String location, {Object? extra}) async {
+    final budgets = context.read<BudgetListCubit>();
+    final saved = await context.push<bool>(location, extra: extra);
+    if (saved == true && !budgets.isClosed) unawaited(budgets.load());
+  }
+
   /// Pull-to-refresh reloads the wallet and its budgets together.
   Future<void> _refresh(BuildContext context) =>
       Future.wait([context.read<WalletDetailCubit>().load(), context.read<BudgetListCubit>().load()]);
@@ -159,6 +167,9 @@ class _WalletDetailView extends StatelessWidget {
                     deleting: state.deleting,
                     onEdit: () => _edit(context, wallet),
                     onDelete: () => _delete(context, wallet),
+                    onCreateBudget: () => _openBudgetForm(context, AppRoutes.newBudget(wallet.walletId)),
+                    onOpenBudget: (budget) =>
+                        _openBudgetForm(context, AppRoutes.editBudget(wallet.walletId, budget.budgetId), extra: budget),
                   ),
                 ),
         );
@@ -168,12 +179,21 @@ class _WalletDetailView extends StatelessWidget {
 }
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.wallet, required this.deleting, required this.onEdit, required this.onDelete});
+  const _DetailBody({
+    required this.wallet,
+    required this.deleting,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onCreateBudget,
+    required this.onOpenBudget,
+  });
 
   final Wallet wallet;
   final bool deleting;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onCreateBudget;
+  final ValueChanged<Budget> onOpenBudget;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +231,10 @@ class _DetailBody extends StatelessWidget {
             ],
           ),
         ),
-        const SliverPadding(padding: padding, sliver: BudgetSection()),
+        SliverPadding(
+          padding: padding,
+          sliver: BudgetSection(onCreate: onCreateBudget, onOpen: onOpenBudget),
+        ),
         SliverPadding(
           padding: padding.copyWith(top: AppSpacing.xxl, bottom: AppSpacing.xxl),
           sliver: SliverList.list(
