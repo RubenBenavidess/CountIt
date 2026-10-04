@@ -19,10 +19,26 @@ import 'widgets/transaction_tile.dart';
 /// Needs a [TransactionListCubit] above it; the screen's scroll view calls
 /// [TransactionListCubit.loadMore] near the end (see `LoadMoreListener`).
 class TransactionSection extends StatelessWidget {
-  const TransactionSection({super.key, this.showAuthor = false, this.onOpen, this.onEditFilters});
+  const TransactionSection({
+    super.key,
+    this.title = 'Movimientos',
+    this.showAuthor = false,
+    this.showAuthorOf,
+    this.showWallet = false,
+    this.onOpen,
+    this.onEditFilters,
+  });
+
+  final String title;
 
   /// Shared wallets show who registered each movement.
   final bool showAuthor;
+
+  /// Per movement instead of [showAuthor] (a list of several wallets).
+  final bool Function(Transaction transaction)? showAuthorOf;
+
+  /// A list of several wallets names the wallet of each movement.
+  final bool showWallet;
   final ValueChanged<Transaction>? onOpen;
 
   /// Opens the filters sheet; without it the list has no filters.
@@ -42,7 +58,7 @@ class TransactionSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SectionHeader(
-                  title: 'Movimientos',
+                  title: title,
                   actions: [
                     if (onEditFilters != null)
                       SectionAction(
@@ -121,7 +137,8 @@ class TransactionSection extends StatelessWidget {
           TransactionRow(:final transaction) => TransactionTile(
             key: ValueKey('transaction-${transaction.transactionId}'),
             transaction: transaction,
-            showAuthor: showAuthor,
+            showAuthor: showAuthorOf?.call(transaction) ?? showAuthor,
+            showWallet: showWallet,
             onTap: onOpen == null ? null : () => onOpen!(transaction),
           ),
         };

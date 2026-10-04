@@ -161,4 +161,49 @@ void main() {
       },
     );
   });
+
+  group('«Estadísticas» tab (no wallet given)', () {
+    setUpAll(() => registerFallbackValue(StatisticsRange.days30));
+
+    blocTest<StatisticsCubit, StatisticsState>(
+      'starts on the first own wallet once the list arrives',
+      setUp: () {
+        final shared = walletFixture(id: 9, name: 'De Lucía', isOwner: false);
+        when(wallets.list).thenAnswer((_) async => [shared, wallet5, wallet4]);
+      },
+      build: () => StatisticsCubit(analysis, wallets),
+      act: (cubit) => cubit.start(),
+      verify: (cubit) {
+        expect(cubit.state.walletId, 5);
+        expect(cubit.state.statistics, LoadState.success(other));
+      },
+    );
+
+    blocTest<StatisticsCubit, StatisticsState>(
+      'without wallets there is nothing to ask',
+      setUp: () => when(wallets.list).thenAnswer((_) async => []),
+      build: () => StatisticsCubit(analysis, wallets),
+      act: (cubit) => cubit.start(),
+      verify: (cubit) {
+        expect(cubit.state.walletId, isNull);
+        expect(cubit.state.wallets.data, isEmpty);
+        verifyNever(() => analysis.walletStatistics(any(), any()));
+      },
+    );
+
+    blocTest<StatisticsCubit, StatisticsState>(
+      'refresh after the list failed tries the whole start again',
+      setUp: () {
+        var calls = 0;
+        when(wallets.list).thenAnswer((_) async => calls++ == 0 ? throw _network : [wallet4]);
+      },
+      build: () => StatisticsCubit(analysis, wallets),
+      act: (cubit) async {
+        await cubit.start();
+        expect(cubit.state.wallets.failure, _network);
+        await cubit.refresh();
+      },
+      verify: (cubit) => expect(cubit.state.statistics, LoadState.success(d30)),
+    );
+  });
 }

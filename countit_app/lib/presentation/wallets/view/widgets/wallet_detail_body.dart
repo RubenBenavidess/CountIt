@@ -12,6 +12,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/detail_rows.dart';
 import '../../../budgets/view/budget_section.dart';
 import '../../../transactions/view/transaction_section.dart';
+import 'entry_card.dart';
 import 'wallet_card.dart';
 import 'wallet_type_icon.dart';
 
@@ -76,7 +77,7 @@ class WalletDetailBody extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.lg),
               // Way into the wallet's scheduled rules (HU-16/HU-20 · COU-88).
-              _EntryCard(
+              EntryCard(
                 key: const ValueKey('wallet-scheduled'),
                 icon: Icons.event_repeat_rounded,
                 title: 'Movimientos programados',
@@ -85,7 +86,7 @@ class WalletDetailBody extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               // Statistics of the wallet (HU-26 · COU-93).
-              _EntryCard(
+              EntryCard(
                 key: const ValueKey('wallet-statistics'),
                 icon: Icons.insights_rounded,
                 title: 'Estadísticas',
@@ -97,7 +98,7 @@ class WalletDetailBody extends StatelessWidget {
               Builder(
                 builder: (context) {
                   final allowed = context.watchPlanAllows(PlanFeatures.walletProjection);
-                  return _EntryCard(
+                  return EntryCard(
                     key: const ValueKey('wallet-projection'),
                     icon: allowed ? Icons.show_chart_rounded : Icons.lock_outline_rounded,
                     title: 'Proyección de saldo',
@@ -131,45 +132,6 @@ class WalletDetailBody extends StatelessWidget {
   }
 }
 
-/// Way into a screen of the wallet (programados, estadísticas…): icon,
-/// title and a line of explanation, read as one button.
-class _EntryCard extends StatelessWidget {
-  const _EntryCard({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap});
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      outlined: true,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: AppSpacing.md),
-      onTap: onTap,
-      semanticLabel: '$title: $subtitle',
-      child: ExcludeSemantics(
-        child: Row(
-          spacing: AppSpacing.md,
-          children: [
-            IconTile(icon),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTypography.label),
-                  Text(subtitle, style: AppTypography.caption.copyWith(color: context.palette.muted)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Way into the wallet's family (HU-21…HU-24 · COU-92): who shares it.
 class _MembersEntry extends StatelessWidget {
   const _MembersEntry({required this.wallet, required this.onTap});
@@ -184,7 +146,7 @@ class _MembersEntry extends StatelessWidget {
     final subtitle = wallet.isOwner
         ? (count > 0 ? 'Compartida con $people' : 'Compártela con tu familia por nombre de usuario')
         : 'De ${wallet.ownerName ?? 'otro usuario'} · $people';
-    return _EntryCard(
+    return EntryCard(
       key: const ValueKey('wallet-members'),
       icon: Icons.group_outlined,
       title: 'Familia',

@@ -236,4 +236,50 @@ void main() {
       expect(identical(state.authorsWith([transactionFixture()]), state.knownAuthors), isTrue);
     });
   });
+
+  group('every wallet («Movimientos» tab)', () {
+    blocTest<TransactionListCubit, TransactionListState>(
+      'without a wallet it lists them all',
+      setUp: () => when(() => transactions.list(null)).thenAnswer((_) async => TransactionPage(first)),
+      build: () => TransactionListCubit(transactions),
+      act: (cubit) => cubit.load(),
+      verify: (cubit) {
+        expect(cubit.walletId, isNull);
+        expect(cubit.state.items, first);
+      },
+    );
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'picking a wallet keeps type and dates but drops its budget and author filters',
+      setUp: () =>
+          when(() => transactions.list(any(), filter: any(named: 'filter')))
+              .thenAnswer((_) async => TransactionPage(second)),
+      build: () => TransactionListCubit(transactions),
+      seed: () => loaded().copyWith(
+        filter: TransactionFilter(
+          type: TransactionType.expense,
+          from: DateTime(2026, 10),
+          budgetId: 7,
+          budgetName: 'Comida',
+          authorId: 'u2',
+          authorName: 'Carlos',
+        ),
+      ),
+      act: (cubit) => cubit.selectWallet(5),
+      verify: (cubit) {
+        final expected = TransactionFilter(type: TransactionType.expense, from: DateTime(2026, 10));
+        expect(cubit.walletId, 5);
+        expect(cubit.state.filter, expected);
+        expect(cubit.state.items, second);
+        verify(() => transactions.list(5, filter: expected)).called(1);
+      },
+    );
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'picking the wallet already listed does nothing',
+      build: () => TransactionListCubit(transactions, walletId: 4),
+      act: (cubit) => cubit.selectWallet(4),
+      expect: () => const <TransactionListState>[],
+    );
+  });
 }

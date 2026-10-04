@@ -7,17 +7,19 @@ import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/analysis_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
+import '../../home/cubit/wallets_cubit.dart';
 
 class StatisticsState extends Equatable {
   const StatisticsState({
-    required this.walletId,
+    this.walletId,
     this.range = StatisticsRange.days30,
     this.wallets = const LoadState.initial(),
     this.statistics = const LoadState.initial(),
   });
 
-  /// The wallet on screen.
-  final int walletId;
+  /// The wallet on screen; null until the «Estadísticas» tab knows the
+  /// user's wallets (it shows the first one) or when there are none.
+  final int? walletId;
   final StatisticsRange range;
 
   /// Wallets the selector offers (own and shared, as the home lists them).
@@ -52,7 +54,8 @@ class StatisticsState extends Equatable {
 }
 
 /// HU-26 (COU-93, COU-173): statistics of one wallet with a wallet and range
-/// selector.
+/// selector. Without a [walletId] (the «Estadísticas» tab) it shows the first
+/// wallet of the list: own wallets before shared ones, as the home lists them.
 ///
 /// Answers are memoised per (wallet, range) for the life of the screen, so
 /// going back to a range already seen is instant and costs no request;
@@ -62,7 +65,7 @@ class StatisticsCubit extends Cubit<StatisticsState> {
   StatisticsCubit(
     this._analysis,
     this._wallets, {
-    required int walletId,
+    int? walletId,
     StatisticsRange range = StatisticsRange.days30,
     Wallet? initial,
   }) : super(
@@ -79,8 +82,19 @@ class StatisticsCubit extends Cubit<StatisticsState> {
   final _cache = <(int, StatisticsRange), WalletStatistics>{};
   final _inFlight = <(int, StatisticsRange), Future<void>>{};
 
-  /// First load: the wallets of the selector and the statistics, together.
-  Future<void> start() => Future.wait([loadWallets(), _show(state)]);
+  /// First load: the wallets of the selector and the statistics, together
+  /// (one after the other when the wallet is still to be chosen).
+  Future<void> start() async {
+    if (state.walletId != null) {
+      await Future.wait([loadWallets(), _show(state)]);
+      return;
+    }
+    await loadWallets();
+    final wallets = state.wallets.data;
+    if (isClosed || wallets == null || wallets.isEmpty) return;
+    final first = wallets.own.firstOrNull ?? wallets.first;
+    await _show(state.copyWith(walletId: first.walletId));
+  }
 
   /// The selector never blocks the screen: on failure it keeps offering the
   /// wallet it already knows.
@@ -102,14 +116,18 @@ class StatisticsCubit extends Cubit<StatisticsState> {
 
   /// Asks the API again for the pair on screen (keeps it visible meanwhile).
   Future<void> refresh() {
-    _cache.remove((state.walletId, state.range));
+    final walletId = state.walletId;
+    if (walletId == null) return start();
+    _cache.remove((walletId, state.range));
     return _show(state, refreshing: true);
   }
 
   /// Emits [next] (the new selection) together with its statistics state in
   /// one go, so no frame pairs a range with another range's figures.
   Future<void> _show(StatisticsState next, {bool refreshing = false}) {
-    final key = (next.walletId, next.range);
+    final walletId = next.walletId;
+    if (walletId == null) return Future.value();
+    final key = (walletId, next.range);
     final cached = _cache[key];
     if (cached != null) {
       emit(next.copyWith(statistics: LoadState.success(cached)));

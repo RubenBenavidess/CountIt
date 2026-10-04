@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/plans/plan_gate.dart';
+import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
+import '../../../data/dtos/profile.dart';
 import '../../../data/dtos/statistics.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/analysis_repository.dart';
@@ -20,21 +24,30 @@ import '../../../shared/widgets/app_layout.dart';
 import '../../../shared/widgets/detail_rows.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../plans/view/plan_upsell_sheet.dart';
+import '../../shell/view/visible_tab_listener.dart';
+import '../../wallets/view/widgets/entry_card.dart';
 import '../cubit/statistics_cubit.dart';
 import 'charts/evolution_chart.dart';
 import 'charts/income_expense_chart.dart';
+import 'projection_page.dart';
 import 'widgets/distribution_section.dart';
 
 /// «Estadísticas» of a wallet (HU-26 · COU-93): wallet and range selectors,
 /// totals, growth against last month and, with the plan feature, the
 /// distribution by budget. Every figure comes from `get_wallet_statistics`.
+///
+/// Opened from a wallet it starts on that wallet; as the «Estadísticas» tab
+/// ([asTab], no [walletId]) it starts on the first wallet of the list.
 class StatisticsPage extends StatelessWidget {
-  const StatisticsPage({super.key, required this.walletId, this.initial});
+  const StatisticsPage({super.key, this.walletId, this.initial, this.asTab = false});
 
-  final int walletId;
+  final int? walletId;
 
   /// The wallet the detail screen loaded: names the selector at once.
   final Wallet? initial;
+
+  /// A tab of the shell: no back button, and it refreshes when shown again.
+  final bool asTab;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +58,7 @@ class StatisticsPage extends StatelessWidget {
         walletId: walletId,
         initial: initial,
       )..start(),
-      child: const _StatisticsView(),
+      child: _StatisticsView(asTab: asTab),
     );
   }
 }
@@ -54,18 +67,27 @@ class StatisticsPage extends StatelessWidget {
 const distributionNotInPlanTitle = 'Tu plan no incluye la distribución por presupuesto';
 
 class _StatisticsView extends StatelessWidget {
-  const _StatisticsView();
+  const _StatisticsView({required this.asTab});
+
+  final bool asTab;
 
   Future<void> _refresh(BuildContext context) {
     final cubit = context.read<StatisticsCubit>();
-    return Future.wait([cubit.refresh(), if (cubit.state.wallets.data == null) cubit.loadWallets()]);
+    if (cubit.state.walletId == null) return cubit.start();
+    return Future.wait([cubit.refresh(), if (asTab || cubit.state.wallets.data == null) cubit.loadWallets()]);
   }
 
   @override
   Widget build(BuildContext context) {
+    final screen = _screen(context);
+    // Back on the tab: movements or wallets may have changed meanwhile.
+    return asTab ? VisibleTabListener(onVisible: () => unawaited(_refresh(context)), child: screen) : screen;
+  }
+
+  Widget _screen(BuildContext context) {
     const padding = EdgeInsets.symmetric(horizontal: AppSpacing.screen);
     return Scaffold(
-      appBar: const AppTopBar(title: 'Estadísticas'),
+      appBar: AppTopBar(title: 'Estadísticas', showBack: !asTab),
       body: RefreshIndicator(
         onRefresh: () => _refresh(context),
         child: CustomScrollView(
@@ -78,6 +100,8 @@ class _StatisticsView extends StatelessWidget {
                   _WalletSelector(),
                   SizedBox(height: AppSpacing.lg),
                   _RangeSelector(),
+                  SizedBox(height: AppSpacing.lg),
+                  _ProjectionEntry(),
                   SizedBox(height: AppSpacing.xl),
                 ]),
               ),
@@ -85,13 +109,34 @@ class _StatisticsView extends StatelessWidget {
             SliverPadding(
               padding: padding.copyWith(bottom: AppSpacing.xxl * 2),
               sliver: BlocBuilder<StatisticsCubit, StatisticsState>(
-                buildWhen: (previous, current) => previous.statistics != current.statistics,
-                builder: (context, state) => _content(context, state.statistics),
+                buildWhen: (previous, current) =>
+                    previous.statistics != current.statistics ||
+                    (current.walletId == null && previous.wallets != current.wallets),
+                builder: (context, state) =>
+                    state.walletId == null ? _noWallet(context, state.wallets) : _content(context, state.statistics),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// The tab before a wallet is chosen: its list loading, failing or empty.
+  Widget _noWallet(BuildContext context, LoadState<List<Wallet>> wallets) {
+    final cubit = context.read<StatisticsCubit>();
+    return SliverToBoxAdapter(
+      child: switch (wallets) {
+        LoadState(status: LoadStatus.failure, :final failure?) => _FailureNote(
+          message: failure.message,
+          onRetry: cubit.start,
+        ),
+        LoadState(data: final data?) when data.isEmpty => const NoteCard(
+          icon: Icons.account_balance_wallet_outlined,
+          message: 'Crea una billetera y registra movimientos para ver aquí tus estadísticas.',
+        ),
+        _ => const SectionLoading(label: 'Cargando estadísticas'),
+      },
     );
   }
 
@@ -299,6 +344,33 @@ class _GrowthLine extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Projection of the wallet on screen (HU-25 · COU-99): Contador Profesional
+/// only (COU-172); with another plan the plans sheet explains it.
+class _ProjectionEntry extends StatelessWidget {
+  const _ProjectionEntry();
+
+  void _open(BuildContext context, Wallet? wallet) {
+    if (!context.planGate.allows(PlanFeatures.walletProjection)) {
+      unawaited(showProjectionUpsell(context));
+      return;
+    }
+    if (wallet != null) unawaited(context.push<Object?>(AppRoutes.projection(wallet.walletId), extra: wallet));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allowed = context.watchPlanAllows(PlanFeatures.walletProjection);
+    final wallet = context.select((StatisticsCubit cubit) => cubit.state.wallet);
+    return EntryCard(
+      key: const ValueKey('statistics-projection'),
+      icon: allowed ? Icons.show_chart_rounded : Icons.lock_outline_rounded,
+      title: 'Proyección de saldo',
+      subtitle: allowed ? 'Tu saldo con los movimientos programados' : 'Disponible en el plan Contador Profesional',
+      onTap: () => _open(context, wallet),
     );
   }
 }
