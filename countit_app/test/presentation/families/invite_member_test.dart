@@ -176,13 +176,16 @@ void main() {
       expect(find.text('Alcanzaste el máximo de 20 invitaciones por día'), findsOneWidget);
     });
 
-    testWidgets('403 feature_not_in_plan: the plans sheet', (tester) async {
+    testWidgets('403 feature_not_in_plan: no local sheet or banner, the global handler opens it (COU-183)', (
+      tester,
+    ) async {
       when(() => families.invite(4, any())).thenThrow(_notInPlan);
       await pumpFlow(tester);
       await openForm(tester);
       await submit(tester, 'carlos_q');
-      expect(find.text(familiesNotInPlanTitle), findsNWidgets(2), reason: 'title and message');
-      expect(find.text('Entendido'), findsOneWidget);
+      expect(find.text('Entendido'), findsNothing);
+      expect(find.text(_notInPlan.message), findsNothing);
+      expect(find.text('Enviar invitación'), findsOneWidget, reason: 'the form stays');
     });
 
     for (final quota in [_memberQuota, _sharedQuota]) {

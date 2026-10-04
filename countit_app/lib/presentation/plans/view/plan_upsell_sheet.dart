@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
-import '../../profile/view/plan_details.dart';
+import 'plan_details.dart';
 
 /// Upsell after a plan quota error (`<x>_limit_exceeded`, 409): the backend
 /// [message] plus what the current plan includes.
@@ -15,8 +19,9 @@ import '../../profile/view/plan_details.dart';
 /// [title] changes the heading for a missing feature (403
 /// `feature_not_in_plan`) instead of a full quota.
 ///
-/// There is no plan catalogue or self-service upgrade in the API yet (plans
-/// are assigned by an administrator), so the sheet explains and closes.
+/// There is no self-service upgrade in the API (plans are assigned by a
+/// superadmin), so the sheet explains, links to the plans screen and closes.
+/// The global `403 feature_not_in_plan` handler opens it too (COU-183).
 Future<void> showPlanUpsell(
   BuildContext context, {
   required String message,
@@ -62,6 +67,15 @@ Future<void> showPlanUpsell(
           Text(
             'Con un plan superior tendrás más espacio. Escríbenos para cambiar de plan.',
             style: AppTypography.caption.copyWith(color: muted),
+          ),
+          AppButton(
+            label: 'Ver planes',
+            variant: AppButtonVariant.secondary,
+            onPressed: () {
+              final router = GoRouter.maybeOf(context);
+              Navigator.of(context).pop();
+              unawaited(router?.push<void>(AppRoutes.plans));
+            },
           ),
           AppButton(label: 'Entendido', onPressed: () => Navigator.of(context).pop()),
         ],

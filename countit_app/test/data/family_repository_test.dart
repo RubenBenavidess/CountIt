@@ -61,6 +61,7 @@ void main() {
       any(),
       params: any(named: 'params'),
       onReauth: any(named: 'onReauth'),
+      planUpsell: any(named: 'planUpsell'),
     ),
   ).thenAnswer((_) async => json);
 
@@ -128,10 +129,21 @@ void main() {
       await families.respond(5, accept: true);
       await families.respond(6, accept: false);
       await families.leave(4);
-      verify(() => api.rpc<dynamic>('respond_family_invitation', params: {'p_wallet_id': 5, 'p_accept': true}))
-          .called(1);
-      verify(() => api.rpc<dynamic>('respond_family_invitation', params: {'p_wallet_id': 6, 'p_accept': false}))
-          .called(1);
+      // A 403 on accepting is about the owner's plan: kept away from the plans sheet.
+      verify(
+        () => api.rpc<dynamic>(
+          'respond_family_invitation',
+          params: {'p_wallet_id': 5, 'p_accept': true},
+          planUpsell: false,
+        ),
+      ).called(1);
+      verify(
+        () => api.rpc<dynamic>(
+          'respond_family_invitation',
+          params: {'p_wallet_id': 6, 'p_accept': false},
+          planUpsell: false,
+        ),
+      ).called(1);
       verify(() => api.rpc<dynamic>('leave_family', params: {'p_wallet_id': 4})).called(1);
     });
 

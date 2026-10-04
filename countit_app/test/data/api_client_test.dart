@@ -96,6 +96,41 @@ void main() {
     expect(ended, hasLength(1));
   });
 
+  group('403 feature_not_in_plan (COU-183)', () {
+    const notInPlan = PostgrestException(
+      code: 'PT403',
+      message: 'Tu plan no incluye familias',
+      hint: 'feature_not_in_plan',
+    );
+    late List<AppFailure> notices;
+
+    setUp(() {
+      notices = [];
+      api.onFeatureNotInPlan = notices.add;
+    });
+
+    test('is reported to the app, once, with the backend message', () async {
+      await expectLater(api.run<void>(() async => throw notInPlan), throwsA(isA<AppFailure>()));
+      expect(notices.single.message, 'Tu plan no incluye familias');
+      expect(ended, isEmpty);
+    });
+
+    test('planUpsell false keeps it local (a 403 about someone else\'s plan)', () async {
+      await expectLater(api.run<void>(() async => throw notInPlan, planUpsell: false), throwsA(isA<AppFailure>()));
+      expect(notices, isEmpty);
+    });
+
+    test('other 403s are not plan notices', () async {
+      await expectLater(
+        api.run<void>(
+          () async => throw const PostgrestException(code: 'PT403', message: 'Acceso denegado', hint: 'forbidden'),
+        ),
+        throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.forbidden)),
+      );
+      expect(notices, isEmpty);
+    });
+  });
+
   group('invoke (Edge Functions with our HTTP client, COU-63)', () {
     late _MockSupabase supabase;
     late http.Request sent;

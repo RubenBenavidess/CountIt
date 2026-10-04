@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/plans/plan_gate.dart';
 import '../../../app/router/app_router.dart';
-
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
@@ -51,8 +51,7 @@ class _FamilyMembersView extends StatelessWidget {
   /// before a form the API would reject (403 `feature_not_in_plan`).
   Future<void> _invite(BuildContext context) async {
     final cubit = context.read<FamilyMembersCubit>();
-    final plan = context.read<SessionCubit>().state.profile?.plan;
-    if (plan != null && !plan.hasFeature(PlanFeatures.families)) {
+    if (!context.planGate.allows(PlanFeatures.families)) {
       return showPlanUpsell(
         context,
         title: familiesNotInPlanTitle,

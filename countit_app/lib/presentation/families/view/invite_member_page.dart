@@ -85,9 +85,8 @@ class _InviteMemberViewState extends State<_InviteMemberView> {
         context.pop(true);
       case SubmitStatus.failure:
         final failure = state.failure!;
-        if (failure.kind == FailureKind.featureNotInPlan) {
-          unawaited(showPlanUpsell(context, title: familiesNotInPlanTitle, message: failure.message));
-        } else if (failure.isQuota) {
+        // 403 feature_not_in_plan opens the plans sheet globally (COU-183).
+        if (failure.isQuota) {
           unawaited(showPlanUpsell(context, message: failure.message));
         } else if (failure.key == 'wallet_not_found') {
           // Deleted, or no longer ours: nothing left to share.
