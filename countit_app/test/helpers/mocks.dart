@@ -1,4 +1,5 @@
 import 'package:countit_app/data/remote/api_client.dart';
+import 'package:countit_app/data/repositories/admin_repository.dart';
 import 'package:countit_app/data/repositories/analysis_repository.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
@@ -30,6 +31,8 @@ class MockScheduledTransactionRepository extends Mock implements ScheduledTransa
 class MockFamilyRepository extends Mock implements FamilyRepository {}
 
 class MockAnalysisRepository extends Mock implements AnalysisRepository {}
+
+class MockAdminRepository extends Mock implements AdminRepository {}
 
 class MockApiClient extends Mock implements ApiClient {}
 

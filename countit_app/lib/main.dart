@@ -15,6 +15,7 @@ import 'data/remote/api_client.dart';
 import 'data/remote/install_id.dart';
 import 'data/remote/realtime_watcher.dart';
 import 'data/remote/supabase_setup.dart';
+import 'data/repositories/admin_repository.dart';
 import 'data/repositories/analysis_repository.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/bank_repository.dart';
@@ -46,6 +47,7 @@ Future<void> main() async {
   final TransactionRepository transactions = SupabaseTransactionRepository(api);
   final ScheduledTransactionRepository scheduled = SupabaseScheduledTransactionRepository(api);
   final AnalysisRepository analysis = SupabaseAnalysisRepository(api);
+  final AdminRepository admin = SupabaseAdminRepository(api);
   final FamilyRepository families = SupabaseFamilyRepository(api, SupabaseRealtimeWatcher(client));
 
   final session = SessionCubit(auth: auth, profiles: profiles);
@@ -88,6 +90,7 @@ Future<void> main() async {
         RepositoryProvider.value(value: scheduled),
         RepositoryProvider.value(value: families),
         RepositoryProvider.value(value: analysis),
+        RepositoryProvider.value(value: admin),
       ],
       child: MultiBlocProvider(
         providers: [

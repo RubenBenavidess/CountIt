@@ -4,6 +4,7 @@ import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
+import 'package:countit_app/data/repositories/admin_repository.dart';
 import 'package:countit_app/data/repositories/analysis_repository.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
@@ -46,6 +47,7 @@ extension PumpApp on WidgetTester {
     ScheduledTransactionRepository? scheduled,
     FamilyRepository? families,
     AnalysisRepository? analysis,
+    AdminRepository? admin,
     SessionCubit? session,
     InvitationsCubit? invitations,
     GoRouter? router,
@@ -92,6 +94,7 @@ extension PumpApp on WidgetTester {
           ),
           RepositoryProvider<FamilyRepository>.value(value: familyRepository),
           RepositoryProvider<AnalysisRepository>.value(value: analysis ?? MockAnalysisRepository()),
+          RepositoryProvider<AdminRepository>.value(value: admin ?? MockAdminRepository()),
         ],
         child: MultiBlocProvider(
           providers: [

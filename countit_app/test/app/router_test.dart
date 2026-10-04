@@ -50,6 +50,14 @@ void main() {
       expect(redirectFor(s, AppRoutes.wallet(4)), isNull);
     });
 
+    test('admin area: every admin path, never a look-alike prefix (COU-127)', () {
+      final user = SessionState.authenticated(_profile(UserRole.user));
+      expect(redirectFor(user, AppRoutes.adminUsers), AppRoutes.home);
+      expect(redirectFor(user, AppRoutes.adminUser('u2')), AppRoutes.home);
+      expect(redirectFor(user, '/administrator'), isNull, reason: 'not under /admin');
+      expect(redirectFor(SessionState.authenticated(_profile(UserRole.admin)), AppRoutes.adminUser('u2')), isNull);
+    });
+
     test('admin area only for admin and superadmin', () {
       expect(redirectFor(SessionState.authenticated(_profile(UserRole.user)), AppRoutes.admin), AppRoutes.home);
       expect(redirectFor(SessionState.authenticated(_profile(UserRole.admin)), AppRoutes.admin), isNull);

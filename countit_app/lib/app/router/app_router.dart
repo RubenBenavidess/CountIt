@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/dtos/admin.dart';
+import '../../data/dtos/profile.dart';
 import '../../data/dtos/scheduled_transaction.dart';
 import '../../data/dtos/transaction.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
 import '../../presentation/admin/view/admin_page.dart';
+import '../../presentation/admin/view/admin_user_page.dart';
+import '../../presentation/admin/view/admin_users_page.dart';
 import '../../presentation/auth/view/check_email_page.dart';
 import '../../presentation/auth/view/email_confirmed_page.dart';
 import '../../presentation/auth/view/forgot_password_page.dart';
@@ -54,6 +58,7 @@ abstract final class AppRoutes {
   static const wallets = '/wallets';
   static const newWallet = '/wallets/new';
   static const admin = '/admin';
+  static const adminUsers = '/admin/users';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
@@ -62,6 +67,7 @@ abstract final class AppRoutes {
   static const plans = '/plans';
   static const invitations = '/invitations';
 
+  static String adminUser(String userId) => '$adminUsers/$userId';
   static String wallet(int walletId) => '$wallets/$walletId';
   static String editWallet(int walletId) => '$wallets/$walletId/edit';
   static String newBudget(int walletId) => '$wallets/$walletId/budgets/new';
@@ -105,12 +111,16 @@ String? redirectFor(SessionState session, String location) {
           AppRoutes.public.contains(location)) {
         return AppRoutes.home;
       }
-      if (location.startsWith(AppRoutes.admin) && !(session.profile?.role.canAdminister ?? false)) {
-        return AppRoutes.home;
-      }
+      // Admin area (COU-127): admin and superadmin only. The screens check
+      // the role again and the API on every call.
+      final role = session.profile?.role ?? UserRole.user;
+      if (_isUnder(location, AppRoutes.admin) && !role.canAdminister) return AppRoutes.home;
       return null;
   }
 }
+
+/// [location] is [root] or a path below it (`/admin`, `/admin/users`, not `/administrator`).
+bool _isUnder(String location, String root) => location == root || location.startsWith('$root/');
 
 /// `/wallets/<id>` → id; null for a malformed path (the router sends it home).
 int? _walletId(GoRouterState state) => int.tryParse(state.pathParameters['id'] ?? '');
@@ -162,7 +172,24 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
     GoRoute(path: AppRoutes.deleteAccount, builder: (context, state) => const DeleteAccountPage()),
     GoRoute(path: AppRoutes.myPlan, builder: (context, state) => const MyPlanPage()),
     GoRoute(path: AppRoutes.plans, builder: (context, state) => const PlansPage()),
-    GoRoute(path: AppRoutes.admin, builder: (context, state) => const AdminPage()),
+    GoRoute(
+      path: AppRoutes.admin,
+      builder: (context, state) => const AdminPage(),
+      routes: [
+        GoRoute(
+          path: 'users',
+          builder: (context, state) => const AdminUsersPage(),
+          routes: [
+            GoRoute(
+              path: ':userId',
+              // Shows the user the list loaded; without it, back to the list.
+              redirect: (context, state) => state.extra is AdminUser ? null : AppRoutes.adminUsers,
+              builder: (context, state) => AdminUserPage(user: state.extra! as AdminUser),
+            ),
+          ],
+        ),
+      ],
+    ),
     GoRoute(path: AppRoutes.invitations, builder: (context, state) => const InvitationsPage()),
     GoRoute(path: AppRoutes.newWallet, builder: (context, state) => const WalletFormPage()),
     GoRoute(
