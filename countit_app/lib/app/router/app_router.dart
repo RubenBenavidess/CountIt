@@ -15,6 +15,7 @@ import '../../presentation/admin/view/admin_banks_page.dart';
 import '../../presentation/admin/view/admin_page.dart';
 import '../../presentation/admin/view/admin_user_page.dart';
 import '../../presentation/admin/view/admin_users_page.dart';
+import '../../presentation/admin/view/audit_log_page.dart';
 import '../../presentation/admin/view/bank_form_page.dart';
 import '../../presentation/auth/view/check_email_page.dart';
 import '../../presentation/auth/view/email_confirmed_page.dart';
@@ -64,6 +65,7 @@ abstract final class AppRoutes {
   static const adminUsers = '/admin/users';
   static const adminBanks = '/admin/banks';
   static const newBank = '/admin/banks/new';
+  static const auditLog = '/admin/audit';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
@@ -121,6 +123,8 @@ String? redirectFor(SessionState session, String location) {
       // the role again and the API on every call.
       final role = session.profile?.role ?? UserRole.user;
       if (_isUnder(location, AppRoutes.admin) && !role.canAdminister) return AppRoutes.home;
+      // The audit trail is for the superadmin only.
+      if (_isUnder(location, AppRoutes.auditLog) && !role.isSuperadmin) return AppRoutes.admin;
       return null;
   }
 }
@@ -194,6 +198,7 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
             ),
           ],
         ),
+        GoRoute(path: 'audit', builder: (context, state) => const AuditLogPage()),
         GoRoute(
           path: 'banks',
           builder: (context, state) => const AdminBanksPage(),

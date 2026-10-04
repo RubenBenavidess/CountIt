@@ -58,6 +58,12 @@ void main() {
       expect(redirectFor(SessionState.authenticated(_profile(UserRole.admin)), AppRoutes.adminUser('u2')), isNull);
     });
 
+    test('audit trail only for the superadmin (COU-208)', () {
+      expect(redirectFor(SessionState.authenticated(_profile(UserRole.admin)), AppRoutes.auditLog), AppRoutes.admin);
+      expect(redirectFor(SessionState.authenticated(_profile(UserRole.user)), AppRoutes.auditLog), AppRoutes.home);
+      expect(redirectFor(SessionState.authenticated(_profile(UserRole.superadmin)), AppRoutes.auditLog), isNull);
+    });
+
     test('admin area only for admin and superadmin', () {
       expect(redirectFor(SessionState.authenticated(_profile(UserRole.user)), AppRoutes.admin), AppRoutes.home);
       expect(redirectFor(SessionState.authenticated(_profile(UserRole.admin)), AppRoutes.admin), isNull);

@@ -38,6 +38,16 @@ abstract interface class AdminRepository {
 
   /// `admin_set_bank_active`: wallets that use the bank keep it.
   Future<Bank> setBankActive(int bankId, {required bool active});
+
+  /// Audit page size (the API accepts 1–500).
+  static const auditPageSize = 50;
+
+  /// `admin_list_audit_log` 🛡: newest first, optionally by entity and id.
+  Future<Paged<AuditEntry>> listAuditLog({
+    AuditFilter filter = const AuditFilter(),
+    int offset = 0,
+    int limit = auditPageSize,
+  });
 }
 
 class SupabaseAdminRepository implements AdminRepository {
@@ -109,6 +119,19 @@ class SupabaseAdminRepository implements AdminRepository {
   @override
   Future<Bank> setBankActive(int bankId, {required bool active}) async =>
       _bank(await _api.rpc<dynamic>('admin_set_bank_active', params: {'p_bank_id': bankId, 'p_active': active}));
+
+  @override
+  Future<Paged<AuditEntry>> listAuditLog({
+    AuditFilter filter = const AuditFilter(),
+    int offset = 0,
+    int limit = AdminRepository.auditPageSize,
+  }) async {
+    final rows = await _api.rpc<dynamic>(
+      'admin_list_audit_log',
+      params: {'p_entity': ?filter.entity, 'p_entity_id': ?filter.entityId, 'p_limit': limit + 1, 'p_offset': offset},
+    );
+    return _page(rows, limit, AuditEntry.fromJson);
+  }
 
   static Bank _bank(Object? json) {
     if (json is! Map) throw _unexpected;
