@@ -1,10 +1,12 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:countit_app/app/errors/app_failure.dart';
+import 'package:countit_app/app/router/app_router.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/data/dtos/scheduled_transaction.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/presentation/scheduled/cubit/scheduled_list_cubit.dart';
+import 'package:countit_app/presentation/scheduled/view/scheduled_form_page.dart';
 import 'package:countit_app/presentation/scheduled/view/scheduled_list_page.dart';
 import 'package:countit_app/presentation/scheduled/view/widgets/scheduled_quota_card.dart';
 import 'package:countit_app/presentation/scheduled/view/widgets/scheduled_tile.dart';
@@ -12,6 +14,7 @@ import 'package:countit_app/shared/state/load_state.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/mocks.dart';
@@ -233,6 +236,101 @@ void main() {
       expect(find.text('Límite'), findsOneWidget);
       expect(find.byType(ScheduledQuotaCard), findsOneWidget);
       expect(find.textContaining('pausar no libera cupo'), findsOneWidget);
+    });
+  });
+
+  group('ScheduledListPage navigation and gating (COU-151, COU-152, COU-156)', () {
+    late MockAuthRepository auth;
+    late MockProfileRepository profiles;
+
+    setUp(() {
+      auth = MockAuthRepository();
+      profiles = MockProfileRepository();
+      when(() => auth.sessionChanges).thenAnswer((_) => const Stream.empty());
+      when(() => auth.hasSession).thenReturn(true);
+      when(() => profiles.fetchMyProfile()).thenAnswer((_) async => _profile());
+    });
+
+    /// The list with stand-ins for the form routes, which pop `true`.
+    Future<void> pumpRouted(WidgetTester tester, {bool owner = true}) async {
+      tester.view.physicalSize = const Size(420, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final session = SessionCubit(auth: auth, profiles: profiles);
+      addTearDown(session.close);
+      await session.restore();
+      final wallet = walletFixture(id: 4, isOwner: owner, memberCount: 1);
+      final router = GoRouter(
+        initialLocation: AppRoutes.scheduled(4),
+        routes: [
+          GoRoute(
+            path: AppRoutes.scheduled(4),
+            builder: (context, state) => ScheduledListPage(wallet: wallet),
+          ),
+          GoRoute(
+            path: AppRoutes.newScheduled(4),
+            builder: (context, state) => Scaffold(
+              body: TextButton(onPressed: () => context.pop(true), child: const Text('NEW RULE')),
+            ),
+          ),
+          GoRoute(
+            path: '${AppRoutes.wallets}/4/scheduled/:ruleId/edit',
+            builder: (context, state) => Scaffold(
+              body: TextButton(
+                onPressed: () => context.pop(true),
+                child: Text('EDIT ${(state.extra! as ScheduledEditArgs).rule.name}'),
+              ),
+            ),
+          ),
+        ],
+      );
+      await tester.pumpApp(
+        const SizedBox(),
+        auth: auth,
+        profiles: profiles,
+        scheduled: scheduled,
+        session: session,
+        router: router,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('with room in the plan «Programar» opens the form and the list reloads', (tester) async {
+      when(() => scheduled.listByWallet(4)).thenAnswer((_) async => const []);
+      when(() => scheduled.usageOf('u1')).thenAnswer((_) async => const ScheduledUsage(total: 1, running: 1));
+      await pumpRouted(tester);
+      await tester.tap(find.byKey(const ValueKey('scheduled-new')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('NEW RULE'));
+      await tester.pumpAndSettle();
+      verify(() => scheduled.listByWallet(4)).called(2);
+    });
+
+    testWidgets('a full quota shows the plans instead of the form', (tester) async {
+      when(() => scheduled.listByWallet(4)).thenAnswer((_) async => [scheduledFixture()]);
+      when(() => scheduled.usageOf('u1')).thenAnswer((_) async => const ScheduledUsage(total: 3, running: 1));
+      await pumpRouted(tester);
+      await tester.tap(find.byKey(const ValueKey('scheduled-new')));
+      await tester.pumpAndSettle();
+      expect(find.text('Alcanzaste el límite de 3 transacciones programadas de tu plan'), findsOneWidget);
+      expect(find.text('NEW RULE'), findsNothing);
+    });
+
+    testWidgets('the author or the owner opens the edit form; others only read', (tester) async {
+      when(() => scheduled.listByWallet(4)).thenAnswer(
+        (_) async => [
+          scheduledFixture(id: 1, name: 'Mía', userId: 'u1'),
+          scheduledFixture(id: 2, name: 'De Carlos', userId: 'u2', nextRunDate: DateTime(2026, 12, 1)),
+        ],
+      );
+      when(() => scheduled.usageOf('u1')).thenAnswer((_) async => const ScheduledUsage(total: 1, running: 1));
+      await pumpRouted(tester, owner: false);
+      await tester.tap(find.text('De Carlos'));
+      await tester.pumpAndSettle();
+      expect(find.text('EDIT De Carlos'), findsNothing);
+      await tester.tap(find.text('Mía'));
+      await tester.pumpAndSettle();
+      expect(find.text('EDIT Mía'), findsOneWidget);
     });
   });
 }

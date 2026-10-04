@@ -4,6 +4,7 @@ import 'package:countit_app/app/router/app_router.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/data/dtos/budget.dart';
 import 'package:countit_app/data/dtos/profile.dart';
+import 'package:countit_app/data/dtos/scheduled_transaction.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/presentation/budgets/view/widgets/budget_selector_field.dart';
 import 'package:countit_app/presentation/transactions/cubit/transaction_form_cubit.dart';
@@ -17,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/budget_fixtures.dart';
+import '../../helpers/date_picker.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/transaction_fixtures.dart';
@@ -294,7 +296,7 @@ void main() {
       expect(budgetOptions(tester), ['Sin presupuesto']);
     });
 
-    for (final (failure, near) in [(_invalidAmount, 'Monto'), (_futureDate, 'Fecha'), (_typeMismatch, 'Presupuesto')]) {
+    for (final (failure, near) in [(_invalidAmount, 'Monto'), (_typeMismatch, 'Presupuesto')]) {
       testWidgets('${failure.key} shows next to «$near», not in the banner', (tester) async {
         when(() => transactions.create(any(), any())).thenThrow(failure);
         await pumpForm(tester);
@@ -304,6 +306,38 @@ void main() {
         expect(find.byType(AppBanner), findsNothing);
       });
     }
+
+    testWidgets('future_date from the server: next to «Fecha» plus an offer to schedule (COU-151)', (tester) async {
+      when(() => transactions.create(any(), any())).thenThrow(_futureDate);
+      final results = await pumpForm(tester);
+      await fill(tester);
+      await tapButton(tester, 'Registrar movimiento');
+      expect(find.text(_futureDate.message), findsOneWidget);
+      expect(find.byKey(const ValueKey('transaction-schedule-offer')), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Programar movimiento'));
+      await tester.pumpAndSettle();
+      final draft = results.single! as ScheduledTransactionInput;
+      expect(draft.name, 'Almuerzo');
+      expect(draft.amountCents, 1250);
+      expect(draft.periodicity, Periodicity.oneTime);
+    });
+
+    testWidgets('a future date leads to scheduling instead of registering (COU-151)', (tester) async {
+      final results = await pumpForm(tester);
+      await fill(tester, name: 'Matrícula', amount: '120');
+      await pickBudget(tester, 'Comida');
+      final future = today().add(const Duration(days: 3));
+      await pickDate(tester, 'Fecha', future);
+      expect(find.byKey(const ValueKey('transaction-schedule-offer')), findsOneWidget);
+      expect(find.text('Para fechas futuras programa la transacción'), findsNothing);
+      await tapButton(tester, 'Continuar para programar');
+      verifyNever(() => transactions.create(any(), any()));
+      final draft = results.single! as ScheduledTransactionInput;
+      expect(draft.name, 'Matrícula');
+      expect(draft.amountCents, 12000);
+      expect(draft.startDate, DateTime(future.year, future.month, future.day));
+      expect(draft.budgetId, 1);
+    });
 
     testWidgets('daily quota (409) offers the plans', (tester) async {
       when(() => transactions.create(any(), any())).thenThrow(_dailyQuota);

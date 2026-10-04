@@ -9,6 +9,7 @@ import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/budget.dart';
+import '../../../data/dtos/scheduled_transaction.dart';
 import '../../../data/dtos/transaction.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/budget_repository.dart';
@@ -109,9 +110,18 @@ class _WalletDetailView extends StatelessWidget {
 
   /// Transaction form or detail: a save or a deletion changes the balance,
   /// the budgets' progress and the list, so all three reload.
+  ///
+  /// A new movement with a future date comes back as a draft to schedule
+  /// (HU-16 · COU-151): the scheduling form opens with its fields.
   Future<void> _openTransaction(BuildContext context, String location, {Object? extra}) async {
-    final saved = await context.push<bool>(location, extra: extra);
-    if (saved == true && context.mounted) unawaited(_refresh(context));
+    final result = await context.push<Object?>(location, extra: extra);
+    if (!context.mounted) return;
+    if (result == true) {
+      unawaited(_refresh(context));
+    } else if (result is ScheduledTransactionInput) {
+      final walletId = context.read<WalletDetailCubit>().walletId;
+      unawaited(context.push<bool>(AppRoutes.newScheduled(walletId), extra: result));
+    }
   }
 
   /// Scheduled rules (F06): they never move the balance until they run, so

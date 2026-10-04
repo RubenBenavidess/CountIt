@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/dtos/scheduled_transaction.dart';
 import '../../data/dtos/transaction.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
@@ -19,6 +20,7 @@ import '../../presentation/budgets/view/budget_form_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
+import '../../presentation/scheduled/view/scheduled_form_page.dart';
 import '../../presentation/scheduled/view/scheduled_list_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
@@ -59,6 +61,8 @@ abstract final class AppRoutes {
   static String editTransaction(int walletId, int transactionId) =>
       '$wallets/$walletId/transactions/$transactionId/edit';
   static String scheduled(int walletId) => '$wallets/$walletId/scheduled';
+  static String newScheduled(int walletId) => '$wallets/$walletId/scheduled/new';
+  static String editScheduled(int walletId, int ruleId) => '$wallets/$walletId/scheduled/$ruleId/edit';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -194,6 +198,22 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           // Lists the rules of the wallet the detail screen loaded (ownership, shared).
           redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
           builder: (context, state) => ScheduledListPage(wallet: state.extra! as Wallet),
+        ),
+        GoRoute(
+          path: 'scheduled/new',
+          // Optional draft: the fields of a transaction form with a future date.
+          builder: (context, state) => ScheduledFormPage(
+            walletId: _walletId(state)!,
+            draft: state.extra is ScheduledTransactionInput ? state.extra! as ScheduledTransactionInput : null,
+          ),
+        ),
+        GoRoute(
+          path: 'scheduled/:ruleId/edit',
+          // Edits the rule the list showed; without it, back to the wallet.
+          redirect: (context, state) =>
+              state.extra is ScheduledEditArgs ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) =>
+              ScheduledFormPage(walletId: _walletId(state)!, initial: (state.extra! as ScheduledEditArgs).rule),
         ),
       ],
     ),
