@@ -2,6 +2,9 @@
     <!-- The app talks to the Supabase backend; release builds need it too
          (the Flutter template only adds it to debug/profile). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+: push notifications need the user's consent (COU-175),
+         requested from the inbox, never at start-up. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
@@ -42,6 +45,11 @@
             <!-- go_router must not treat the links as routes; app_links delivers them. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
+        <!-- Channel «Count It!» created by MainActivity (COU-106): FCM shows
+             background pushes there (the backend sends no channel_id). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="countit_default" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -241,6 +241,20 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     }
   }
 
+  /// Marks the notification of a tapped push (COU-199): through the list when
+  /// it is loaded, otherwise straight to the API and the badge is reloaded.
+  Future<void> markReadById(int id) async {
+    final loaded = _find(id);
+    if (loaded != null) return markRead(loaded);
+    if (_userId == null) return;
+    try {
+      await _notifications.markRead([id]);
+    } on AppFailure {
+      return;
+    }
+    await load();
+  }
+
   /// «Marcar todas como leídas»: every unread notification, also the ones
   /// in pages not loaded yet.
   Future<void> markAllRead() async {

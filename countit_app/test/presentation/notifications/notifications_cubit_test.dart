@@ -249,4 +249,28 @@ void main() {
       expect(cancelled, isTrue);
     });
   });
+
+  group('markReadById (tapped push · COU-199)', () {
+    test('a loaded one goes through the list', () async {
+      inboxReturns([notificationFixture(id: 4)]);
+      await cubit.setUser('u1');
+      await cubit.markReadById(4);
+      expect(cubit.state.items.single.isRead, isTrue);
+      verify(() => repository.markRead([4])).called(1);
+    });
+
+    test('one not loaded: straight to the API, then the badge reloads', () async {
+      inboxReturns([notificationFixture(id: 4)]);
+      await cubit.setUser('u1');
+      clearInteractions(repository);
+      await cubit.markReadById(99);
+      verify(() => repository.markRead([99])).called(1);
+      verify(() => repository.unreadCount()).called(1);
+    });
+
+    test('signed out: nothing', () async {
+      await cubit.markReadById(99);
+      verifyNever(() => repository.markRead(any()));
+    });
+  });
 }

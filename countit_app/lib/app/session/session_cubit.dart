@@ -11,12 +11,21 @@ import 'session_state.dart';
 /// profile (role, plan, limits) and signs out when the backend says the
 /// session is gone (COU-57).
 class SessionCubit extends Cubit<SessionState> {
-  SessionCubit({required this._auth, required this._profiles}) : super(const SessionState.unknown()) {
+  SessionCubit({required this._auth, required this._profiles, this.beforeSignOut, this.onSessionLost})
+    : super(const SessionState.unknown()) {
     _subscription = _auth.sessionChanges.listen(_onSessionChanged);
   }
 
   final AuthRepository _auth;
   final ProfileRepository _profiles;
+
+  /// Runs after the screens are gone but while the session still works
+  /// (e.g. `unregister_push_device`, COU-178). Must not throw.
+  final Future<void> Function()? beforeSignOut;
+
+  /// The backend ended the session (401): server calls are no longer
+  /// possible (e.g. delete the local push token).
+  final Future<void> Function()? onSessionLost;
   late final StreamSubscription<SessionChange> _subscription;
 
   /// Decides the first route: profile when a session was restored, else login.
@@ -46,6 +55,7 @@ class SessionCubit extends Cubit<SessionState> {
   Future<void> sessionEnded(AppFailure failure) async {
     if (state.status == SessionStatus.unauthenticated) return;
     emit(SessionState.unauthenticated(message: failure.message));
+    await onSessionLost?.call();
     try {
       await _auth.signOut();
     } on AppFailure {
@@ -59,6 +69,7 @@ class SessionCubit extends Cubit<SessionState> {
   /// is shown on the login screen (e.g. after deleting the account).
   Future<void> signOut({String? message}) async {
     emit(SessionState.unauthenticated(message: message));
+    await beforeSignOut?.call();
     try {
       await _auth.signOut();
     } on AppFailure {
@@ -81,7 +92,9 @@ class SessionCubit extends Cubit<SessionState> {
         }
       case SessionChange.signedOut:
         if (state.status != SessionStatus.unauthenticated && state.status != SessionStatus.unknown) {
+          // Signed out by the SDK (refresh token rejected): same as a 401.
           emit(const SessionState.unauthenticated());
+          unawaited(onSessionLost?.call());
         }
       case SessionChange.updated:
         break;
