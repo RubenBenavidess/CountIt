@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
@@ -11,7 +15,9 @@ import '../../../shared/state/load_state.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../../plans/view/plan_upsell_sheet.dart';
 import '../cubit/scheduled_list_cubit.dart';
+import 'scheduled_form_page.dart';
 import 'widgets/scheduled_quota_card.dart';
 import 'widgets/scheduled_tile.dart';
 
@@ -41,12 +47,39 @@ class _ScheduledListView extends StatelessWidget {
 
   final Wallet wallet;
 
+  /// HU-16 gating (COU-156): with the quota known to be full, the plans
+  /// sheet explains it instead of a form the API would reject (409).
+  Future<void> _create(BuildContext context) async {
+    final cubit = context.read<ScheduledListCubit>();
+    final quota = ScheduledQuota.of(context.read<SessionCubit>().state.profile?.plan, cubit.state.usage);
+    if (!quota.canCreate) return showPlanUpsell(context, message: quota.limitMessage);
+    final saved = await context.push<bool>(AppRoutes.newScheduled(wallet.walletId));
+    if (saved == true && !cubit.isClosed) unawaited(cubit.load());
+  }
+
+  /// HU-20: only the author or the wallet owner may edit (the API decides).
+  Future<void> _edit(BuildContext context, ScheduledTransaction rule) async {
+    final cubit = context.read<ScheduledListCubit>();
+    final saved = await context.push<bool>(
+      AppRoutes.editScheduled(wallet.walletId, rule.scheduledTransactionId),
+      extra: ScheduledEditArgs(rule, canDelete: true),
+    );
+    if (saved == true && !cubit.isClosed) unawaited(cubit.load());
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ScheduledListCubit>();
     final plan = context.select((SessionCubit c) => c.state.profile?.plan);
     return Scaffold(
       appBar: const AppTopBar(title: 'Programados'),
+      floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('scheduled-new'),
+        tooltip: 'Programar un ingreso o gasto',
+        onPressed: () => _create(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Programar'),
+      ),
       body: RefreshIndicator(
         onRefresh: cubit.load,
         child: CustomScrollView(
@@ -90,6 +123,7 @@ class _ScheduledListView extends StatelessWidget {
 
   Widget _rules(BuildContext context, LoadState<List<ScheduledTransaction>> state) {
     final rules = state.data;
+    final userId = context.read<SessionCubit>().state.profile?.userId;
     if (rules == null) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -129,7 +163,13 @@ class _ScheduledListView extends StatelessWidget {
           itemCount: rules.length,
           itemBuilder: (context, index) {
             final rule = rules[index];
-            return ScheduledTile(key: ValueKey(rule.scheduledTransactionId), rule: rule, showAuthor: wallet.isShared);
+            final canManage = rule.canBeManagedBy(userId, walletIsOwner: wallet.isOwner);
+            return ScheduledTile(
+              key: ValueKey(rule.scheduledTransactionId),
+              rule: rule,
+              showAuthor: wallet.isShared,
+              onTap: canManage ? () => _edit(context, rule) : null,
+            );
           },
         ),
       ],

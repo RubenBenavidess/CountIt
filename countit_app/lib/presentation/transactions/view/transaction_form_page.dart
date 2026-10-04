@@ -10,6 +10,7 @@ import '../../../app/router/app_router.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../data/dtos/budget.dart';
 import '../../../data/dtos/json_parsing.dart';
+import '../../../data/dtos/scheduled_transaction.dart';
 import '../../../data/dtos/transaction.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
@@ -31,6 +32,10 @@ import '../cubit/transaction_form_cubit.dart';
 /// Register (no [initial]) or edit a transaction of [walletId] (HU-15/HU-18
 /// · COU-236..COU-239). Pops with `true` after saving, so the wallet reloads
 /// its balance, budgets and movements.
+///
+/// A future date cannot be registered (400 `future_date`): a new movement
+/// with one pops with a [ScheduledTransactionInput] draft instead, which the
+/// wallet opens in the scheduling form (HU-16 · COU-151).
 class TransactionFormPage extends StatelessWidget {
   const TransactionFormPage({super.key, required this.walletId, this.initial});
 
@@ -84,6 +89,9 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
 
   /// The user's calendar day: default date and the latest one allowed.
   late final DateTime _today = Dates.userToday(context.read<SessionCubit>().state.profile?.timezone);
+
+  /// New movements may pick a future day, which leads to scheduling.
+  late final DateTime _lastDate = _editing ? _today : DateTime(_today.year + 5, 12, 31);
 
   late final TransactionInput _original = widget.initial == null
       ? TransactionInput(name: '', type: TransactionType.expense, amountCents: 0, date: _today)
@@ -159,7 +167,23 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
   String? get _amountError =>
       _submitted || _amount.text.trim().isNotEmpty ? TransactionValidators.amount(_amount.text) : null;
 
-  String? get _dateError => TransactionValidators.date(_date, today: _today);
+  /// Editing keeps the day in the past; a new movement with a future day is scheduled instead.
+  String? get _dateError => _editing ? TransactionValidators.date(_date, today: _today) : null;
+
+  bool get _isFuture => !_editing && _date.isAfter(_today);
+
+  /// Hands the typed fields to the scheduling form (one-time rule on [_date]).
+  void _schedule() {
+    final draft = ScheduledTransactionInput(
+      name: _name.text.trim(),
+      type: _type,
+      amountCents: Validators.amountCents(_amount.text) ?? 0,
+      startDate: _date,
+      budgetId: _budgetId,
+    );
+    setState(() => _saved = true);
+    context.pop(draft);
+  }
 
   Future<void> _save() async {
     setState(() => _submitted = true);
@@ -261,10 +285,20 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                     value: _date,
                     onChanged: (day) => _update(() => _date = day),
                     firstDate: DateTime(_today.year - 10),
-                    lastDate: _today,
+                    lastDate: _lastDate,
                     errorText: _fieldError(failure, _dateKeys) ?? _dateError,
                     enabled: !busy,
                   ),
+                  if (_isFuture || (!_editing && _fieldError(failure, _dateKeys) != null))
+                    AppBanner(
+                      key: const ValueKey('transaction-schedule-offer'),
+                      message: _isFuture
+                          ? 'Es una fecha futura: la programaremos para que se registre sola el ${Dates.date(_date)}.'
+                          : 'Para esa fecha, programa el movimiento y se registrará solo.',
+                      action: _isFuture
+                          ? null
+                          : TextButton(onPressed: busy ? null : _schedule, child: const Text('Programar movimiento')),
+                    ),
                   BlocBuilder<BudgetListCubit, LoadState<List<Budget>>>(
                     builder: (context, budgets) => BudgetSelectorField(
                       budgets: budgets,
@@ -279,9 +313,17 @@ class _TransactionFormViewState extends State<_TransactionFormView> {
                 ],
                 footer: [
                   AppButton(
-                    label: _editing ? 'Guardar cambios' : 'Registrar movimiento',
+                    label: _editing
+                        ? 'Guardar cambios'
+                        : _isFuture
+                        ? 'Continuar para programar'
+                        : 'Registrar movimiento',
                     loading: busy,
-                    onPressed: _editing && !dirty ? null : _save,
+                    onPressed: _editing && !dirty
+                        ? null
+                        : _isFuture
+                        ? _schedule
+                        : _save,
                   ),
                 ],
               ),

@@ -1,5 +1,6 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
+import 'package:countit_app/data/dtos/scheduled_transaction.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
@@ -87,7 +88,22 @@ void main() {
             GoRoute(
               path: 'transactions/new',
               builder: (context, state) => Scaffold(
-                body: TextButton(onPressed: () => context.pop(true), child: const Text('NEW TRANSACTION')),
+                body: Column(
+                  children: [
+                    TextButton(onPressed: () => context.pop(true), child: const Text('NEW TRANSACTION')),
+                    TextButton(
+                      onPressed: () => context.pop(
+                        ScheduledTransactionInput(
+                          name: 'Matrícula',
+                          type: TransactionType.expense,
+                          amountCents: 12000,
+                          startDate: DateTime(2030),
+                        ),
+                      ),
+                      child: const Text('FUTURE DATE'),
+                    ),
+                  ],
+                ),
               ),
             ),
             GoRoute(
@@ -110,6 +126,11 @@ void main() {
                   child: Text('EDIT TRANSACTION ${(state.extra! as Transaction).name}'),
                 ),
               ),
+            ),
+            GoRoute(
+              path: 'scheduled/new',
+              builder: (context, state) =>
+                  Scaffold(body: Text('SCHEDULE ${(state.extra! as ScheduledTransactionInput).name}')),
             ),
             GoRoute(
               path: 'scheduled',
@@ -417,5 +438,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('wallet-scheduled')));
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULED Pichincha'), findsOneWidget);
+  });
+
+  testWidgets('a future-dated movement continues in the scheduling form (COU-151)', (tester) async {
+    final wallet = walletFixture(id: 4, name: 'Pichincha');
+    when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+    await pumpDetail(tester, wallet);
+    await tester.tap(find.byKey(const ValueKey('transaction-new')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('FUTURE DATE'));
+    await tester.pumpAndSettle();
+    expect(find.text('SCHEDULE Matrícula'), findsOneWidget);
   });
 }
