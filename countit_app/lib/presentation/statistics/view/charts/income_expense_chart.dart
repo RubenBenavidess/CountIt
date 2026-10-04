@@ -6,6 +6,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/tokens.dart';
 import '../../../../data/dtos/statistics.dart';
 import '../../../../shared/utils/money.dart';
+import 'chart_entrance.dart';
 import 'chart_labels.dart';
 import 'chart_theme.dart';
 
@@ -67,14 +68,19 @@ class _IncomeExpenseChartState extends State<IncomeExpenseChart> {
               onTapDown: (details) => _select(details.localPosition, constraints.maxWidth),
               onHorizontalDragUpdate: (details) => _select(details.localPosition, constraints.maxWidth),
               child: RepaintBoundary(
-                child: CustomPaint(
-                  size: Size(constraints.maxWidth, widget.height),
-                  painter: IncomeExpensePainter(
-                    series: statistics.series,
-                    peakCents: statistics.peakBucketCents,
-                    bucket: statistics.bucket,
-                    theme: chart,
-                    selected: selected,
+                // The bars grow from the axis when the data arrives.
+                child: ChartEntrance(
+                  data: statistics,
+                  builder: (context, growth) => CustomPaint(
+                    size: Size(constraints.maxWidth, widget.height),
+                    painter: IncomeExpensePainter(
+                      series: statistics.series,
+                      peakCents: statistics.peakBucketCents,
+                      bucket: statistics.bucket,
+                      theme: chart,
+                      selected: selected,
+                      growth: growth,
+                    ),
                   ),
                 ),
               ),
@@ -174,6 +180,7 @@ class IncomeExpensePainter extends CustomPainter {
     required this.bucket,
     required this.theme,
     this.selected,
+    this.growth = 1,
   });
 
   final List<StatisticsPoint> series;
@@ -181,6 +188,9 @@ class IncomeExpensePainter extends CustomPainter {
   final StatisticsBucket bucket;
   final ChartTheme theme;
   final int? selected;
+
+  /// 0–1: share of their height the bars reach (entrance animation).
+  final double growth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -230,9 +240,9 @@ class IncomeExpensePainter extends CustomPainter {
   }
 
   void _bar(Canvas canvas, double left, double width, int cents, int top, double plotHeight, Paint paint) {
-    if (cents <= 0 || top <= 0) return;
+    if (cents <= 0 || top <= 0 || growth <= 0) return;
     // At least 2 px so a small amount is still visible next to a large one.
-    final height = math.max(2.0, plotHeight * cents / top);
+    final height = math.max(2.0, plotHeight * cents / top) * growth;
     final radius = Radius.circular(math.min(4, width / 2));
     canvas.drawRRect(
       RRect.fromRectAndCorners(
@@ -246,5 +256,8 @@ class IncomeExpensePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(IncomeExpensePainter oldDelegate) =>
-      !identical(oldDelegate.series, series) || oldDelegate.theme != theme || oldDelegate.selected != selected;
+      !identical(oldDelegate.series, series) ||
+      oldDelegate.theme != theme ||
+      oldDelegate.selected != selected ||
+      oldDelegate.growth != growth;
 }

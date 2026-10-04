@@ -54,7 +54,7 @@ class WalletDetailBody extends StatelessWidget {
           padding: padding.copyWith(top: AppSpacing.sm, bottom: AppSpacing.xxl),
           sliver: SliverList.list(
             children: [
-              WalletCard(wallet: wallet),
+              WalletCard(wallet: wallet, hero: true, countUp: false),
               const SizedBox(height: AppSpacing.lg),
               _Figures(wallet: wallet),
               if ((description?.isNotEmpty ?? false) || !wallet.isOwner) ...[

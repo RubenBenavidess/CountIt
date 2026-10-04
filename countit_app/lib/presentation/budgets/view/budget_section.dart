@@ -8,6 +8,7 @@ import '../../../shared/state/load_state.dart';
 import '../../../shared/utils/dates.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/motion.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../cubit/budget_list_cubit.dart';
 import 'widgets/budget_card.dart';
@@ -77,13 +78,20 @@ class BudgetSection extends StatelessWidget {
         ),
       );
     }
-    return SliverList.separated(
-      itemCount: budgets.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (context, index) {
-        final budget = budgets[index];
-        return BudgetCard(key: ValueKey(budget.budgetId), budget: budget, today: today, onTap: () => onOpen(budget));
-      },
+    // The cards of the first load enter one after another.
+    return StaggerScope(
+      child: SliverList.separated(
+        itemCount: budgets.length,
+        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+        itemBuilder: (context, index) {
+          final budget = budgets[index];
+          return StaggeredEntrance(
+            key: ValueKey(budget.budgetId),
+            index: index,
+            child: BudgetCard(budget: budget, today: today, onTap: () => onOpen(budget)),
+          );
+        },
+      ),
     );
   }
 }

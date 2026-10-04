@@ -84,14 +84,18 @@ void main() {
   });
 
   group('WalletCard content (COU-171, COU-174)', () {
-    Future<void> pumpCard(WidgetTester tester, Wallet wallet, {double width = 360}) => tester.pumpApp(
-      Center(
-        child: SizedBox(
-          width: width,
-          child: WalletCard(wallet: wallet),
+    /// Settled: the balance counts up with a short animation.
+    Future<void> pumpCard(WidgetTester tester, Wallet wallet, {double width = 360}) async {
+      await tester.pumpApp(
+        Center(
+          child: SizedBox(
+            width: width,
+            child: WalletCard(wallet: wallet),
+          ),
         ),
-      ),
-    );
+      );
+      await tester.pumpAndSettle();
+    }
 
     testWidgets('name, bank, type and balance', (tester) async {
       await pumpCard(tester, walletFixture(name: 'Ahorros', bankName: 'Banco Pichincha', balance: 1250.5));
@@ -193,6 +197,8 @@ void main() {
         ),
         themeMode: mode,
       );
+      // The final frame: balances count up when they first show.
+      await tester.pumpAndSettle();
     }
 
     final catalogue = [

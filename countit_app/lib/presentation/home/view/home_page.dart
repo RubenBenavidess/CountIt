@@ -17,6 +17,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../../../shared/widgets/motion.dart';
 import '../../../shared/widgets/wordmark.dart';
 import '../../families/cubit/invitations_cubit.dart';
 import '../../plans/view/widgets/plan_widgets.dart';
@@ -205,8 +206,9 @@ class _Header extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    Money.format(wallets.ownBalanceCents / 100),
+                  child: CountUpText(
+                    value: wallets.ownBalanceCents / 100,
+                    format: Money.format,
                     style: AppTypography.money.copyWith(fontSize: 30),
                   ),
                 ),
@@ -259,6 +261,7 @@ class _SliverNote extends StatelessWidget {
 }
 
 /// Lazy list: only the visible cards are built, so 50+ wallets scroll smoothly.
+/// Each card is the Hero of the wallet screen it opens.
 class _WalletList extends StatelessWidget {
   const _WalletList({required this.wallets, required this.onOpen});
 
@@ -267,39 +270,22 @@ class _WalletList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-      sliver: SliverList.separated(
-        itemCount: wallets.length,
-        separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
-        itemBuilder: (context, index) {
-          final wallet = wallets[index];
-          return _FadeIn(
-            key: ValueKey(wallet.walletId),
-            child: WalletCard(wallet: wallet, onTap: () => onOpen(wallet)),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Light entrance: fade and a short slide the first time a card is built.
-class _FadeIn extends StatelessWidget {
-  const _FadeIn({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      child: child,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(offset: Offset(0, (1 - t) * 12), child: child),
+    // The cards shown with the first data enter one after another.
+    return StaggerScope(
+      child: SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+        sliver: SliverList.separated(
+          itemCount: wallets.length,
+          separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
+          itemBuilder: (context, index) {
+            final wallet = wallets[index];
+            return StaggeredEntrance(
+              key: ValueKey(wallet.walletId),
+              index: index,
+              child: WalletCard(wallet: wallet, onTap: () => onOpen(wallet), hero: true),
+            );
+          },
+        ),
       ),
     );
   }

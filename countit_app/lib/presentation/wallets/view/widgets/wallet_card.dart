@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/tokens.dart';
 import '../../../../data/dtos/wallet.dart';
 import '../../../../shared/utils/money.dart';
+import '../../../../shared/widgets/motion.dart';
 import 'wallet_colors.dart';
 import 'wallet_fragments_painter.dart';
 import 'wallet_type_icon.dart';
@@ -15,10 +16,32 @@ import 'wallet_type_icon.dart';
 /// The block is chosen from the data (`projected_balance` is null outside the
 /// plan), so a plan change shows the right block on the next load.
 class WalletCard extends StatelessWidget {
-  const WalletCard({super.key, required this.wallet, this.onTap});
+  const WalletCard({super.key, required this.wallet, this.onTap, this.hero = false, this.countUp = true});
 
   final Wallet wallet;
   final VoidCallback? onTap;
+
+  /// Flies between the home list and the wallet screen ([heroTag]).
+  final bool hero;
+
+  /// The balance counts up when the card first shows. The wallet screen
+  /// turns it off: its card lands from the list already showing the balance.
+  final bool countUp;
+
+  /// Tag shared by the card of the list and the one of the wallet screen.
+  static Object heroTag(int walletId) => 'wallet-card-$walletId';
+
+  /// The card in flight keeps the theme's text style and ink (no Scaffold above it).
+  static Widget _flight(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection direction,
+    BuildContext fromContext,
+    BuildContext toContext,
+  ) {
+    final hero = (direction == HeroFlightDirection.push ? toContext : fromContext).widget as Hero;
+    return Material(type: MaterialType.transparency, child: hero.child);
+  }
 
   String get _semanticLabel {
     final parts = [
@@ -44,7 +67,7 @@ class WalletCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = WalletColors.of(wallet.bankColor);
     final radius = BorderRadius.circular(AppRadii.wallet);
-    return Semantics(
+    final card = Semantics(
       button: onTap != null,
       label: _semanticLabel,
       excludeSemantics: true,
@@ -60,21 +83,24 @@ class WalletCard extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(18),
-                child: _CardContent(wallet: wallet, colors: colors),
+                child: _CardContent(wallet: wallet, colors: colors, countUp: countUp),
               ),
             ),
           ),
         ),
       ),
     );
+    final pressable = onTap == null ? card : PressScale(child: card);
+    return hero ? Hero(tag: heroTag(wallet.walletId), flightShuttleBuilder: _flight, child: pressable) : pressable;
   }
 }
 
 class _CardContent extends StatelessWidget {
-  const _CardContent({required this.wallet, required this.colors});
+  const _CardContent({required this.wallet, required this.colors, required this.countUp});
 
   final Wallet wallet;
   final WalletColors colors;
+  final bool countUp;
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +157,7 @@ class _CardContent extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         Text('SALDO', style: AppTypography.overline.copyWith(color: muted)),
-        _Balance(wallet: wallet, colors: colors),
+        _Balance(wallet: wallet, colors: colors, countUp: countUp),
         const SizedBox(height: AppSpacing.md),
         _MonthPanel(wallet: wallet, colors: colors),
       ],
@@ -140,14 +166,22 @@ class _CardContent extends StatelessWidget {
 }
 
 class _Balance extends StatelessWidget {
-  const _Balance({required this.wallet, required this.colors});
+  const _Balance({required this.wallet, required this.colors, required this.countUp});
 
   final Wallet wallet;
   final WalletColors colors;
+  final bool countUp;
 
   @override
   Widget build(BuildContext context) {
     final negative = wallet.balanceCents < 0;
+    final style = AppTypography.money.copyWith(
+      fontSize: 28,
+      color: colors.foreground,
+      decoration: negative ? TextDecoration.underline : null,
+      decorationColor: AppColors.expense,
+      decorationThickness: 2,
+    );
     return Row(
       spacing: AppSpacing.sm,
       children: [
@@ -155,17 +189,14 @@ class _Balance extends StatelessWidget {
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              Money.format(wallet.balance),
-              key: const ValueKey('wallet-balance'),
-              style: AppTypography.money.copyWith(
-                fontSize: 28,
-                color: colors.foreground,
-                decoration: negative ? TextDecoration.underline : null,
-                decorationColor: AppColors.expense,
-                decorationThickness: 2,
-              ),
-            ),
+            child: countUp
+                ? CountUpText(
+                    key: const ValueKey('wallet-balance'),
+                    value: wallet.balance,
+                    format: Money.format,
+                    style: style,
+                  )
+                : Text(Money.format(wallet.balance), key: const ValueKey('wallet-balance'), style: style),
           ),
         ),
         // Colour is never the only signal: a negative balance also says so.
