@@ -31,6 +31,11 @@ void main() {
       expect(axisAmount(-300000).startsWith('−\$'), isTrue);
     });
 
+    test('axis days carry the year only across years', () {
+      expect(axisDay(DateTime(2026, 10, 4), withYear: false), '4 oct');
+      expect(axisDay(DateTime(2027, 10, 4), withYear: true), '4 oct 2027');
+    });
+
     test('bucket names, long and short', () {
       final day = DateTime(2026, 9, 5);
       expect(bucketLabel(StatisticsBucket.day, day), '5 sept 2026');
