@@ -26,7 +26,7 @@ List<PlanQuota> planQuotas(UserPlan plan) {
     return quota == null ? (feminine ? 'Ilimitadas' : 'Ilimitados') : '$quota';
   }
 
-  final families = plan.hasFeature('family_feature');
+  final families = plan.hasFeature(PlanFeatures.families);
   return [
     if (plan.limits.containsKey('max_wallets'))
       PlanQuota(Icons.account_balance_wallet_outlined, 'Billeteras', value('max_wallets', feminine: true)),
@@ -45,7 +45,7 @@ List<PlanQuota> planQuotas(UserPlan plan) {
 
 /// Plan features, included or not (the latter invite to a higher plan).
 List<PlanFeature> planFeatures(UserPlan plan) => [
-  PlanFeature('Billeteras compartidas', included: plan.hasFeature('family_feature')),
-  PlanFeature('Estadísticas avanzadas', included: plan.hasFeature('advanced_statistics')),
-  PlanFeature('Proyección de saldo', included: plan.hasFeature('wallet_projection')),
+  PlanFeature('Billeteras compartidas', included: plan.hasFeature(PlanFeatures.families)),
+  PlanFeature('Estadísticas avanzadas', included: plan.hasFeature(PlanFeatures.advancedStatistics)),
+  PlanFeature('Proyección de saldo', included: plan.hasFeature(PlanFeatures.walletProjection)),
 ];

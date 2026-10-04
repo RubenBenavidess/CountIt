@@ -47,4 +47,18 @@ void main() {
       expect(Money.hasTooManyDecimals(0.1 + 0.2), isFalse, reason: 'floating point noise is not a third decimal');
     });
   });
+
+  group('Percent', () {
+    test('Spanish decimals with a non-breaking gap', () {
+      expect(Percent.format(12.5), '12,5\u00A0%');
+      expect(Percent.format(100), '100\u00A0%');
+      expect(Percent.format(-3.04), '3\u00A0%');
+    });
+
+    test('changes carry their sign, never colour alone', () {
+      expect(Percent.change(12.5), '+12,5\u00A0%');
+      expect(Percent.change(-3), '−3\u00A0%');
+      expect(Percent.change(0.04), '0\u00A0%');
+    });
+  });
 }

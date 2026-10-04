@@ -133,6 +133,10 @@ class _WalletDetailView extends StatelessWidget {
   void _openScheduled(BuildContext context, Wallet wallet) =>
       unawaited(context.push<Object?>(AppRoutes.scheduled(wallet.walletId), extra: wallet));
 
+  /// Statistics (F08 · COU-93): read only, nothing reloads on the way back.
+  void _openStatistics(BuildContext context, Wallet wallet) =>
+      unawaited(context.push<Object?>(AppRoutes.statistics(wallet.walletId), extra: wallet));
+
   /// Members (F07 · COU-92): inviting, accepting or removing changes the
   /// member count and who may appear as author, so the wallet reloads.
   Future<void> _openMembers(BuildContext context, Wallet wallet) async {
@@ -265,6 +269,7 @@ class _WalletDetailView extends StatelessWidget {
                       wallet: wallet,
                       onEditFilters: () => _editFilters(context, wallet),
                       onOpenScheduled: () => _openScheduled(context, wallet),
+                      onOpenStatistics: () => _openStatistics(context, wallet),
                       onOpenMembers: () => _openMembers(context, wallet),
                       onOpenTransaction: (transaction) => _openTransaction(
                         context,
@@ -306,6 +311,7 @@ class _DetailBody extends StatelessWidget {
     required this.onOpenTransaction,
     required this.onEditFilters,
     required this.onOpenScheduled,
+    required this.onOpenStatistics,
     required this.onOpenMembers,
   });
 
@@ -313,6 +319,7 @@ class _DetailBody extends StatelessWidget {
   final ValueChanged<Transaction> onOpenTransaction;
   final VoidCallback onEditFilters;
   final VoidCallback onOpenScheduled;
+  final VoidCallback onOpenStatistics;
   final VoidCallback onOpenMembers;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
@@ -351,7 +358,23 @@ class _DetailBody extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
-              _ScheduledEntry(onTap: onOpenScheduled),
+              // Way into the wallet's scheduled rules (HU-16/HU-20 · COU-88).
+              _EntryCard(
+                key: const ValueKey('wallet-scheduled'),
+                icon: Icons.event_repeat_rounded,
+                title: 'Movimientos programados',
+                subtitle: 'Ingresos y gastos futuros que se registran solos',
+                onTap: onOpenScheduled,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Statistics of the wallet (HU-26 · COU-93).
+              _EntryCard(
+                key: const ValueKey('wallet-statistics'),
+                icon: Icons.insights_rounded,
+                title: 'Estadísticas',
+                subtitle: 'Ingresos y gastos en el tiempo y por presupuesto',
+                onTap: onOpenStatistics,
+              ),
               const SizedBox(height: AppSpacing.md),
               _MembersEntry(wallet: wallet, onTap: onOpenMembers),
             ],
@@ -375,34 +398,34 @@ class _DetailBody extends StatelessWidget {
   }
 }
 
-/// Way into the wallet's scheduled rules (HU-16/HU-20 · COU-88).
-class _ScheduledEntry extends StatelessWidget {
-  const _ScheduledEntry({required this.onTap});
+/// Way into a screen of the wallet (programados, estadísticas…): icon,
+/// title and a line of explanation, read as one button.
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap});
 
+  final IconData icon;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      key: const ValueKey('wallet-scheduled'),
       outlined: true,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: AppSpacing.md),
       onTap: onTap,
-      semanticLabel: 'Movimientos programados: ingresos y gastos futuros que se registran solos',
+      semanticLabel: '$title: $subtitle',
       child: ExcludeSemantics(
         child: Row(
           spacing: AppSpacing.md,
           children: [
-            const IconTile(Icons.event_repeat_rounded),
+            IconTile(icon),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Movimientos programados', style: AppTypography.label),
-                  Text(
-                    'Ingresos y gastos futuros que se registran solos',
-                    style: AppTypography.caption.copyWith(color: context.palette.muted),
-                  ),
+                  Text(title, style: AppTypography.label),
+                  Text(subtitle, style: AppTypography.caption.copyWith(color: context.palette.muted)),
                 ],
               ),
             ),

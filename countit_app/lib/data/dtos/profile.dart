@@ -13,6 +13,19 @@ enum UserRole {
   bool get canAdminister => this != UserRole.user;
 }
 
+/// Feature flags of `ref.plan_details` (1 = included, 0 = not), as
+/// `get_my_profile().plan.limits` sends them.
+abstract final class PlanFeatures {
+  /// Shared wallets (HU-21…HU-24).
+  static const families = 'family_feature';
+
+  /// Distribution by budget in the statistics (HU-26): Contador and Contador Profesional.
+  static const advancedStatistics = 'advanced_statistics';
+
+  /// Balance projection (HU-25): Contador Profesional only.
+  static const walletProjection = 'wallet_projection';
+}
+
 /// Active plan with its limits (`ref.plan_details`, 999 = unlimited).
 class UserPlan extends Equatable {
   const UserPlan({required this.planId, required this.name, required this.limits, this.validUntil});
@@ -84,6 +97,11 @@ class Profile extends Equatable {
     final full = [firstName, lastName].whereType<String>().where((s) => s.isNotEmpty).join(' ');
     return full.isEmpty ? username : full;
   }
+
+  /// Local gating hint (COU-169, COU-172): false only when the known plan
+  /// lacks [feature]. Without a plan loaded the screen asks the API, which
+  /// always decides (403 `feature_not_in_plan`).
+  bool allows(String feature) => plan?.hasFeature(feature) ?? true;
 
   @override
   List<Object?> get props => [userId, username, email, firstName, lastName, timezone, role, plan];

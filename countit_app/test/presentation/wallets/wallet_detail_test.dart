@@ -141,6 +141,10 @@ void main() {
               builder: (context, state) => Scaffold(body: Text('SCHEDULED ${(state.extra! as Wallet).name}')),
             ),
             GoRoute(
+              path: 'statistics',
+              builder: (context, state) => Scaffold(body: Text('STATISTICS ${(state.extra! as Wallet).name}')),
+            ),
+            GoRoute(
               path: 'members',
               builder: (context, state) => Scaffold(body: Text('MEMBERS ${(state.extra! as Wallet).name}')),
             ),
@@ -447,6 +451,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('wallet-scheduled')));
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULED Pichincha'), findsOneWidget);
+  });
+
+  testWidgets('«Estadísticas» opens the wallet\'s statistics (COU-93)', (tester) async {
+    final wallet = walletFixture(id: 4, name: 'Pichincha');
+    when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+    await pumpDetail(tester, wallet);
+    expect(find.bySemanticsLabel(RegExp('^Estadísticas: ')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('wallet-statistics')));
+    await tester.pumpAndSettle();
+    expect(find.text('STATISTICS Pichincha'), findsOneWidget);
   });
 
   testWidgets('a future-dated movement continues in the scheduling form (COU-151)', (tester) async {
