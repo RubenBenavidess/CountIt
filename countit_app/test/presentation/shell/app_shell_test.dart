@@ -1,6 +1,8 @@
 import 'package:countit_app/app/router/app_router.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
+import 'package:countit_app/data/dtos/paged.dart';
 import 'package:countit_app/data/dtos/profile.dart';
+import 'package:countit_app/presentation/notifications/cubit/notifications_cubit.dart';
 import 'package:countit_app/presentation/wallets/view/widgets/wallet_card.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../helpers/mocks.dart';
+import '../../helpers/notification_fixtures.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/wallet_fixtures.dart';
 
@@ -38,7 +41,7 @@ void main() {
         .thenAnswer((_) async => [for (var i = 0; i < 30; i++) walletFixture(id: i, name: 'Billetera $i')]);
   });
 
-  Future<void> pumpShell(WidgetTester tester) async {
+  Future<void> pumpShell(WidgetTester tester, {NotificationsCubit? notifications}) async {
     final session = SessionCubit(auth: auth, profiles: profiles);
     addTearDown(session.close);
     await session.restore();
@@ -51,6 +54,7 @@ void main() {
       wallets: wallets,
       session: session,
       router: router,
+      notificationsCubit: notifications,
     );
     await tester.pumpAndSettle();
   }
@@ -106,6 +110,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.text('Cerrar sesión'), findsOneWidget);
+  });
+
+  testWidgets('«Avisos» shows the unread badge and opens the inbox (COU-111)', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final repository = noNotifications();
+    when(() => repository.inbox())
+        .thenAnswer((_) async => Paged([notificationFixture(id: 2), notificationFixture(id: 1)], hasMore: false));
+    when(repository.unreadCount).thenAnswer((_) async => 2);
+    final notifications = NotificationsCubit(repository);
+    addTearDown(notifications.close);
+    await notifications.setUser('u1');
+    await pumpShell(tester, notifications: notifications);
+
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('2')), findsOneWidget);
+    expect(find.byTooltip('Avisos: 2 sin leer'), findsOneWidget);
+
+    await tester.tap(find.text('Avisos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Notificaciones'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Marcar todas como leídas'));
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('2')), findsNothing);
+    expect(find.byTooltip('Avisos'), findsOneWidget);
+    semantics.dispose();
   });
 
   test('the root path leads home', () {

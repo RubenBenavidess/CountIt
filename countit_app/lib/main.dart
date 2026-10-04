@@ -21,11 +21,13 @@ import 'data/repositories/auth_repository.dart';
 import 'data/repositories/bank_repository.dart';
 import 'data/repositories/budget_repository.dart';
 import 'data/repositories/family_repository.dart';
+import 'data/repositories/notification_repository.dart';
 import 'data/repositories/profile_repository.dart';
 import 'data/repositories/scheduled_transaction_repository.dart';
 import 'data/repositories/transaction_repository.dart';
 import 'data/repositories/wallet_repository.dart';
 import 'presentation/families/cubit/invitations_cubit.dart';
+import 'presentation/notifications/cubit/notifications_cubit.dart';
 import 'shared/utils/dates.dart';
 
 Future<void> main() async {
@@ -49,6 +51,7 @@ Future<void> main() async {
   final AnalysisRepository analysis = SupabaseAnalysisRepository(api);
   final AdminRepository admin = SupabaseAdminRepository(api);
   final FamilyRepository families = SupabaseFamilyRepository(api, SupabaseRealtimeWatcher(client));
+  final NotificationRepository notificationRepository = SupabaseNotificationRepository(api);
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
@@ -65,7 +68,15 @@ Future<void> main() async {
   final invitations = InvitationsCubit(families);
   String? signedInUser(SessionState state) =>
       state.status == SessionStatus.authenticated ? state.profile?.userId : null;
-  session.stream.listen((state) => unawaited(invitations.setUser(signedInUser(state))));
+  // The inbox and its badge follow the signed-in user the same way (HU-31).
+  final notifications = NotificationsCubit(notificationRepository);
+  session.stream.listen((state) {
+    final user = signedInUser(state);
+    unawaited(invitations.setUser(user));
+    unawaited(notifications.setUser(user));
+  });
+  // Back from the background: notifications may have arrived meanwhile.
+  AppLifecycleListener(onResume: () => unawaited(notifications.load()));
   final links = AppLinks();
   final linkHandler = AuthLinkHandler(auth: auth, navigate: (destination) => navigateForAuthLink(router, destination));
   // Links wait for the restored session: otherwise the splash redirect would
@@ -89,6 +100,7 @@ Future<void> main() async {
         RepositoryProvider.value(value: transactions),
         RepositoryProvider.value(value: scheduled),
         RepositoryProvider.value(value: families),
+        RepositoryProvider.value(value: notificationRepository),
         RepositoryProvider.value(value: analysis),
         RepositoryProvider.value(value: admin),
       ],
@@ -96,6 +108,7 @@ Future<void> main() async {
         providers: [
           BlocProvider.value(value: session),
           BlocProvider.value(value: invitations),
+          BlocProvider.value(value: notifications),
         ],
         child: CountItApp(router: router, planNotices: planNotices.featureNotInPlan),
       ),
