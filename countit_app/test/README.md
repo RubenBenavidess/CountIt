@@ -8,6 +8,7 @@
 | Cubits | `test/app/…`, `test/presentation/<feature>/cubit/…` | `bloc_test` con repositorios mockeados |
 | Widgets y pantallas | `test/shared/widgets/…`, `test/presentation/<feature>/view/…` | `tester.pumpApp(...)` |
 | Contrato en vivo (opcional) | `test/live/` | Backend local o staging; se salta sin `--dart-define` (ver README de la app) |
+| Flujos con router real y backend en memoria (COU-164 registro → login → logout, COU-245 billetera → movimiento) | `test/presentation/<feature>/…_flow_test.dart` | `pumpApp(router: buildRouter(...))` con repositorios falsos en memoria |
 | Integración en dispositivo (más adelante, Q3 · COU-120) | `integration_test/` | `integration_test` |
 
 ## Utilidades (`test/helpers`)
