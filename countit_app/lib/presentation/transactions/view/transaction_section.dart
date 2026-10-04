@@ -9,6 +9,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../cubit/transaction_list_cubit.dart';
+import 'widgets/transaction_filters.dart';
 import 'widgets/transaction_tile.dart';
 
 /// «Movimientos» of the wallet detail (HU-17 · COU-231, COU-232, COU-235),
@@ -18,12 +19,14 @@ import 'widgets/transaction_tile.dart';
 /// Needs a [TransactionListCubit] above it; the screen's scroll view calls
 /// [TransactionListCubit.loadMore] near the end (see `LoadMoreListener`).
 class TransactionSection extends StatelessWidget {
-  const TransactionSection({super.key, this.showAuthor = false, this.headerActions = const [], this.onOpen});
+  const TransactionSection({super.key, this.showAuthor = false, this.onOpen, this.onEditFilters});
 
   /// Shared wallets show who registered each movement.
   final bool showAuthor;
-  final List<Widget> headerActions;
   final ValueChanged<Transaction>? onOpen;
+
+  /// Opens the filters sheet; without it the list has no filters.
+  final VoidCallback? onEditFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +36,27 @@ class TransactionSection extends StatelessWidget {
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
-          child: SectionHeader(title: 'Movimientos', actions: headerActions),
+          child: BlocSelector<TransactionListCubit, TransactionListState, TransactionFilter>(
+            selector: (state) => state.filter,
+            builder: (context, filter) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionHeader(
+                  title: 'Movimientos',
+                  actions: [
+                    if (onEditFilters != null)
+                      SectionAction(
+                        key: const ValueKey('transaction-filters'),
+                        label: filter.isEmpty ? 'Filtrar' : 'Filtros (${filter.activeCount})',
+                        icon: Icons.tune_rounded,
+                        onPressed: onEditFilters,
+                      ),
+                  ],
+                ),
+                if (!filter.isEmpty) _ActiveFilters(filter: filter),
+              ],
+            ),
+          ),
         ),
         BlocBuilder<TransactionListCubit, TransactionListState>(
           builder: (context, state) => _content(context, state, today),
@@ -53,6 +76,20 @@ class TransactionSection extends StatelessWidget {
                 action: _RetryButton(onPressed: cubit.load),
               )
             : const SectionLoading(label: 'Cargando movimientos'),
+      );
+    }
+    if (state.items.isEmpty && !state.filter.isEmpty) {
+      return SliverToBoxAdapter(
+        child: NoteCard(
+          icon: Icons.filter_alt_off_outlined,
+          message: 'No hay movimientos con estos filtros.',
+          action: AppButton(
+            label: 'Limpiar filtros',
+            variant: AppButtonVariant.ghost,
+            expand: false,
+            onPressed: () => cubit.applyFilter(const TransactionFilter()),
+          ),
+        ),
       );
     }
     if (state.items.isEmpty) {
@@ -89,6 +126,40 @@ class TransactionSection extends StatelessWidget {
           ),
         };
       },
+    );
+  }
+}
+
+/// Removable chips of the active filters plus «Limpiar».
+class _ActiveFilters extends StatelessWidget {
+  const _ActiveFilters({required this.filter});
+
+  final TransactionFilter filter;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<TransactionListCubit>();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final active in filter.active)
+            InputChip(
+              key: ValueKey('filter-${active.key}'),
+              label: Text(active.label),
+              deleteButtonTooltipMessage: 'Quitar filtro ${active.label}',
+              onDeleted: () => cubit.applyFilter(active.without),
+            ),
+          TextButton(
+            onPressed: () => cubit.applyFilter(const TransactionFilter()),
+            style: TextButton.styleFrom(minimumSize: const Size(AppSizes.iconButton, AppSizes.iconButton)),
+            child: const Text('Limpiar'),
+          ),
+        ],
+      ),
     );
   }
 }

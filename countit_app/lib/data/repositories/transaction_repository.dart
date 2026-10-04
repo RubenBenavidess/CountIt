@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../app/errors/app_failure.dart';
 import '../../shared/utils/dates.dart';
 import '../dtos/transaction.dart';
@@ -9,9 +11,14 @@ abstract interface class TransactionRepository {
   /// Rows per page of the wallet list.
   static const pageSize = 30;
 
-  /// One page of [walletId]'s transactions, newest first
+  /// One page of [walletId]'s transactions matching [filter], newest first
   /// (`date.desc, transaction_id.desc`), starting [after] the previous page.
-  Future<TransactionPage> list(int walletId, {TransactionCursor? after, int limit = pageSize});
+  Future<TransactionPage> list(
+    int walletId, {
+    TransactionFilter filter = const TransactionFilter(),
+    TransactionCursor? after,
+    int limit = pageSize,
+  });
 
   /// One transaction; throws an [AppFailure] `transaction_not_found` (404)
   /// when it does not exist, is not visible or was deleted.
@@ -49,16 +56,33 @@ class SupabaseTransactionRepository implements TransactionRepository {
     return 'date.lt.$day,and(date.eq.$day,transaction_id.lt.${cursor.transactionId})';
   }
 
+  /// [filter] as PostgREST filters on top of [query] (COU-234).
+  static PostgrestFilterBuilder<T> applyFilter<T>(PostgrestFilterBuilder<T> query, TransactionFilter filter) {
+    var q = query;
+    final type = filter.type;
+    if (type != null) q = q.eq('type', type.apiValue);
+    if (filter.from != null) q = q.gte('date', Dates.toApi(filter.from!));
+    if (filter.to != null) q = q.lte('date', Dates.toApi(filter.to!));
+    if (filter.withoutBudget) {
+      q = q.isFilter('budget_id', null);
+    } else if (filter.budgetId != null) {
+      q = q.eq('budget_id', filter.budgetId!);
+    }
+    if (filter.authorId != null) q = q.eq('user_id', filter.authorId!);
+    return q;
+  }
+
   @override
   Future<TransactionPage> list(
     int walletId, {
+    TransactionFilter filter = const TransactionFilter(),
     TransactionCursor? after,
     int limit = TransactionRepository.pageSize,
   }) async {
     final rows = await _api.select(
       view,
       query: (q) {
-        var filtered = q.eq('wallet_id', walletId);
+        var filtered = applyFilter(q.eq('wallet_id', walletId), filter);
         if (after != null) filtered = filtered.or(keysetFilter(after));
         // One extra row tells whether another page exists without a count query.
         return filtered.order('date', ascending: false).order('transaction_id', ascending: false).limit(limit + 1);

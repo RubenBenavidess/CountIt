@@ -10,6 +10,7 @@ import 'package:mocktail/mocktail.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/transaction_fixtures.dart';
 
+const _ana = {'u1': 'María Quishpe'};
 const _network = AppFailure(kind: FailureKind.network, message: 'No hay conexión.');
 
 void main() {
@@ -22,7 +23,10 @@ void main() {
   final second = [transactionFixture(id: 1, date: DateTime(2026, 10, 1))];
   final cursor = TransactionCursor.after(first.last);
 
-  setUpAll(() => registerFallbackValue(cursor));
+  setUpAll(() {
+    registerFallbackValue(cursor);
+    registerFallbackValue(const TransactionFilter());
+  });
 
   setUp(() => transactions = MockTransactionRepository());
 
@@ -30,8 +34,16 @@ void main() {
 
   void nextPage(TransactionPage page) => when(() => transactions.list(4, after: cursor)).thenAnswer((_) async => page);
 
-  TransactionListState loaded({List<Transaction>? items, TransactionCursor? next}) =>
-      TransactionListState(status: TransactionListStatus.success, items: items ?? first, next: next);
+  TransactionListState loaded({
+    List<Transaction>? items,
+    TransactionCursor? next,
+    Map<String, String> authors = const {},
+  }) => TransactionListState(
+    status: TransactionListStatus.success,
+    items: items ?? first,
+    next: next,
+    knownAuthors: authors,
+  );
 
   test('groupByDay puts one header before each day', () {
     final entries = groupByDay([...first, ...second]);
@@ -50,7 +62,7 @@ void main() {
       setUp: () => firstPage(TransactionPage(first, next: cursor)),
       build: () => TransactionListCubit(transactions, walletId: 4),
       act: (cubit) => cubit.load(),
-      expect: () => [TransactionListState(status: TransactionListStatus.loading), loaded(next: cursor)],
+      expect: () => [TransactionListState(status: TransactionListStatus.loading), loaded(next: cursor, authors: _ana)],
     );
 
     blocTest<TransactionListCubit, TransactionListState>(
@@ -72,7 +84,7 @@ void main() {
       seed: () => loaded(items: [...first, ...second]),
       act: (cubit) => cubit.load(),
       skip: 1,
-      expect: () => [loaded(next: cursor)],
+      expect: () => [loaded(next: cursor, authors: _ana)],
     );
   });
 
@@ -85,7 +97,7 @@ void main() {
       act: (cubit) => cubit.loadMore(),
       expect: () => [
         TransactionListState(status: TransactionListStatus.success, items: first, next: cursor, loadingMore: true),
-        loaded(items: [...first, ...second]),
+        loaded(items: [...first, ...second], authors: _ana),
       ],
     );
 
@@ -148,5 +160,80 @@ void main() {
         expect(cubit.state.loadingMore, isFalse);
       },
     );
+  });
+
+  group('filters (COU-234)', () {
+    const expenses = TransactionFilter(type: TransactionType.expense);
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'applying a filter clears the rows and lists again with it',
+      setUp: () => when(() => transactions.list(4, filter: expenses)).thenAnswer((_) async => TransactionPage(second)),
+      build: () => TransactionListCubit(transactions, walletId: 4),
+      seed: () => loaded(authors: _ana),
+      act: (cubit) => cubit.applyFilter(expenses),
+      expect: () => [
+        TransactionListState(filter: expenses, knownAuthors: _ana),
+        TransactionListState(status: TransactionListStatus.loading, filter: expenses, knownAuthors: _ana),
+        TransactionListState(
+          status: TransactionListStatus.success,
+          items: second,
+          filter: expenses,
+          knownAuthors: _ana,
+        ),
+      ],
+    );
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'the same filter again does nothing',
+      build: () => TransactionListCubit(transactions, walletId: 4),
+      seed: () => TransactionListState(status: TransactionListStatus.success, filter: expenses),
+      act: (cubit) => cubit.applyFilter(expenses),
+      expect: () => <TransactionListState>[],
+    );
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'next pages keep the filter',
+      setUp: () =>
+          when(() => transactions.list(4, filter: expenses, after: cursor))
+              .thenAnswer((_) async => TransactionPage(second)),
+      build: () => TransactionListCubit(transactions, walletId: 4),
+      seed: () =>
+          TransactionListState(status: TransactionListStatus.success, items: first, next: cursor, filter: expenses),
+      act: (cubit) => cubit.loadMore(),
+      verify: (_) => verify(() => transactions.list(4, filter: expenses, after: cursor)).called(1),
+    );
+
+    late Completer<TransactionPage> slow;
+
+    blocTest<TransactionListCubit, TransactionListState>(
+      'changing filters quickly: only the last filter\'s answer is shown',
+      setUp: () {
+        slow = Completer<TransactionPage>();
+        when(() => transactions.list(4, filter: expenses)).thenAnswer((_) => slow.future);
+        when(() => transactions.list(4, filter: const TransactionFilter(type: TransactionType.income)))
+            .thenAnswer((_) async => TransactionPage([transactionFixture(id: 8, type: TransactionType.income)]));
+      },
+      build: () => TransactionListCubit(transactions, walletId: 4),
+      act: (cubit) async {
+        final first = cubit.applyFilter(expenses);
+        await cubit.applyFilter(const TransactionFilter(type: TransactionType.income));
+        slow.complete(TransactionPage(second));
+        await first;
+      },
+      verify: (cubit) {
+        expect(cubit.state.filter.type, TransactionType.income);
+        expect(cubit.state.items.map((t) => t.transactionId), [8]);
+      },
+    );
+
+    test('authors accumulate across pages and filters', () {
+      final state = TransactionListState(knownAuthors: _ana);
+      final merged = state.authorsWith([
+        transactionFixture(userId: 'u2', authorName: 'Luis'),
+        transactionFixture(userId: null, authorName: null),
+      ]);
+      expect(merged, {'u1': 'María Quishpe', 'u2': 'Luis'});
+      expect(identical(state.authorsWith([transactionFixture()]), state.knownAuthors), isTrue);
+    });
   });
 }

@@ -6,6 +6,7 @@ import 'package:countit_app/data/dtos/budget.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/presentation/transactions/cubit/transaction_list_cubit.dart';
 import 'package:countit_app/presentation/transactions/view/transaction_section.dart';
+import 'package:countit_app/presentation/transactions/view/widgets/transaction_filters.dart';
 import 'package:countit_app/presentation/transactions/view/widgets/transaction_tile.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:countit_app/shared/widgets/load_more_listener.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../helpers/budget_fixtures.dart';
 import '../../helpers/mocks.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/transaction_fixtures.dart';
@@ -26,6 +28,7 @@ void main() {
   setUpAll(() async {
     await Dates.init();
     registerFallbackValue(TransactionCursor(date: DateTime(2026), transactionId: 0));
+    registerFallbackValue(const TransactionFilter());
   });
 
   setUp(() => transactions = MockTransactionRepository());
@@ -172,5 +175,131 @@ void main() {
       await tester.scrollUntilVisible(find.text('Movimiento 70'), 400);
       expect(find.text('Movimiento 70'), findsOneWidget);
     });
+  });
+
+  group('filters (COU-233, COU-235)', () {
+    const incomes = TransactionFilter(type: TransactionType.income, withoutBudget: true);
+
+    testWidgets('no results: explains and «Limpiar filtros» lists everything again', (tester) async {
+      when(() => transactions.list(4)).thenAnswer((_) async => TransactionPage([transactionFixture(name: 'Taxi')]));
+      when(() => transactions.list(4, filter: incomes)).thenAnswer((_) async => const TransactionPage([]));
+      final cubit = await pumpSection(tester);
+      await cubit.applyFilter(incomes);
+      await tester.pumpAndSettle();
+      expect(find.text('No hay movimientos con estos filtros.'), findsOneWidget);
+      expect(find.textContaining('Aún no hay movimientos'), findsNothing);
+
+      await tester.tap(find.text('Limpiar filtros'));
+      await tester.pumpAndSettle();
+      expect(find.text('Taxi'), findsOneWidget);
+      expect(cubit.state.filter.isEmpty, isTrue);
+    });
+
+    testWidgets('active filters show as chips; removing one lists again without it', (tester) async {
+      when(() => transactions.list(4, filter: any(named: 'filter'))).thenAnswer((_) async => const TransactionPage([]));
+      final cubit = await pumpSection(tester);
+      await cubit.applyFilter(incomes);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(InputChip, 'Ingresos'), findsOneWidget);
+      expect(find.widgetWithText(InputChip, 'Sin presupuesto'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Quitar filtro Ingresos'));
+      await tester.pumpAndSettle();
+      expect(cubit.state.filter, const TransactionFilter(withoutBudget: true));
+      expect(find.widgetWithText(InputChip, 'Ingresos'), findsNothing);
+    });
+  });
+
+  group('filters sheet (COU-233)', () {
+    final today = DateTime(2026, 10, 3);
+
+    Future<List<TransactionFilter?>> pumpSheet(
+      WidgetTester tester, {
+      TransactionFilter current = const TransactionFilter(),
+      Map<String, String> authors = const {},
+    }) async {
+      tester.view.physicalSize = const Size(420, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final results = <TransactionFilter?>[];
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => results.add(
+              await showTransactionFilters(
+                context,
+                current: current,
+                budgets: [budgetFixture(id: 1, name: 'Comida')],
+                authors: authors,
+                today: today,
+              ),
+            ),
+            child: const Text('OPEN'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('OPEN'));
+      await tester.pumpAndSettle();
+      return results;
+    }
+
+    Future<void> tapButton(WidgetTester tester, String label) async {
+      final button = find.widgetWithText(FilledButton, label);
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('type, dates preset and budget make the new filter', (tester) async {
+      final results = await pumpSheet(tester);
+      expect(find.text('Registrado por'), findsNothing, reason: 'authors only in shared wallets');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Gastos'));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Este mes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Comida').last);
+      await tester.pumpAndSettle();
+      await tapButton(tester, 'Aplicar filtros');
+      expect(results, [
+        TransactionFilter(type: TransactionType.expense, from: DateTime(2026, 10), budgetId: 1, budgetName: 'Comida'),
+      ]);
+    });
+
+    testWidgets('an inverted custom range is explained and cannot be applied', (tester) async {
+      await pumpSheet(
+        tester,
+        current: TransactionFilter(from: DateTime(2026, 10, 3), to: DateTime(2026, 10, 1)),
+      );
+      expect(find.text('La fecha final no puede ser anterior a la inicial'), findsOneWidget);
+      final apply = find.widgetWithText(FilledButton, 'Aplicar filtros');
+      expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+    });
+
+    testWidgets('shared wallets filter by author; «Limpiar filtros» returns the empty filter', (tester) async {
+      final results = await pumpSheet(
+        tester,
+        current: const TransactionFilter(type: TransactionType.income),
+        authors: {'u2': 'Luis Andrade'},
+      );
+      expect(find.text('Registrado por'), findsOneWidget);
+      await tapButton(tester, 'Limpiar filtros');
+      expect(results, [const TransactionFilter()]);
+    });
+  });
+
+  test('chip labels', () {
+    expect(TransactionFilter(from: DateTime(2026, 10), to: DateTime(2026, 10, 31)).datesLabel, '1 oct – 31 oct 2026');
+    expect(TransactionFilter(from: DateTime(2026, 10)).datesLabel, 'Desde 1 oct 2026');
+    expect(TransactionFilter(to: DateTime(2026, 10, 3)).datesLabel, 'Hasta 3 oct 2026');
+    expect(
+      const TransactionFilter(
+        authorId: 'u2',
+        authorName: 'Luis',
+        budgetId: 1,
+        budgetName: 'Comida',
+      ).active.map((a) => a.label),
+      ['Comida', 'Luis'],
+    );
   });
 }
