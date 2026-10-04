@@ -3,18 +3,8 @@ import 'package:equatable/equatable.dart';
 import 'json_parsing.dart';
 import 'profile.dart';
 
-/// One page of an offset-paginated admin list.
-class Paged<T> extends Equatable {
-  const Paged(this.items, {required this.hasMore});
-
-  final List<T> items;
-
-  /// The server had at least one more row after this page.
-  final bool hasMore;
-
-  @override
-  List<Object?> get props => [items, hasMore];
-}
+// Paged lived here first; admin screens keep importing it from this file.
+export 'paged.dart';
 
 /// A row of `api.admin_list_users` (HU-28): identity, role and active plan.
 /// No financial data: admins never see other users' finances (S-12).

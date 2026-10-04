@@ -3,6 +3,8 @@ import 'package:countit_app/app/config/app_config.dart';
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
+import 'package:countit_app/data/dtos/notification.dart';
+import 'package:countit_app/data/dtos/paged.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/repositories/admin_repository.dart';
 import 'package:countit_app/data/repositories/analysis_repository.dart';
@@ -10,11 +12,13 @@ import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
 import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/family_repository.dart';
+import 'package:countit_app/data/repositories/notification_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
 import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
 import 'package:countit_app/presentation/families/cubit/invitations_cubit.dart';
+import 'package:countit_app/presentation/notifications/cubit/notifications_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -50,6 +54,8 @@ extension PumpApp on WidgetTester {
     AdminRepository? admin,
     SessionCubit? session,
     InvitationsCubit? invitations,
+    NotificationRepository? notifications,
+    NotificationsCubit? notificationsCubit,
     GoRouter? router,
     Stream<AppFailure>? planNotices,
     AppConfig config = testConfig,
@@ -66,6 +72,10 @@ extension PumpApp on WidgetTester {
     // Not following anyone unless the test starts it: no invitations, no badge.
     final invitationsCubit = invitations ?? InvitationsCubit(familyRepository);
     if (invitations == null) addTearDown(invitationsCubit.close);
+    final notificationRepository = notifications ?? noNotifications();
+    // Not following anyone unless the test starts it: an empty inbox, no badge.
+    final inbox = notificationsCubit ?? NotificationsCubit(notificationRepository);
+    if (notificationsCubit == null) addTearDown(inbox.close);
 
     final app = router == null
         ? MaterialApp(
@@ -93,6 +103,7 @@ extension PumpApp on WidgetTester {
             value: scheduled ?? MockScheduledTransactionRepository(),
           ),
           RepositoryProvider<FamilyRepository>.value(value: familyRepository),
+          RepositoryProvider<NotificationRepository>.value(value: notificationRepository),
           RepositoryProvider<AnalysisRepository>.value(value: analysis ?? MockAnalysisRepository()),
           RepositoryProvider<AdminRepository>.value(value: admin ?? MockAdminRepository()),
         ],
@@ -100,6 +111,7 @@ extension PumpApp on WidgetTester {
           providers: [
             BlocProvider<SessionCubit>.value(value: sessionCubit),
             BlocProvider<InvitationsCubit>.value(value: invitationsCubit),
+            BlocProvider<NotificationsCubit>.value(value: inbox),
           ],
           child: app,
         ),
@@ -130,5 +142,20 @@ MockFamilyRepository noFamilies() {
   when(repository.myInvitations).thenAnswer((_) async => const []);
   when(() => repository.myMembershipChanges(any())).thenAnswer((_) => const Stream.empty());
   when(() => repository.walletMembershipChanges(any())).thenAnswer((_) => const Stream.empty());
+  return repository;
+}
+
+/// Default notifications double: an empty inbox, nothing unread.
+MockNotificationRepository noNotifications() {
+  final repository = MockNotificationRepository();
+  when(
+    () => repository.inbox(
+      before: any(named: 'before'),
+      limit: any(named: 'limit'),
+    ),
+  ).thenAnswer((_) async => const Paged(<AppNotification>[], hasMore: false));
+  when(repository.unreadCount).thenAnswer((_) async => 0);
+  when(() => repository.markRead(any())).thenAnswer((_) async {});
+  when(repository.markAllRead).thenAnswer((_) async {});
   return repository;
 }

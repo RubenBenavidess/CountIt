@@ -29,6 +29,7 @@ import '../../presentation/families/view/family_members_page.dart';
 import '../../presentation/families/view/invitations_page.dart';
 import '../../presentation/families/view/invite_member_page.dart';
 import '../../presentation/home/view/home_page.dart';
+import '../../presentation/notifications/view/notifications_page.dart';
 import '../../presentation/plans/view/my_plan_page.dart';
 import '../../presentation/plans/view/plans_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
@@ -73,6 +74,7 @@ abstract final class AppRoutes {
   static const myPlan = '/profile/plan';
   static const plans = '/plans';
   static const invitations = '/invitations';
+  static const notifications = '/notifications';
 
   static String adminUser(String userId) => '$adminUsers/$userId';
   static String editBank(int bankId) => '$adminBanks/$bankId/edit';
@@ -171,6 +173,9 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
       branches: [
         StatefulShellBranch(
           routes: [GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage())],
+        ),
+        StatefulShellBranch(
+          routes: [GoRoute(path: AppRoutes.notifications, builder: (context, state) => const NotificationsPage())],
         ),
         StatefulShellBranch(
           routes: [GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfilePage())],

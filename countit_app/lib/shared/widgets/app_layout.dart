@@ -6,12 +6,22 @@ import 'wordmark.dart';
 /// Top bar of the design: 44 px back button plus a title or the wordmark.
 /// Without [onBack] it pops the route when possible.
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
-  const AppTopBar({super.key, this.title, this.showWordmark = false, this.showBack = true, this.onBack});
+  const AppTopBar({
+    super.key,
+    this.title,
+    this.showWordmark = false,
+    this.showBack = true,
+    this.onBack,
+    this.actions = const [],
+  });
 
   final String? title;
   final bool showWordmark;
   final bool showBack;
   final VoidCallback? onBack;
+
+  /// Trailing buttons («Marcar todas como leídas»).
+  final List<Widget> actions;
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -35,6 +45,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
           : title == null
           ? null
           : Text(title!, style: AppTypography.title),
+      actions: actions,
     );
   }
 }
