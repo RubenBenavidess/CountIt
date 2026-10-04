@@ -43,6 +43,11 @@ void main() {
       expect(Dates.month(DateTime(2026, 10, 3)), 'octubre 2026');
     });
 
+    test('range: one year once, both years across a new year', () {
+      expect(Dates.range(DateTime(2026, 10, 1), DateTime(2026, 10, 31)), '1 oct – 31 oct 2026');
+      expect(Dates.range(DateTime(2026, 12, 15), DateTime(2027, 1, 14)), '15 dic 2026 – 14 ene 2027');
+    });
+
     test('relative: today, yesterday, this year and older', () {
       expect(Dates.relative(today, today: today), 'Hoy');
       expect(Dates.relative(DateTime(2026, 10, 2), today: today), 'Ayer');

@@ -61,6 +61,14 @@ abstract final class Dates {
   /// «21:05».
   static String time(DateTime value) => DateFormat('HH:mm', locale).format(value);
 
+  /// «1 oct – 31 oct 2026»; the year on both ends when they differ
+  /// («15 dic 2026 – 14 ene 2027»).
+  static String range(DateTime start, DateTime end) {
+    if (start.year != end.year) return '${date(start)} – ${date(end)}';
+    final first = DateFormat('d MMM', locale).format(start).replaceAll('.', '');
+    return '$first – ${date(end)}';
+  }
+
   /// «octubre 2026».
   static String month(DateTime day) => DateFormat('MMMM y', locale).format(day);
 

@@ -4,6 +4,7 @@ import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
+import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
 import 'package:countit_app/data/repositories/wallet_repository.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ extension PumpApp on WidgetTester {
     ProfileRepository? profiles,
     WalletRepository? wallets,
     BankRepository? banks,
+    BudgetRepository? budgets,
     SessionCubit? session,
     GoRouter? router,
     AppConfig config = testConfig,
@@ -66,6 +68,7 @@ extension PumpApp on WidgetTester {
           RepositoryProvider<ProfileRepository>.value(value: profileRepository),
           RepositoryProvider<WalletRepository>.value(value: wallets ?? MockWalletRepository()),
           RepositoryProvider<BankRepository>.value(value: banks ?? MockBankRepository()),
+          RepositoryProvider<BudgetRepository>.value(value: budgets ?? MockBudgetRepository()),
         ],
         child: BlocProvider<SessionCubit>.value(value: sessionCubit, child: app),
       ),
