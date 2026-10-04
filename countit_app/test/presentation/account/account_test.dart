@@ -38,6 +38,7 @@ void main() {
   setUpAll(Dates.init);
 
   setUp(() {
+    ReauthCubit.resetBlock();
     auth = MockAuthRepository();
     profiles = MockProfileRepository();
     when(() => auth.sessionChanges).thenAnswer((_) => const Stream.empty());
@@ -196,6 +197,85 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Contraseña incorrecta'), findsOneWidget);
       expect(find.text('Confirma que eres tú'), findsOneWidget);
+    });
+
+    testWidgets('after a wrong password, typing again allows another attempt', (tester) async {
+      when(() => auth.reauthenticate(any())).thenThrow(_wrong);
+      await open(tester);
+      await tester.enterText(find.byType(EditableText), 'x');
+      await tester.tap(find.text('Eliminar billetera'));
+      await tester.pumpAndSettle();
+      expect(find.text('Contraseña incorrecta'), findsOneWidget);
+
+      when(() => auth.reauthenticate('Quito2026')).thenAnswer((_) async => DateTime(2026, 10, 3, 12, 5));
+      await tester.enterText(find.byType(EditableText), 'Quito2026');
+      await tester.pumpAndSettle();
+      expect(find.text('Contraseña incorrecta'), findsNothing, reason: 'the forced error would keep the form invalid');
+      await tester.tap(find.text('Eliminar billetera'));
+      await tester.pumpAndSettle();
+      verify(() => auth.reauthenticate('Quito2026')).called(1);
+      expect(find.text('Confirma que eres tú'), findsNothing);
+    });
+
+    testWidgets('a 429 blocks the confirmation until Retry-After, even after reopening the sheet', (tester) async {
+      const limited = AppFailure(
+        kind: FailureKind.rateLimited,
+        message: 'Demasiados intentos fallidos. Intente nuevamente en 2 minutos.',
+        key: 'rate_limited',
+        status: 429,
+        retryAfter: Duration(seconds: 90),
+      );
+      when(() => auth.reauthenticate(any())).thenThrow(limited);
+      await open(tester);
+      await tester.enterText(find.byType(EditableText), 'x');
+      await tester.tap(find.text('Eliminar billetera'));
+      await tester.pumpAndSettle();
+      expect(find.text(limited.message), findsOneWidget);
+      expect(find.text('Espera 1:30'), findsOneWidget);
+      FilledButton confirm() => tester.widget<FilledButton>(
+        find.ancestor(of: find.textContaining('Espera'), matching: find.byType(FilledButton)),
+      );
+      expect(confirm().onPressed, isNull);
+
+      // The keyboard's «done» does not bypass the block.
+      await tester.enterText(find.byType(EditableText), 'Quito2026');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      verify(() => auth.reauthenticate(any())).called(1);
+
+      // Closing and starting the deletion again keeps the block and its message.
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      expect(find.text(limited.message), findsOneWidget);
+      expect(confirm().onPressed, isNull);
+
+      // Once the wait is over the sheet can confirm again.
+      when(() => auth.reauthenticate('Quito2026')).thenAnswer((_) async => DateTime(2026, 10, 3, 12, 5));
+      await tester.pump(const Duration(seconds: 91));
+      expect(find.text('Eliminar billetera'), findsOneWidget);
+      await tester.enterText(find.byType(EditableText), 'Quito2026');
+      await tester.tap(find.text('Eliminar billetera'));
+      await tester.pumpAndSettle();
+      verify(() => auth.reauthenticate('Quito2026')).called(1);
+      expect(find.text('Confirma que eres tú'), findsNothing);
+    });
+
+    testWidgets('a 429 without Retry-After blocks for the 2-minute window', (tester) async {
+      when(() => auth.reauthenticate(any())).thenThrow(
+        const AppFailure(
+          kind: FailureKind.rateLimited,
+          message: 'Demasiados intentos',
+          key: 'rate_limited',
+          status: 429,
+        ),
+      );
+      await open(tester);
+      await tester.enterText(find.byType(EditableText), 'x');
+      await tester.tap(find.text('Eliminar billetera'));
+      await tester.pumpAndSettle();
+      expect(find.text('Espera 2:00'), findsOneWidget);
     });
 
     testWidgets('a locked account disables the confirmation', (tester) async {

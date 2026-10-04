@@ -128,6 +128,7 @@ class AppPasswordField extends StatefulWidget {
     this.enabled = true,
     this.newPassword = false,
     this.textInputAction,
+    this.onChanged,
     this.onSubmitted,
   });
 
@@ -139,6 +140,7 @@ class AppPasswordField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
   final bool enabled;
   final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
 
   /// Autofill hint: a new password (registration, change) vs the current one.
   final bool newPassword;
@@ -165,6 +167,7 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
       textInputAction: widget.textInputAction,
       keyboardType: TextInputType.visiblePassword,
       autofillHints: [widget.newPassword ? AutofillHints.newPassword : AutofillHints.password],
+      onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
       suffix: IconButton(
         tooltip: _visible ? 'Ocultar contraseña' : 'Mostrar contraseña',
