@@ -200,6 +200,11 @@ class Budget extends Equatable {
   /// A fixed-dates budget whose end date already passed on [today].
   bool hasEnded(DateTime today) => !period.renews && endDate != null && endDate!.isBefore(today);
 
+  /// HU-14: the wallet owner or the budget's author may delete it. Only a UI
+  /// hint: the API answers 404 to anyone else.
+  bool canBeDeletedBy(String? userId, {required bool walletIsOwner}) =>
+      walletIsOwner || (userId != null && createdBy == userId);
+
   double get limit => Cents.toAmount(limitCents);
   double get spent => Cents.toAmount(spentCents);
   double get remaining => Cents.toAmount(remainingCents);

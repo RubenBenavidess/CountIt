@@ -19,34 +19,55 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
+import '../../account/view/reauth_sheet.dart';
 import '../../plans/view/plan_upsell_sheet.dart';
+import '../cubit/budget_delete_cubit.dart';
 import '../cubit/budget_form_cubit.dart';
 import 'widgets/budget_icon_selector.dart';
 import 'widgets/budget_schedule_fields.dart';
 
-/// Create (no [initial]) or edit a budget of [walletId] (HU-11/HU-13 ·
-/// COU-221..COU-225). Pops with `true` after saving.
+/// What the wallet detail passes to the edit route: the listed budget and
+/// whether the caller may delete it ([Budget.canBeDeletedBy]).
+class BudgetEditArgs {
+  const BudgetEditArgs(this.budget, {this.canDelete = false});
+
+  final Budget budget;
+  final bool canDelete;
+}
+
+/// Create (no [initial]) or edit a budget of [walletId] (HU-11/HU-13/HU-14 ·
+/// COU-221..COU-226). Pops with `true` after saving or deleting.
 class BudgetFormPage extends StatelessWidget {
-  const BudgetFormPage({super.key, required this.walletId, this.initial});
+  const BudgetFormPage({super.key, required this.walletId, this.initial, this.canDelete = false});
 
   final int walletId;
   final Budget? initial;
 
+  /// Shows «Eliminar presupuesto» (edit mode only).
+  final bool canDelete;
+
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) =>
-          BudgetFormCubit(context.read<BudgetRepository>(), walletId: walletId, budgetId: initial?.budgetId),
-      child: _BudgetFormView(walletId: walletId, initial: initial),
+    final budgets = context.read<BudgetRepository>();
+    final budgetId = initial?.budgetId;
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => BudgetFormCubit(budgets, walletId: walletId, budgetId: budgetId),
+        ),
+        if (budgetId != null) BlocProvider(create: (_) => BudgetDeleteCubit(budgets, budgetId: budgetId)),
+      ],
+      child: _BudgetFormView(walletId: walletId, initial: initial, canDelete: canDelete && budgetId != null),
     );
   }
 }
 
 class _BudgetFormView extends StatefulWidget {
-  const _BudgetFormView({required this.walletId, this.initial});
+  const _BudgetFormView({required this.walletId, this.initial, this.canDelete = false});
 
   final int walletId;
   final Budget? initial;
+  final bool canDelete;
 
   @override
   State<_BudgetFormView> createState() => _BudgetFormViewState();
@@ -195,6 +216,37 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
     }
   }
 
+  Future<void> _delete() async {
+    final cubit = context.read<BudgetDeleteCubit>();
+    final name = widget.initial!.name;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: '¿Eliminar «$name»?',
+      message:
+          'Dejará de aparecer en la billetera. Los movimientos ya registrados se conservan '
+          'y los programados quedan sin presupuesto.',
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await cubit.delete(
+      onReauth: reauthPrompt(context, action: 'eliminar «$name»', confirmLabel: 'Eliminar presupuesto'),
+    );
+  }
+
+  void _onDeleteState(BuildContext context, BudgetDeleteState state) {
+    switch (state.status) {
+      case BudgetDeleteStatus.deleted:
+        showAppSnackBar(context, 'Eliminamos «${widget.initial!.name}»', kind: SnackKind.success);
+        setState(() => _saved = true);
+        context.pop(true);
+      case BudgetDeleteStatus.failure:
+        showFailureSnackBar(context, state.failure!);
+      case BudgetDeleteStatus.idle || BudgetDeleteStatus.deleting:
+        break;
+    }
+  }
+
   static bool _isQuota(AppFailure failure) => failure.key?.endsWith('_limit_exceeded') ?? false;
 
   /// Errors shown in the banner: everything not handled by a field or a navigation.
@@ -276,6 +328,18 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
                     loading: busy,
                     onPressed: _editing && !dirty ? null : _save,
                   ),
+                  if (widget.canDelete)
+                    BlocConsumer<BudgetDeleteCubit, BudgetDeleteState>(
+                      listenWhen: (previous, current) => previous.status != current.status,
+                      listener: _onDeleteState,
+                      builder: (context, delete) => AppButton(
+                        label: 'Eliminar presupuesto',
+                        icon: Icons.delete_outline_rounded,
+                        variant: AppButtonVariant.danger,
+                        loading: delete.deleting,
+                        onPressed: busy ? null : _delete,
+                      ),
+                    ),
                 ],
               ),
             );

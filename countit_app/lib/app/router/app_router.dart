@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/dtos/budget.dart';
 import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
@@ -156,8 +155,11 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
         GoRoute(
           path: 'budgets/:budgetId/edit',
           // Like the wallet form: it edits the budget the detail screen listed.
-          redirect: (context, state) => state.extra is Budget ? null : AppRoutes.wallet(_walletId(state) ?? 0),
-          builder: (context, state) => BudgetFormPage(walletId: _walletId(state)!, initial: state.extra! as Budget),
+          redirect: (context, state) => state.extra is BudgetEditArgs ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) {
+            final args = state.extra! as BudgetEditArgs;
+            return BudgetFormPage(walletId: _walletId(state)!, initial: args.budget, canDelete: args.canDelete);
+          },
         ),
       ],
     ),

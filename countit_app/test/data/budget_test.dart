@@ -100,6 +100,14 @@ void main() {
     });
   });
 
+  test('canBeDeletedBy: wallet owner or author only (HU-14)', () {
+    final budget = budgetFixture(createdBy: 'u1');
+    expect(budget.canBeDeletedBy('u2', walletIsOwner: true), isTrue);
+    expect(budget.canBeDeletedBy('u1', walletIsOwner: false), isTrue);
+    expect(budget.canBeDeletedBy('u2', walletIsOwner: false), isFalse);
+    expect(budgetFixture(createdBy: null).canBeDeletedBy(null, walletIsOwner: false), isFalse);
+  });
+
   group('BudgetInput.toParams', () {
     test('sends every field, dates as API days and the icon (null clears it)', () {
       final input = BudgetInput(

@@ -4,6 +4,8 @@ import 'package:countit_app/app/router/app_router.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/data/dtos/budget.dart';
 import 'package:countit_app/data/dtos/profile.dart';
+import 'package:countit_app/data/remote/api_client.dart';
+import 'package:countit_app/presentation/budgets/cubit/budget_delete_cubit.dart';
 import 'package:countit_app/presentation/budgets/cubit/budget_form_cubit.dart';
 import 'package:countit_app/presentation/budgets/view/budget_form_page.dart';
 import 'package:countit_app/shared/state/submit_cubit.dart';
@@ -39,6 +41,12 @@ final _typeLocked = _failure(
 final _quota = _failure('budget_limit_exceeded', 'Alcanzaste el límite de presupuestos de tu plan');
 final _notFound = _failure('budget_not_found', 'Presupuesto no encontrado', status: 404, kind: FailureKind.notFound);
 const _network = AppFailure(kind: FailureKind.network, message: 'No hay conexión.');
+const _reauthRequired = AppFailure(
+  kind: FailureKind.reauthRequired,
+  message: 'Confirma tu contraseña para continuar',
+  key: 'reauth_required',
+  status: 403,
+);
 
 void main() {
   late MockBudgetRepository budgets;
@@ -62,7 +70,7 @@ void main() {
   DateTime today() => Dates.userToday('America/Guayaquil');
 
   /// Wallet stand-in with a button that opens the form; returns what it pops.
-  Future<List<Object?>> pumpForm(WidgetTester tester, {Budget? initial}) async {
+  Future<List<Object?>> pumpForm(WidgetTester tester, {Budget? initial, bool canDelete = false}) async {
     tester.view.physicalSize = const Size(420, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -84,7 +92,7 @@ void main() {
         ),
         GoRoute(
           path: '/form',
-          builder: (context, state) => BudgetFormPage(walletId: 4, initial: initial),
+          builder: (context, state) => BudgetFormPage(walletId: 4, initial: initial, canDelete: canDelete),
         ),
       ],
     );
@@ -342,6 +350,124 @@ void main() {
       await tester.tap(find.text('Descartar'));
       await tester.pumpAndSettle();
       expect(find.text('WALLET'), findsOneWidget);
+    });
+  });
+
+  group('BudgetDeleteCubit (COU-226)', () {
+    blocTest<BudgetDeleteCubit, BudgetDeleteState>(
+      'deletes once',
+      setUp: () => when(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).thenAnswer((_) async {}),
+      build: () => BudgetDeleteCubit(budgets, budgetId: 7),
+      act: (cubit) => Future.wait([cubit.delete(), cubit.delete()]),
+      expect: () => [
+        const BudgetDeleteState(status: BudgetDeleteStatus.deleting),
+        const BudgetDeleteState(status: BudgetDeleteStatus.deleted),
+      ],
+      verify: (_) => verify(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).called(1),
+    );
+
+    blocTest<BudgetDeleteCubit, BudgetDeleteState>(
+      'reauth cancelled: back to idle without a failure',
+      setUp: () => when(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).thenThrow(_reauthRequired),
+      build: () => BudgetDeleteCubit(budgets, budgetId: 7),
+      act: (cubit) => cubit.delete(),
+      expect: () => [const BudgetDeleteState(status: BudgetDeleteStatus.deleting), const BudgetDeleteState()],
+    );
+  });
+
+  group('delete with reauthentication (COU-226, COU-229)', () {
+    final budget = budgetFixture(id: 7, name: 'Mercado');
+
+    /// Behaves like [ApiClient.run]: on reauth_required asks [onReauth] and retries once.
+    void deleteNeedsReauth({required List<int> calls}) {
+      when(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).thenAnswer((invocation) async {
+        calls.add(7);
+        if (calls.length > 1) return;
+        final prompt = invocation.namedArguments[#onReauth] as ReauthPrompt?;
+        if (prompt == null || !await prompt()) throw _reauthRequired;
+        calls.add(7);
+      });
+    }
+
+    /// Taps «Eliminar presupuesto» and confirms the dialog. Pumps frames
+    /// instead of settling: the button spins while the password sheet is open.
+    Future<void> confirmDelete(WidgetTester tester) async {
+      await tapButton(tester, 'Eliminar presupuesto');
+      expect(find.text('¿Eliminar «Mercado»?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future<void> tapInSheet(WidgetTester tester, String label) async {
+      await tester.tap(find.widgetWithText(FilledButton, label).last);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    testWidgets('hidden for whoever may not delete (only owner or author)', (tester) async {
+      await pumpForm(tester, initial: budget);
+      expect(find.text('Eliminar presupuesto'), findsNothing);
+    });
+
+    testWidgets('reauth_required: asks for the password, retries and returns to the wallet', (tester) async {
+      final calls = <int>[];
+      deleteNeedsReauth(calls: calls);
+      when(() => auth.reauthenticate('Quito2026')).thenAnswer((_) async => DateTime(2026, 10, 3, 12, 5));
+      final results = await pumpForm(tester, initial: budget, canDelete: true);
+      await confirmDelete(tester);
+      expect(find.text('Confirma que eres tú'), findsOneWidget);
+      expect(find.textContaining('Para eliminar «Mercado» escribe tu contraseña'), findsOneWidget);
+
+      await tester.enterText(find.byType(EditableText).last, 'Quito2026');
+      await tapInSheet(tester, 'Eliminar presupuesto');
+      await tester.pumpAndSettle();
+      verify(() => auth.reauthenticate('Quito2026')).called(1);
+      expect(calls, [7, 7], reason: 'first attempt plus the retry');
+      expect(find.text('WALLET'), findsOneWidget);
+      expect(find.text('Eliminamos «Mercado»'), findsOneWidget);
+      expect(results, [true]);
+    });
+
+    testWidgets('cancelling the password sheet deletes nothing and shows no error', (tester) async {
+      final calls = <int>[];
+      deleteNeedsReauth(calls: calls);
+      await pumpForm(tester, initial: budget, canDelete: true);
+      await confirmDelete(tester);
+      await tapInSheet(tester, 'Cancelar');
+      await tester.pumpAndSettle();
+      expect(calls, [7], reason: 'no retry');
+      expect(find.text('Editar presupuesto'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+      verifyNever(() => auth.reauthenticate(any()));
+    });
+
+    testWidgets('cancelling the confirmation does not call the API', (tester) async {
+      await pumpForm(tester, initial: budget, canDelete: true);
+      await tapButton(tester, 'Eliminar presupuesto');
+      await tester.tap(find.widgetWithText(FilledButton, 'Cancelar'));
+      await tester.pumpAndSettle();
+      verifyNever(() => budgets.delete(any(), onReauth: any(named: 'onReauth')));
+    });
+
+    testWidgets('404 on delete: treated as already deleted', (tester) async {
+      when(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).thenThrow(_notFound);
+      final results = await pumpForm(tester, initial: budget, canDelete: true);
+      await confirmDelete(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('WALLET'), findsOneWidget);
+      expect(results, [true]);
+    });
+
+    testWidgets('other errors stay on the form with the message', (tester) async {
+      when(() => budgets.delete(7, onReauth: any(named: 'onReauth'))).thenThrow(_network);
+      await pumpForm(tester, initial: budget, canDelete: true);
+      await confirmDelete(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Editar presupuesto'), findsOneWidget);
+      expect(find.text('No hay conexión.'), findsOneWidget);
     });
   });
 }
