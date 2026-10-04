@@ -221,6 +221,7 @@ class _Facts extends StatelessWidget {
       rows: [
         DetailRow('Fecha', '${long[0].toUpperCase()}${long.substring(1)}'),
         DetailRow('Presupuesto', t.budgetLabel),
+        if (t.isScheduled) const DetailRow('Origen', 'Movimiento programado'),
         DetailRow('Registrado por', t.authorLabel),
         if (created != null) DetailRow('Registrado el', Dates.dateTime(Dates.inUserZone(created, timezone))),
         if (updated != null && created != null && updated.isAfter(created))

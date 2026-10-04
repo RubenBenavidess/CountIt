@@ -67,61 +67,104 @@ class _ScheduledListView extends StatelessWidget {
     if (saved == true && !cubit.isClosed) unawaited(cubit.load());
   }
 
+  /// HU-20 (COU-153): resuming one's own rule needs a free running slot;
+  /// when the usage says there is none, the plans sheet explains it first.
+  void _togglePause(BuildContext context, ScheduledTransaction rule) {
+    final cubit = context.read<ScheduledListCubit>();
+    final profile = context.read<SessionCubit>().state.profile;
+    final quota = ScheduledQuota.of(profile?.plan, cubit.state.usage);
+    if (rule.isPaused && rule.userId == profile?.userId && !quota.canResume) {
+      unawaited(showPlanUpsell(context, message: quota.resumeMessage));
+      return;
+    }
+    unawaited(cubit.togglePause(rule));
+  }
+
+  void _onToggle(BuildContext context, ScheduledListState state) {
+    final result = state.lastToggle!;
+    switch (result.outcome) {
+      case ScheduledToggleOutcome.paused:
+        showAppSnackBar(
+          context,
+          'Pausamos «${result.name}»: no se registrará hasta que la reanudes',
+          kind: SnackKind.success,
+        );
+      case ScheduledToggleOutcome.resumed:
+        showAppSnackBar(context, 'Reanudamos «${result.name}»', kind: SnackKind.success);
+      case ScheduledToggleOutcome.ended:
+        showAppSnackBar(context, '«${result.name}» terminó: no le quedaban ejecuciones');
+      case ScheduledToggleOutcome.missing:
+        showAppSnackBar(context, 'Transacción programada no encontrada', kind: SnackKind.error);
+      case ScheduledToggleOutcome.failed:
+        final failure = result.failure!;
+        if (failure.isQuota) {
+          unawaited(showPlanUpsell(context, message: failure.message));
+        } else {
+          showFailureSnackBar(context, failure);
+        }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ScheduledListCubit>();
     final plan = context.select((SessionCubit c) => c.state.profile?.plan);
-    return Scaffold(
-      appBar: const AppTopBar(title: 'Programados'),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const ValueKey('scheduled-new'),
-        tooltip: 'Programar un ingreso o gasto',
-        onPressed: () => _create(context),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Programar'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: cubit.load,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 0),
-              sliver: SliverList.list(
-                children: [
-                  Text(
-                    'Ingresos y gastos que se registran solos en «${wallet.name}» en su fecha.',
-                    style: AppTypography.body.copyWith(color: context.palette.muted),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  BlocSelector<ScheduledListCubit, ScheduledListState, ScheduledUsage?>(
-                    selector: (state) => state.usage,
-                    builder: (context, usage) {
-                      final quota = ScheduledQuota.of(plan, usage);
-                      if (quota.limit == null || usage == null) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                        child: ScheduledQuotaCard(quota: quota),
-                      );
-                    },
-                  ),
-                ],
+    return BlocListener<ScheduledListCubit, ScheduledListState>(
+      listenWhen: (previous, current) => current.lastToggle != null && previous.lastToggle != current.lastToggle,
+      listener: _onToggle,
+      child: Scaffold(
+        appBar: const AppTopBar(title: 'Programados'),
+        floatingActionButton: FloatingActionButton.extended(
+          key: const ValueKey('scheduled-new'),
+          tooltip: 'Programar un ingreso o gasto',
+          onPressed: () => _create(context),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Programar'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: cubit.load,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, 0),
+                sliver: SliverList.list(
+                  children: [
+                    Text(
+                      'Ingresos y gastos que se registran solos en «${wallet.name}» en su fecha.',
+                      style: AppTypography.body.copyWith(color: context.palette.muted),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    BlocSelector<ScheduledListCubit, ScheduledListState, ScheduledUsage?>(
+                      selector: (state) => state.usage,
+                      builder: (context, usage) {
+                        final quota = ScheduledQuota.of(plan, usage);
+                        if (quota.limit == null || usage == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: ScheduledQuotaCard(quota: quota),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, 96),
-              sliver: BlocBuilder<ScheduledListCubit, ScheduledListState>(
-                buildWhen: (previous, current) => previous.rules != current.rules,
-                builder: (context, state) => _rules(context, state.rules),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, 96),
+                sliver: BlocBuilder<ScheduledListCubit, ScheduledListState>(
+                  buildWhen: (previous, current) =>
+                      previous.rules != current.rules || previous.toggling != current.toggling,
+                  builder: (context, state) => _rules(context, state.rules, state.toggling),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _rules(BuildContext context, LoadState<List<ScheduledTransaction>> state) {
+  Widget _rules(BuildContext context, LoadState<List<ScheduledTransaction>> state, Set<int> toggling) {
     final rules = state.data;
     final userId = context.read<SessionCubit>().state.profile?.userId;
     if (rules == null) {
@@ -169,10 +212,40 @@ class _ScheduledListView extends StatelessWidget {
               rule: rule,
               showAuthor: wallet.isShared,
               onTap: canManage ? () => _edit(context, rule) : null,
+              trailing: canManage
+                  ? _PauseButton(
+                      rule: rule,
+                      busy: toggling.contains(rule.scheduledTransactionId),
+                      onPressed: () => _togglePause(context, rule),
+                    )
+                  : null,
             );
           },
         ),
       ],
+    );
+  }
+}
+
+/// Pause or resume one rule (44 px target); a spinner while it is on its way.
+class _PauseButton extends StatelessWidget {
+  const _PauseButton({required this.rule, required this.busy, required this.onPressed});
+
+  final ScheduledTransaction rule;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final paused = rule.isPaused;
+    return IconButton(
+      key: ValueKey('scheduled-toggle-${rule.scheduledTransactionId}'),
+      tooltip: paused ? 'Reanudar «${rule.name}»' : 'Pausar «${rule.name}»',
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      onPressed: busy ? null : onPressed,
+      icon: busy
+          ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : Icon(paused ? Icons.play_circle_outline_rounded : Icons.pause_circle_outline_rounded),
     );
   }
 }
