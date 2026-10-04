@@ -3,8 +3,8 @@ import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/session/session_state.dart';
 import 'package:countit_app/data/dtos/profile.dart';
+import 'package:countit_app/presentation/plans/view/plan_details.dart';
 import 'package:countit_app/presentation/profile/cubit/profile_cubits.dart';
-import 'package:countit_app/presentation/profile/view/plan_details.dart';
 import 'package:countit_app/presentation/profile/view/profile_page.dart';
 import 'package:countit_app/presentation/profile/view/timezone_picker.dart';
 import 'package:countit_app/shared/platform/file_sharer.dart';
@@ -198,10 +198,10 @@ void main() {
       await pump(tester, _profile());
       expect(find.text('María Quishpe'), findsOneWidget);
       expect(find.text('@mariaq · America/Guayaquil'), findsOneWidget);
+      // The plan is summarised; limits and features live in «Mi plan» (COU-113).
       expect(find.text('Contador'), findsOneWidget);
-      expect(find.text('Movimientos por día'), findsOneWidget);
-      expect(find.text('40'), findsOneWidget);
-      expect(find.text('Proyección de saldo'), findsOneWidget);
+      expect(find.byKey(const ValueKey('profile-plan-card')), findsOneWidget);
+      expect(find.text('Movimientos por día'), findsNothing);
       for (final label in ['Datos personales', 'Cambiar contraseña', 'Exportar mis datos', 'Eliminar mi cuenta']) {
         await tester.scrollUntilVisible(find.text(label), 200);
         expect(find.text(label), findsOneWidget, reason: label);

@@ -21,6 +21,9 @@ typedef ReauthPrompt = Future<bool> Function();
 ///   login (COU-57).
 /// * Destructive actions pass `onReauth`: on `403 reauth_required` the prompt
 ///   runs and the call is retried once after a successful confirmation (COU-59).
+/// * A `403 feature_not_in_plan` notifies [onFeatureNotInPlan] (COU-183), so
+///   the app offers the plans in one place. Calls whose 403 is about another
+///   user's plan (accepting an invitation) pass `planUpsell: false`.
 class ApiClient {
   ApiClient(
     this._client, {
@@ -45,11 +48,21 @@ class ApiClient {
   /// Set by the session layer; called when a request proves the session is gone.
   void Function(AppFailure failure)? onSessionEnded;
 
+  /// Set by the app; called on `403 feature_not_in_plan` of the caller's plan.
+  void Function(AppFailure failure)? onFeatureNotInPlan;
+
   SupabaseClient get supabase => _client;
 
   /// `POST /rest/v1/rpc/<function>` on the `api` schema.
-  Future<T> rpc<T>(String function, {Map<String, dynamic>? params, ReauthPrompt? onReauth}) =>
-      run(() async => await _client.rpc<T>(function, params: params), onReauth: onReauth);
+  ///
+  /// [planUpsell] false keeps a `403 feature_not_in_plan` away from the global
+  /// plans sheet (the 403 concerns someone else's plan).
+  Future<T> rpc<T>(String function, {Map<String, dynamic>? params, ReauthPrompt? onReauth, bool planUpsell = true}) =>
+      run(
+        () async => await _client.rpc<T>(function, params: params),
+        onReauth: onReauth,
+        planUpsell: planUpsell,
+      );
 
   /// `GET /rest/v1/<view>`: [query] receives the builder for filters, order and paging.
   Future<List<Map<String, dynamic>>> select(
@@ -107,7 +120,7 @@ class ApiClient {
   }
 
   /// Runs [call] mapping its errors; see the class doc for 401 and reauth handling.
-  Future<T> run<T>(Future<T> Function() call, {ReauthPrompt? onReauth}) async {
+  Future<T> run<T>(Future<T> Function() call, {ReauthPrompt? onReauth, bool planUpsell = true}) async {
     try {
       return await call();
     } catch (error) {
@@ -116,17 +129,18 @@ class ApiClient {
         try {
           return await call();
         } catch (retryError) {
-          throw _report(ErrorMapper.map(retryError));
+          throw _report(ErrorMapper.map(retryError), planUpsell: planUpsell);
         }
       }
-      throw _report(failure);
+      throw _report(failure, planUpsell: planUpsell);
     }
   }
 
-  AppFailure _report(AppFailure failure) {
+  AppFailure _report(AppFailure failure, {required bool planUpsell}) {
     // Only the classification: never messages, payloads or tokens.
     AppLogger.debug('api failure ${failure.kind.name} key=${failure.key} status=${failure.status}');
     if (failure.endsSession) onSessionEnded?.call(failure);
+    if (planUpsell && failure.kind == FailureKind.featureNotInPlan) onFeatureNotInPlan?.call(failure);
     return failure;
   }
 }

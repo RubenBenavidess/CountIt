@@ -1,5 +1,6 @@
 import 'package:countit_app/app/app.dart';
 import 'package:countit_app/app/config/app_config.dart';
+import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
@@ -48,6 +49,7 @@ extension PumpApp on WidgetTester {
     SessionCubit? session,
     InvitationsCubit? invitations,
     GoRouter? router,
+    Stream<AppFailure>? planNotices,
     AppConfig config = testConfig,
     ThemeMode themeMode = ThemeMode.dark,
   }) async {
@@ -73,7 +75,7 @@ extension PumpApp on WidgetTester {
             localizationsDelegates: GlobalMaterialLocalizations.delegates,
             home: Scaffold(body: widget),
           )
-        : CountItApp(router: router);
+        : CountItApp(router: router, planNotices: planNotices);
 
     await pumpWidget(
       MultiRepositoryProvider(

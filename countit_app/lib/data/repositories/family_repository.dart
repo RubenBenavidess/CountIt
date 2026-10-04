@@ -93,7 +93,12 @@ class SupabaseFamilyRepository implements FamilyRepository {
 
   @override
   Future<void> respond(int walletId, {required bool accept}) =>
-      _api.rpc<dynamic>('respond_family_invitation', params: {'p_wallet_id': walletId, 'p_accept': accept});
+      // A 403 here is about the owner's plan, not the caller's: no plans sheet.
+      _api.rpc<dynamic>(
+        'respond_family_invitation',
+        params: {'p_wallet_id': walletId, 'p_accept': accept},
+        planUpsell: false,
+      );
 
   @override
   Future<void> remove(int walletId, String userId, {ReauthPrompt? onReauth}) => _api.rpc<dynamic>(

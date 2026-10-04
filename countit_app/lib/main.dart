@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'app/app.dart';
 import 'app/config/app_config.dart';
 import 'app/links/auth_links.dart';
+import 'app/plans/plan_gate.dart';
 import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'app/session/session_state.dart';
@@ -49,6 +50,13 @@ Future<void> main() async {
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
+  // A 403 feature_not_in_plan means the plan we know is stale or lacks the
+  // function: offer the plans and reload the profile (COU-183).
+  final planNotices = PlanNotices();
+  api.onFeatureNotInPlan = (failure) {
+    planNotices.report(failure);
+    unawaited(session.refreshProfile());
+  };
   final router = buildRouter(session: session, config: config);
   // Pending invitations follow the signed-in user (Realtime while signed in;
   // signing out closes the channel and forgets them).
@@ -86,7 +94,7 @@ Future<void> main() async {
           BlocProvider.value(value: session),
           BlocProvider.value(value: invitations),
         ],
-        child: CountItApp(router: router),
+        child: CountItApp(router: router, planNotices: planNotices.featureNotInPlan),
       ),
     ),
   );

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../app/plans/plan_gate.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
@@ -49,7 +50,7 @@ class ProjectionPage extends StatelessWidget {
       create: (context) => ProjectionCubit(
         context.read<AnalysisRepository>(),
         walletId: wallet.walletId,
-        allowed: profile?.allows(PlanFeatures.walletProjection) ?? true,
+        allowed: context.planGate.allows(PlanFeatures.walletProjection),
       )..load(),
       child: _ProjectionView(wallet: wallet, today: Dates.userToday(profile?.timezone)),
     );

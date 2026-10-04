@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/dtos/json_parsing.dart';
 import '../../../data/dtos/profile.dart';
+import '../../../shared/utils/dates.dart';
+import '../../../shared/utils/money.dart';
 
 /// One quota of the plan: «Billeteras · 10», «Movimientos por día · Ilimitados».
 class PlanQuota {
@@ -49,3 +52,38 @@ List<PlanFeature> planFeatures(UserPlan plan) => [
   PlanFeature('Estadísticas avanzadas', included: plan.hasFeature(PlanFeatures.advancedStatistics)),
   PlanFeature('Proyección de saldo', included: plan.hasFeature(PlanFeatures.walletProjection)),
 ];
+
+/// «$2,99 al mes» / «Gratis»; null when the price is unknown.
+String? planPrice(UserPlan plan) {
+  final cents = plan.monthlyPriceCents;
+  if (cents == null) return null;
+  return cents == 0 ? 'Gratis' : '${Money.format(Cents.toAmount(cents))} al mes';
+}
+
+/// The expiry notice of [plan] on [today] (COU-117); null when none is due.
+String? planExpiryMessage(UserPlan plan, DateTime today) {
+  final expiry = plan.expiryOn(today);
+  final end = plan.validUntil;
+  if (!expiry.needsNotice || end == null) return null;
+  const after = 'Después pasarás al plan Regular y se aplicarán sus límites.';
+  return switch (expiry.daysLeft!) {
+    < 0 => 'Tu plan ${plan.name} venció el ${Dates.date(end)}. En unas horas pasarás al plan Regular.',
+    0 => 'Tu plan ${plan.name} termina hoy. $after',
+    1 => 'Tu plan ${plan.name} vence mañana, el ${Dates.date(end)}. $after',
+    final days => 'Tu plan ${plan.name} vence en $days días, el ${Dates.date(end)}. $after',
+  };
+}
+
+/// Short label for a pill: «Vence el 4 oct 2027», «Vence en 2 días», «Vencido».
+String? planValidityLabel(UserPlan plan, DateTime today) {
+  final end = plan.validUntil;
+  if (end == null || !plan.isPaid) return null;
+  final expiry = plan.expiryOn(today);
+  return switch (expiry.daysLeft) {
+    null => 'Vence el ${Dates.date(end)}',
+    < 0 => 'Vencido',
+    0 => 'Vence hoy',
+    1 => 'Vence mañana',
+    final days => 'Vence en $days días',
+  };
+}

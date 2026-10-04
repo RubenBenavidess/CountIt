@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/plans/plan_gate.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/app_theme.dart';
@@ -142,8 +143,7 @@ class _WalletDetailView extends StatelessWidget {
   /// Projection (F08 · COU-99, COU-172): with the plan known to lack it the
   /// plans sheet explains it instead of a screen the API would refuse (403).
   void _openProjection(BuildContext context, Wallet wallet) {
-    final profile = context.read<SessionCubit>().state.profile;
-    if (!(profile?.allows(PlanFeatures.walletProjection) ?? true)) {
+    if (!context.planGate.allows(PlanFeatures.walletProjection)) {
       unawaited(showProjectionUpsell(context));
       return;
     }
@@ -395,9 +395,7 @@ class _DetailBody extends StatelessWidget {
               // Projection (HU-25 · COU-99): Contador Profesional only (COU-172).
               Builder(
                 builder: (context) {
-                  final allowed = context.select(
-                    (SessionCubit c) => c.state.profile?.allows(PlanFeatures.walletProjection) ?? true,
-                  );
+                  final allowed = context.watchPlanAllows(PlanFeatures.walletProjection);
                   return _EntryCard(
                     key: const ValueKey('wallet-projection'),
                     icon: allowed ? Icons.show_chart_rounded : Icons.lock_outline_rounded,

@@ -11,12 +11,15 @@ import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
+import '../../../shared/utils/dates.dart';
 import '../../../shared/utils/money.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/app_layout.dart';
 import '../../../shared/widgets/wordmark.dart';
 import '../../families/cubit/invitations_cubit.dart';
+import '../../plans/view/widgets/plan_widgets.dart';
 import '../../wallets/view/widgets/wallet_card.dart';
 import '../cubit/wallets_cubit.dart';
 
@@ -110,6 +113,10 @@ class _HomeViewState extends State<_HomeView> {
                         onCreate: wallets == null || wallets.isEmpty ? null : _create,
                       ),
                     ),
+                  ),
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(AppSpacing.screen, 0, AppSpacing.screen, 0),
+                    sliver: SliverToBoxAdapter(child: _PlanExpiryNotice()),
                   ),
                   ..._body(context, state),
                 ],
@@ -413,6 +420,27 @@ class _NoSharedWallets extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Plan about to expire or expired (COU-117), with a link to «Mi plan».
+class _PlanExpiryNotice extends StatelessWidget {
+  const _PlanExpiryNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = context.select((SessionCubit c) => c.state.profile?.plan);
+    final timezone = context.select((SessionCubit c) => c.state.profile?.timezone);
+    final today = Dates.userToday(timezone);
+    if (plan == null || !plan.expiryOn(today).needsNotice) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: PlanExpiryBanner(
+        plan: plan,
+        today: today,
+        action: AppLink(label: 'Ver mi plan', onPressed: () => context.push(AppRoutes.myPlan)),
       ),
     );
   }
