@@ -1,11 +1,15 @@
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
+import 'package:countit_app/app/session/session_cubit.dart';
+import 'package:countit_app/app/session/session_state.dart';
 import 'package:countit_app/data/dtos/family.dart';
+import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/data/dtos/scheduled_transaction.dart';
 import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/data/remote/api_client.dart';
 import 'package:countit_app/presentation/budgets/view/budget_form_page.dart';
+import 'package:countit_app/presentation/statistics/view/projection_page.dart';
 import 'package:countit_app/presentation/transactions/view/transaction_detail_page.dart';
 import 'package:countit_app/presentation/wallets/view/wallet_detail_page.dart';
 import 'package:countit_app/shared/utils/dates.dart';
@@ -58,7 +62,7 @@ void main() {
   });
 
   /// Home → detail of [wallet]; the edit route is a stand-in.
-  Future<void> pumpDetail(WidgetTester tester, Wallet wallet) async {
+  Future<void> pumpDetail(WidgetTester tester, Wallet wallet, {SessionCubit? session}) async {
     tester.view.physicalSize = const Size(420, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -141,6 +145,10 @@ void main() {
               builder: (context, state) => Scaffold(body: Text('SCHEDULED ${(state.extra! as Wallet).name}')),
             ),
             GoRoute(
+              path: 'projection',
+              builder: (context, state) => Scaffold(body: Text('PROJECTION ${(state.extra! as Wallet).name}')),
+            ),
+            GoRoute(
               path: 'statistics',
               builder: (context, state) => Scaffold(body: Text('STATISTICS ${(state.extra! as Wallet).name}')),
             ),
@@ -168,6 +176,7 @@ void main() {
       budgets: budgets,
       transactions: transactions,
       families: families,
+      session: session,
       router: router,
     );
     await tester.tap(find.text('HOME'));
@@ -461,6 +470,46 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('wallet-statistics')));
     await tester.pumpAndSettle();
     expect(find.text('STATISTICS Pichincha'), findsOneWidget);
+  });
+
+  group('projection entry (COU-172)', () {
+    SessionCubit sessionWith(String plan, {required bool projection}) {
+      final session = SessionCubit(auth: auth, profiles: MockProfileRepository())
+        ..emit(
+          SessionState.authenticated(
+            Profile(
+              userId: 'u1',
+              username: 'mariaq',
+              email: 'maria@correo.ec',
+              role: UserRole.user,
+              timezone: 'America/Guayaquil',
+              plan: UserPlan(planId: 1, name: plan, limits: {PlanFeatures.walletProjection: projection ? 1 : 0}),
+            ),
+          ),
+        );
+      addTearDown(session.close);
+      return session;
+    }
+
+    testWidgets('Contador Profesional opens the projection', (tester) async {
+      final wallet = walletFixture(id: 4, name: 'Pichincha');
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet, session: sessionWith('Contador Profesional', projection: true));
+      await tester.tap(find.byKey(const ValueKey('wallet-projection')));
+      await tester.pumpAndSettle();
+      expect(find.text('PROJECTION Pichincha'), findsOneWidget);
+    });
+
+    testWidgets('without the feature: the card says so and opens the plans', (tester) async {
+      final wallet = walletFixture(id: 4, name: 'Pichincha');
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet, session: sessionWith('Contador', projection: false));
+      expect(find.bySemanticsLabel('Proyección de saldo: Disponible en el plan Contador Profesional'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('wallet-projection')));
+      await tester.pumpAndSettle();
+      expect(find.text('PROJECTION Pichincha'), findsNothing);
+      expect(find.text(projectionNotInPlanTitle), findsOneWidget);
+    });
   });
 
   testWidgets('a future-dated movement continues in the scheduling form (COU-151)', (tester) async {

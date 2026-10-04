@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../helpers/mocks.dart';
+import '../helpers/projection_fixtures.dart';
 import '../helpers/statistics_fixtures.dart';
 
 void main() {
@@ -45,6 +46,41 @@ void main() {
       when(() => api.rpc<dynamic>(any(), params: any(named: 'params'))).thenAnswer((_) async => {'wallet_id': 4});
       await expectLater(
         analysis.walletStatistics(4, StatisticsRange.days30),
+        throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.server)),
+      );
+    });
+  });
+
+  group('walletProjection (COU-24)', () {
+    test('without a date the API picks the horizon (no p_until)', () async {
+      when(() => api.rpc<dynamic>(any(), params: any(named: 'params'))).thenAnswer((_) async => projectionJson());
+      final projection = await analysis.walletProjection(4);
+      verify(() => api.rpc<dynamic>('get_wallet_projection', params: {'p_wallet_id': 4})).called(1);
+      expect(projection.projectedBalanceCents, 175050);
+    });
+
+    test('a chosen date travels as an API day', () async {
+      when(() => api.rpc<dynamic>(any(), params: any(named: 'params'))).thenAnswer((_) async => projectionJson());
+      await analysis.walletProjection(4, until: DateTime(2026, 12, 31));
+      verify(() => api.rpc<dynamic>('get_wallet_projection', params: {'p_wallet_id': 4, 'p_until': '2026-12-31'}))
+          .called(1);
+    });
+
+    test('403 feature_not_in_plan reaches the caller unchanged', () async {
+      const failure = AppFailure(
+        kind: FailureKind.featureNotInPlan,
+        message: 'Tu plan no incluye la proyección de billeteras',
+        key: 'feature_not_in_plan',
+        status: 403,
+      );
+      when(() => api.rpc<dynamic>(any(), params: any(named: 'params'))).thenThrow(failure);
+      await expectLater(analysis.walletProjection(4), throwsA(failure));
+    });
+
+    test('an unexpected answer is a server failure', () async {
+      when(() => api.rpc<dynamic>(any(), params: any(named: 'params'))).thenAnswer((_) async => {'points': 3});
+      await expectLater(
+        analysis.walletProjection(4),
         throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.server)),
       );
     });

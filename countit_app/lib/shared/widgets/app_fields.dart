@@ -270,6 +270,8 @@ class AppDateField extends StatelessWidget {
       label: label,
       child: Semantics(
         button: true,
+        // Its own node: never merged with help texts around the field.
+        container: true,
         // The error is read too: excludeSemantics hides the decorator's text.
         label: errorText == null ? '$label: $text' : '$label: $text. $errorText',
         excludeSemantics: true,
