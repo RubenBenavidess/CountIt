@@ -17,6 +17,7 @@ import '../../presentation/auth/view/register_page.dart';
 import '../../presentation/auth/view/reset_password_page.dart';
 import '../../presentation/auth/view/welcome_page.dart';
 import '../../presentation/budgets/view/budget_form_page.dart';
+import '../../presentation/families/view/family_members_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
@@ -63,6 +64,7 @@ abstract final class AppRoutes {
   static String scheduled(int walletId) => '$wallets/$walletId/scheduled';
   static String newScheduled(int walletId) => '$wallets/$walletId/scheduled/new';
   static String editScheduled(int walletId, int ruleId) => '$wallets/$walletId/scheduled/$ruleId/edit';
+  static String members(int walletId) => '$wallets/$walletId/members';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -216,6 +218,12 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
             final args = state.extra! as ScheduledEditArgs;
             return ScheduledFormPage(walletId: _walletId(state)!, initial: args.rule, canDelete: args.canDelete);
           },
+        ),
+        GoRoute(
+          path: 'members',
+          // Members of the wallet the detail screen loaded (name, ownership).
+          redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) => FamilyMembersPage(wallet: state.extra! as Wallet),
         ),
       ],
     ),

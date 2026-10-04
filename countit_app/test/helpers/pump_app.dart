@@ -6,6 +6,7 @@ import 'package:countit_app/data/dtos/transaction.dart';
 import 'package:countit_app/data/repositories/auth_repository.dart';
 import 'package:countit_app/data/repositories/bank_repository.dart';
 import 'package:countit_app/data/repositories/budget_repository.dart';
+import 'package:countit_app/data/repositories/family_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
 import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
@@ -40,6 +41,7 @@ extension PumpApp on WidgetTester {
     BudgetRepository? budgets,
     TransactionRepository? transactions,
     ScheduledTransactionRepository? scheduled,
+    FamilyRepository? families,
     SessionCubit? session,
     GoRouter? router,
     AppConfig config = testConfig,
@@ -78,6 +80,7 @@ extension PumpApp on WidgetTester {
           RepositoryProvider<ScheduledTransactionRepository>.value(
             value: scheduled ?? MockScheduledTransactionRepository(),
           ),
+          RepositoryProvider<FamilyRepository>.value(value: families ?? noFamilies()),
         ],
         child: BlocProvider<SessionCubit>.value(value: sessionCubit, child: app),
       ),
@@ -97,5 +100,15 @@ MockTransactionRepository _emptyTransactions() {
       limit: any(named: 'limit'),
     ),
   ).thenAnswer((_) async => const TransactionPage([]));
+  return repository;
+}
+
+/// Default families double: no members, no invitations and no live changes.
+MockFamilyRepository noFamilies() {
+  final repository = MockFamilyRepository();
+  when(() => repository.membersOf(any())).thenAnswer((_) async => const []);
+  when(repository.myInvitations).thenAnswer((_) async => const []);
+  when(() => repository.myMembershipChanges(any())).thenAnswer((_) => const Stream.empty());
+  when(() => repository.walletMembershipChanges(any())).thenAnswer((_) => const Stream.empty());
   return repository;
 }

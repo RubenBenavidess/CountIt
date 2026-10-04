@@ -13,6 +13,7 @@ import '../../../data/dtos/scheduled_transaction.dart';
 import '../../../data/dtos/transaction.dart';
 import '../../../data/dtos/wallet.dart';
 import '../../../data/repositories/budget_repository.dart';
+import '../../../data/repositories/family_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
@@ -27,6 +28,7 @@ import '../../account/view/reauth_sheet.dart';
 import '../../budgets/cubit/budget_list_cubit.dart';
 import '../../budgets/view/budget_form_page.dart';
 import '../../budgets/view/budget_section.dart';
+import '../../families/cubit/family_members_cubit.dart';
 import '../../transactions/cubit/transaction_list_cubit.dart';
 import '../../transactions/view/transaction_detail_page.dart';
 import '../../transactions/view/transaction_section.dart';
@@ -57,6 +59,8 @@ class WalletDetailPage extends StatelessWidget {
         BlocProvider(
           create: (context) => TransactionListCubit(context.read<TransactionRepository>(), walletId: walletId)..load(),
         ),
+        // Lazy: only the author filter of a shared wallet reads the members.
+        BlocProvider(create: (context) => FamilyMembersCubit(context.read<FamilyRepository>(), walletId: walletId)),
       ],
       child: const _WalletDetailView(),
     );
@@ -129,15 +133,44 @@ class _WalletDetailView extends StatelessWidget {
   void _openScheduled(BuildContext context, Wallet wallet) =>
       unawaited(context.push<Object?>(AppRoutes.scheduled(wallet.walletId), extra: wallet));
 
+  /// Members (F07 · COU-92): inviting, accepting or removing changes the
+  /// member count and who may appear as author, so the wallet reloads.
+  Future<void> _openMembers(BuildContext context, Wallet wallet) async {
+    final cubit = context.read<WalletDetailCubit>();
+    final members = context.read<FamilyMembersCubit>();
+    await context.push<Object?>(AppRoutes.members(wallet.walletId), extra: wallet);
+    if (!cubit.isClosed) unawaited(cubit.load());
+    if (!members.isClosed && members.state.members.data != null) unawaited(members.load());
+  }
+
+  /// Authors offered by the filter of a shared wallet: everyone who shares it
+  /// now (owner and accepted members, COU-234 gap) plus the authors already
+  /// seen in the list (former members keep their movements).
+  Future<Map<String, String>> _authors(BuildContext context, Wallet wallet) async {
+    final seen = context.read<TransactionListCubit>().state.knownAuthors;
+    if (!wallet.isShared) return const {};
+    final members = context.read<FamilyMembersCubit>();
+    await members.ensureLoaded();
+    final current = members.state.members.data ?? const [];
+    return {
+      ...seen,
+      for (final member in current)
+        if (member.isOwner || member.isAccepted) member.userId: member.name,
+    };
+  }
+
   /// Filters sheet (COU-233): budgets come from the section above; authors
   /// only matter in shared wallets.
   Future<void> _editFilters(BuildContext context, Wallet wallet) async {
     final list = context.read<TransactionListCubit>();
+    final budgets = context.read<BudgetListCubit>().state.data ?? const <Budget>[];
+    final authors = await _authors(context, wallet);
+    if (!context.mounted) return;
     final filter = await showTransactionFilters(
       context,
       current: list.state.filter,
-      budgets: context.read<BudgetListCubit>().state.data ?? const [],
-      authors: wallet.isShared ? list.state.knownAuthors : const {},
+      budgets: budgets,
+      authors: authors,
       today: Dates.userToday(context.read<SessionCubit>().state.profile?.timezone),
     );
     if (filter != null && !list.isClosed) unawaited(list.applyFilter(filter));
@@ -157,7 +190,7 @@ class _WalletDetailView extends StatelessWidget {
       case _MenuAction.delete:
         unawaited(_delete(context, wallet));
       case _MenuAction.members:
-        showAppSnackBar(context, 'Muy pronto podrás compartir esta billetera.');
+        unawaited(_openMembers(context, wallet));
     }
   }
 
@@ -232,6 +265,7 @@ class _WalletDetailView extends StatelessWidget {
                       wallet: wallet,
                       onEditFilters: () => _editFilters(context, wallet),
                       onOpenScheduled: () => _openScheduled(context, wallet),
+                      onOpenMembers: () => _openMembers(context, wallet),
                       onOpenTransaction: (transaction) => _openTransaction(
                         context,
                         AppRoutes.transaction(wallet.walletId, transaction.transactionId),
@@ -272,12 +306,14 @@ class _DetailBody extends StatelessWidget {
     required this.onOpenTransaction,
     required this.onEditFilters,
     required this.onOpenScheduled,
+    required this.onOpenMembers,
   });
 
   final Wallet wallet;
   final ValueChanged<Transaction> onOpenTransaction;
   final VoidCallback onEditFilters;
   final VoidCallback onOpenScheduled;
+  final VoidCallback onOpenMembers;
   final VoidCallback onCreateBudget;
   final ValueChanged<Budget> onOpenBudget;
 
@@ -316,6 +352,8 @@ class _DetailBody extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.lg),
               _ScheduledEntry(onTap: onOpenScheduled),
+              const SizedBox(height: AppSpacing.md),
+              _MembersEntry(wallet: wallet, onTap: onOpenMembers),
             ],
           ),
         ),
@@ -365,6 +403,48 @@ class _ScheduledEntry extends StatelessWidget {
                     'Ingresos y gastos futuros que se registran solos',
                     style: AppTypography.caption.copyWith(color: context.palette.muted),
                   ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Way into the wallet's family (HU-21…HU-24 · COU-92): who shares it.
+class _MembersEntry extends StatelessWidget {
+  const _MembersEntry({required this.wallet, required this.onTap});
+
+  final Wallet wallet;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = wallet.memberCount;
+    final people = count == 1 ? '1 miembro' : '$count miembros';
+    final subtitle = wallet.isOwner
+        ? (count > 0 ? 'Compartida con $people' : 'Compártela con tu familia por nombre de usuario')
+        : 'De ${wallet.ownerName ?? 'otro usuario'} · $people';
+    return AppCard(
+      key: const ValueKey('wallet-members'),
+      outlined: true,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: AppSpacing.md),
+      onTap: onTap,
+      semanticLabel: 'Familia: $subtitle',
+      child: ExcludeSemantics(
+        child: Row(
+          spacing: AppSpacing.md,
+          children: [
+            const IconTile(Icons.group_outlined),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Familia', style: AppTypography.label),
+                  Text(subtitle, style: AppTypography.caption.copyWith(color: context.palette.muted)),
                 ],
               ),
             ),

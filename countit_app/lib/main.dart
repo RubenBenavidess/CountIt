@@ -11,10 +11,12 @@ import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'data/remote/api_client.dart';
 import 'data/remote/install_id.dart';
+import 'data/remote/realtime_watcher.dart';
 import 'data/remote/supabase_setup.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/bank_repository.dart';
 import 'data/repositories/budget_repository.dart';
+import 'data/repositories/family_repository.dart';
 import 'data/repositories/profile_repository.dart';
 import 'data/repositories/scheduled_transaction_repository.dart';
 import 'data/repositories/transaction_repository.dart';
@@ -39,6 +41,7 @@ Future<void> main() async {
   final BudgetRepository budgets = SupabaseBudgetRepository(api);
   final TransactionRepository transactions = SupabaseTransactionRepository(api);
   final ScheduledTransactionRepository scheduled = SupabaseScheduledTransactionRepository(api);
+  final FamilyRepository families = SupabaseFamilyRepository(api, SupabaseRealtimeWatcher(client));
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
@@ -65,6 +68,7 @@ Future<void> main() async {
         RepositoryProvider.value(value: budgets),
         RepositoryProvider.value(value: transactions),
         RepositoryProvider.value(value: scheduled),
+        RepositoryProvider.value(value: families),
       ],
       child: BlocProvider.value(
         value: session,

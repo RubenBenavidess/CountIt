@@ -25,7 +25,10 @@ class WalletCard extends StatelessWidget {
       wallet.name,
       wallet.bankName ?? 'Sin banco',
       wallet.type.displayLabel,
-      if (wallet.isShared) wallet.memberCount > 0 ? 'compartida con ${wallet.memberCount} miembros' : 'compartida',
+      if (!wallet.isOwner)
+        'compartida contigo por ${wallet.ownerName ?? 'otro usuario'}'
+      else if (wallet.memberCount > 0)
+        wallet.memberCount == 1 ? 'compartida con 1 miembro' : 'compartida con ${wallet.memberCount} miembros',
       'saldo ${Money.format(wallet.balance)}',
       if (wallet.projectedBalance != null)
         'saldo proyectado a fin de mes ${Money.format(wallet.projectedBalance!)}'
