@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the launcher icons (COU-55) from a vector redraw of the logo.
+"""Generates the launcher icons (COU-55) and splash logos (COU-56) from a vector redraw of the logo.
 
 The original logo (logocountit.webp) is 101x131 px, too small to scale up to a
 432 px adaptive foreground or a 1024 px App Store icon. This script redraws it
@@ -13,6 +13,8 @@ Outputs (overwritten):
   android/app/src/main/res/mipmap-*/ic_launcher{,_foreground,_monochrome}.png
   android/app/src/{local,staging}/res/mipmap-*/ic_launcher{,_foreground}.png
   ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png (opaque)
+  android/app/src/main/res/drawable-*/splash_icon.png
+  ios/Runner/Assets.xcassets/LaunchImage.imageset/*.png
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ ROOT = Path(__file__).resolve().parent.parent
 FONT = str(ROOT / "assets/fonts/Manrope-{}.ttf")
 RES = ROOT / "android/app/src"
 IOS_ICONS = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset"
+IOS_LAUNCH = ROOT / "ios/Runner/Assets.xcassets/LaunchImage.imageset"
+SPLASH_LOGO_WIDTH = 120  # dp / pt
 
 BACKGROUND = (0x0D, 0x1B, 0x2A, 255)
 LETTER_C = (0xF8, 0xF8, 0xF8, 255)
@@ -128,9 +132,25 @@ def ios() -> None:
         flat.save(IOS_ICONS / entry["filename"], optimize=True)
 
 
+def splash() -> None:
+    logo = logo_master()
+    for density, factor in DENSITIES.items():
+        out = RES / "main/res" / f"drawable-{density}"
+        out.mkdir(parents=True, exist_ok=True)
+        # Android 12+ splash icon without icon background: 288dp canvas, art
+        # inside the 192dp mask circle. Pre-12 launch_background centres the
+        # same bitmap, so both splashes look identical.
+        place(logo, round(288 * factor), SPLASH_LOGO_WIDTH * factor).save(out / "splash_icon.png", optimize=True)
+    w = SPLASH_LOGO_WIDTH
+    h = round(w * logo.height / logo.width)
+    for scale, name in ((1, "LaunchImage.png"), (2, "LaunchImage@2x.png"), (3, "LaunchImage@3x.png")):
+        logo.resize((w * scale, h * scale), Image.LANCZOS).save(IOS_LAUNCH / name, optimize=True)
+
+
 if __name__ == "__main__":
     android("main", None)
     android("local", "L")
     android("staging", "S")
     ios()
-    print("Icons generated.")
+    splash()
+    print("Icons and splash logos generated.")
