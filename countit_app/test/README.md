@@ -11,10 +11,10 @@
 | Integración en dispositivo (más adelante, Q3 · COU-120) | `integration_test/` | `integration_test` |
 
 ## Utilidades (`test/helpers`)
-- `pumpApp(widget, {auth, profiles, session, router, config, themeMode})`: monta el widget con el tema del diseño, locale
+- `pumpApp(widget, {auth, profiles, wallets, banks, session, router, config, themeMode})`: monta el widget con el tema del diseño, locale
   es-EC y los `RepositoryProvider`/`BlocProvider` de la raíz. Por defecto usa mocks; pasa los tuyos para controlar
   respuestas. Con `router` monta la app completa para probar navegación.
-- `mocks.dart`: `MockAuthRepository`, `MockProfileRepository`, `MockApiClient`, `MockSecureStorage` (mocktail).
+- `mocks.dart`: `MockAuthRepository`, `MockProfileRepository`, `MockWalletRepository`, `MockBankRepository`, `MockApiClient`, `MockSecureStorage` (mocktail).
 
 ## Convenciones
 - Nombres de test en inglés, describiendo el comportamiento: `'reauth cancelled: nothing is retried'`.

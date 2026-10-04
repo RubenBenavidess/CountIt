@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/dtos/wallet.dart';
 import '../../presentation/account/view/change_password_page.dart';
 import '../../presentation/account/view/delete_account_page.dart';
 import '../../presentation/admin/view/admin_page.dart';
@@ -16,7 +17,10 @@ import '../../presentation/auth/view/welcome_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
+import '../../presentation/shell/view/app_shell.dart';
 import '../../presentation/splash/view/splash_page.dart';
+import '../../presentation/wallets/view/wallet_detail_page.dart';
+import '../../presentation/wallets/view/wallet_form_page.dart';
 import '../config/app_config.dart';
 import '../links/auth_links.dart';
 import '../session/session_cubit.dart';
@@ -31,12 +35,18 @@ abstract final class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const emailConfirmed = '/email-confirmed';
   static const resetPassword = '/reset-password';
-  static const home = '/';
+  static const root = '/';
+  static const home = '/home';
+  static const wallets = '/wallets';
+  static const newWallet = '/wallets/new';
   static const admin = '/admin';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
   static const deleteAccount = '/profile/delete';
+
+  static String wallet(int walletId) => '$wallets/$walletId';
+  static String editWallet(int walletId) => '$wallets/$walletId/edit';
 
   /// Reachable without a session.
   static const public = {welcome, login, register, checkEmail, forgotPassword, emailConfirmed};
@@ -59,7 +69,10 @@ String? redirectFor(SessionState session, String location) {
       // a fresh start shows the welcome screen.
       return session.message != null ? AppRoutes.login : AppRoutes.welcome;
     case SessionStatus.authenticated:
-      if (location == AppRoutes.splash || location == AppRoutes.resetPassword || AppRoutes.public.contains(location)) {
+      if (location == AppRoutes.root ||
+          location == AppRoutes.splash ||
+          location == AppRoutes.resetPassword ||
+          AppRoutes.public.contains(location)) {
         return AppRoutes.home;
       }
       if (location.startsWith(AppRoutes.admin) && !(session.profile?.role.canAdminister ?? false)) {
@@ -69,7 +82,11 @@ String? redirectFor(SessionState session, String location) {
   }
 }
 
+/// `/wallets/<id>` → id; null for a malformed path (the router sends it home).
+int? _walletId(GoRouterState state) => int.tryParse(state.pathParameters['id'] ?? '');
+
 GoRouter buildRouter({required SessionCubit session, required AppConfig config}) => GoRouter(
+  navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'root'),
   initialLocation: AppRoutes.splash,
   refreshListenable: _StreamListenable(session.stream),
   redirect: (context, state) => redirectFor(session.state, state.matchedLocation),
@@ -96,15 +113,38 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
           EmailConfirmedPage(expired: state.uri.queryParameters.containsKey(AppRoutes.expired)),
     ),
     GoRoute(path: AppRoutes.resetPassword, builder: (context, state) => const ResetPasswordPage()),
-    GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage()),
+    GoRoute(path: AppRoutes.root, redirect: (context, state) => AppRoutes.home),
+    // Tabs of the signed-in shell (COU-168); screens pushed from them cover
+    // the bottom bar (root navigator).
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, shell) => AppShell(shell: shell),
+      branches: [
+        StatefulShellBranch(
+          routes: [GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage())],
+        ),
+        StatefulShellBranch(
+          routes: [GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfilePage())],
+        ),
+      ],
+    ),
+    GoRoute(path: AppRoutes.editProfile, builder: (context, state) => const EditProfilePage()),
+    GoRoute(path: AppRoutes.changePassword, builder: (context, state) => const ChangePasswordPage()),
+    GoRoute(path: AppRoutes.deleteAccount, builder: (context, state) => const DeleteAccountPage()),
     GoRoute(path: AppRoutes.admin, builder: (context, state) => const AdminPage()),
+    GoRoute(path: AppRoutes.newWallet, builder: (context, state) => const WalletFormPage()),
     GoRoute(
-      path: AppRoutes.profile,
-      builder: (context, state) => const ProfilePage(),
+      path: '${AppRoutes.wallets}/:id',
+      redirect: (context, state) => _walletId(state) == null ? AppRoutes.home : null,
+      builder: (context, state) =>
+          WalletDetailPage(walletId: _walletId(state)!, initial: state.extra is Wallet ? state.extra! as Wallet : null),
       routes: [
-        GoRoute(path: 'edit', builder: (context, state) => const EditProfilePage()),
-        GoRoute(path: 'password', builder: (context, state) => const ChangePasswordPage()),
-        GoRoute(path: 'delete', builder: (context, state) => const DeleteAccountPage()),
+        GoRoute(
+          path: 'edit',
+          // The form edits the wallet the detail screen loaded; without it
+          // (deep link, restored route) the detail loads it first.
+          redirect: (context, state) => state.extra is Wallet ? null : AppRoutes.wallet(_walletId(state) ?? 0),
+          builder: (context, state) => WalletFormPage(initial: state.extra! as Wallet),
+        ),
       ],
     ),
   ],
