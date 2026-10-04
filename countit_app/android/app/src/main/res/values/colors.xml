@@ -2,4 +2,5 @@
 <resources>
     <!-- Brand background (lib/app/theme/tokens.dart). -->
     <color name="ic_launcher_background">#0D1B2A</color>
+    <color name="splash_background">#0D1B2A</color>
 </resources>
