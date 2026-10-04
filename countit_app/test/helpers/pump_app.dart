@@ -1,0 +1,58 @@
+import 'package:countit_app/app/app.dart';
+import 'package:countit_app/app/session/session_cubit.dart';
+import 'package:countit_app/app/theme/app_theme.dart';
+import 'package:countit_app/data/repositories/auth_repository.dart';
+import 'package:countit_app/data/repositories/profile_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mocktail/mocktail.dart';
+
+import 'mocks.dart';
+
+extension PumpApp on WidgetTester {
+  /// Pumps [widget] the way the app runs it: dark theme of the design,
+  /// es-EC locale and the root providers, each replaceable by a fake.
+  ///
+  /// Pass [router] to test navigation; otherwise [widget] is the home.
+  Future<void> pumpApp(
+    Widget widget, {
+    AuthRepository? auth,
+    ProfileRepository? profiles,
+    SessionCubit? session,
+    GoRouter? router,
+    ThemeMode themeMode = ThemeMode.dark,
+  }) async {
+    final authRepository = auth ?? MockAuthRepository();
+    final profileRepository = profiles ?? MockProfileRepository();
+    if (auth == null) {
+      when(() => (authRepository as MockAuthRepository).sessionChanges).thenAnswer((_) => const Stream.empty());
+    }
+    final sessionCubit = session ?? SessionCubit(auth: authRepository, profiles: profileRepository);
+
+    final app = router == null
+        ? MaterialApp(
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeMode,
+            locale: CountItApp.locale,
+            supportedLocales: const [CountItApp.locale],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: Scaffold(body: widget),
+          )
+        : CountItApp(router: router);
+
+    await pumpWidget(
+      MultiRepositoryProvider(
+        providers: [
+          RepositoryProvider<AuthRepository>.value(value: authRepository),
+          RepositoryProvider<ProfileRepository>.value(value: profileRepository),
+        ],
+        child: BlocProvider<SessionCubit>.value(value: sessionCubit, child: app),
+      ),
+    );
+    await pump();
+  }
+}

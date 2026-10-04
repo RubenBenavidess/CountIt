@@ -5,6 +5,8 @@ import '../../../app/errors/app_failure.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/wordmark.dart';
 
 /// Minimal working login to exercise the session flow end to end.
@@ -58,31 +60,21 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: AppSpacing.xxl),
             Text('Inicia sesión', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.xl),
-            TextField(
+            AppTextField(
+              label: 'Correo electrónico',
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(labelText: 'Correo electrónico'),
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: AppSpacing.lg),
-            TextField(
-              controller: _password,
-              obscureText: true,
-              autofillHints: const [AutofillHints.password],
-              decoration: const InputDecoration(labelText: 'Contraseña'),
-              onSubmitted: (_) => _submit(),
-            ),
+            AppPasswordField(controller: _password, onSubmitted: (_) => _submit()),
             if (message != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(message, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: AppSpacing.xl),
-            FilledButton(
-              onPressed: _busy ? null : _submit,
-              child: _busy
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Ingresar'),
-            ),
+            AppButton(label: 'Ingresar', loading: _busy, onPressed: _submit),
           ],
         ),
       ),
