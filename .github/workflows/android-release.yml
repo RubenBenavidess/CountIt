@@ -1,0 +1,130 @@
+name: Android release
+
+# Signed, obfuscated release bundle (COU-135). Runs on version tags, on main and
+# on demand; without the signing secrets the build is skipped with a warning,
+# so forks and unconfigured repositories stay green. See countit_app/README.md (Release).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: Flavor to build
+        type: choice
+        options: [prod, staging]
+        default: prod
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: countit_app
+
+jobs:
+  appbundle:
+    name: Release appbundle (${{ inputs.flavor || 'prod' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FLAVOR: ${{ inputs.flavor || 'prod' }}
+    steps:
+      - name: Check signing secrets and app config
+        id: check
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Public values only (Supabase URL and anon key): repository variables.
+          APP_ENV_STAGING_JSON: ${{ vars.APP_ENV_STAGING_JSON }}
+          APP_ENV_PROD_JSON: ${{ vars.APP_ENV_PROD_JSON }}
+        working-directory: .
+        run: |
+          env_var="APP_ENV_${FLAVOR^^}_JSON"
+          APP_ENV_JSON="${!env_var}"
+          missing=()
+          [[ -n "$KEYSTORE" ]] || missing+=(ANDROID_KEYSTORE_BASE64)
+          [[ -n "$STORE_PASSWORD" ]] || missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [[ -n "$KEY_ALIAS" ]] || missing+=(ANDROID_KEY_ALIAS)
+          [[ -n "$KEY_PASSWORD" ]] || missing+=(ANDROID_KEY_PASSWORD)
+          [[ -n "$APP_ENV_JSON" ]] || missing+=("variable $env_var")
+          if (( ${#missing[@]} )); then
+            echo "::warning title=Release build skipped::Missing ${missing[*]} (see countit_app/README.md (Release))"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: steps.check.outputs.ready == 'true'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - if: steps.check.outputs.ready == 'true'
+        run: flutter pub get --enforce-lockfile
+
+      - name: Write keystore, key.properties and env file
+        if: steps.check.outputs.ready == 'true'
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APP_ENV_STAGING_JSON: ${{ vars.APP_ENV_STAGING_JSON }}
+          APP_ENV_PROD_JSON: ${{ vars.APP_ENV_PROD_JSON }}
+        run: |
+          umask 077
+          env_var="APP_ENV_${FLAVOR^^}_JSON"
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+          printf '%s' "${!env_var}" > "env/${FLAVOR}.json"
+
+      - name: Build appbundle (obfuscated, split debug info, R8)
+        if: steps.check.outputs.ready == 'true'
+        run: scripts/build_release.sh "$FLAVOR" appbundle
+
+      - name: Remove signing material
+        if: always() && steps.check.outputs.ready == 'true'
+        run: rm -f android/key.properties "$RUNNER_TEMP/upload.jks" "env/${FLAVOR}.json"
+
+      - name: Upload appbundle
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: appbundle-${{ env.FLAVOR }}
+          path: countit_app/build/app/outputs/bundle/${{ env.FLAVOR }}Release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+      # Dart symbols (flutter symbolize) and the R8 mapping (Play Console): keep
+      # them with each published version; they never go inside the app.
+      - name: Upload symbols and R8 mapping
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: symbols-${{ env.FLAVOR }}
+          path: |
+            countit_app/build/symbols/
+            countit_app/build/app/outputs/mapping/${{ env.FLAVOR }}Release/mapping.txt
+          if-no-files-found: error
+          retention-days: 90
