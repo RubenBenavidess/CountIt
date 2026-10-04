@@ -18,6 +18,7 @@ import '../../presentation/auth/view/reset_password_page.dart';
 import '../../presentation/auth/view/welcome_page.dart';
 import '../../presentation/budgets/view/budget_form_page.dart';
 import '../../presentation/families/view/family_members_page.dart';
+import '../../presentation/families/view/invitations_page.dart';
 import '../../presentation/families/view/invite_member_page.dart';
 import '../../presentation/home/view/home_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
@@ -53,6 +54,7 @@ abstract final class AppRoutes {
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
   static const deleteAccount = '/profile/delete';
+  static const invitations = '/invitations';
 
   static String wallet(int walletId) => '$wallets/$walletId';
   static String editWallet(int walletId) => '$wallets/$walletId/edit';
@@ -151,6 +153,7 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
     GoRoute(path: AppRoutes.changePassword, builder: (context, state) => const ChangePasswordPage()),
     GoRoute(path: AppRoutes.deleteAccount, builder: (context, state) => const DeleteAccountPage()),
     GoRoute(path: AppRoutes.admin, builder: (context, state) => const AdminPage()),
+    GoRoute(path: AppRoutes.invitations, builder: (context, state) => const InvitationsPage()),
     GoRoute(path: AppRoutes.newWallet, builder: (context, state) => const WalletFormPage()),
     GoRoute(
       path: '${AppRoutes.wallets}/:id',
