@@ -16,6 +16,7 @@ class AdminUser extends Equatable {
     required this.role,
     this.firstName,
     this.lastName,
+    this.planId,
     this.planName,
     this.planValidUntil,
     this.createdAt,
@@ -28,6 +29,7 @@ class AdminUser extends Equatable {
     firstName: json['first_name'] as String?,
     lastName: json['last_name'] as String?,
     role: UserRole.parse(json['role'] as String?),
+    planId: (json['plan_id'] as num?)?.toInt(),
     planName: json['plan'] as String?,
     planValidUntil: _day(json['plan_valid_until']),
     createdAt: parseTimestamp(json['created_at']),
@@ -46,7 +48,8 @@ class AdminUser extends Equatable {
   final String? lastName;
   final UserRole role;
 
-  /// Name of the active plan; null when the user has none.
+  /// Id and name of the active plan; null when the user has none.
+  final int? planId;
   final String? planName;
   final DateTime? planValidUntil;
   final DateTime? createdAt;
@@ -56,20 +59,32 @@ class AdminUser extends Equatable {
     return full.isEmpty ? '@$username' : full;
   }
 
-  AdminUser copyWith({UserRole? role, String? planName, DateTime? planValidUntil}) => AdminUser(
+  AdminUser copyWith({UserRole? role, int? planId, String? planName, DateTime? planValidUntil}) => AdminUser(
     userId: userId,
     username: username,
     email: email,
     firstName: firstName,
     lastName: lastName,
     role: role ?? this.role,
+    planId: planId ?? this.planId,
     planName: planName ?? this.planName,
     planValidUntil: planValidUntil ?? this.planValidUntil,
     createdAt: createdAt,
   );
 
   @override
-  List<Object?> get props => [userId, username, email, firstName, lastName, role, planName, planValidUntil, createdAt];
+  List<Object?> get props => [
+    userId,
+    username,
+    email,
+    firstName,
+    lastName,
+    role,
+    planId,
+    planName,
+    planValidUntil,
+    createdAt,
+  ];
 }
 
 /// Result of `api.admin_set_user_plan`: the new plan and what the downgrade

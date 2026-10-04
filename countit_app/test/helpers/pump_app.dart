@@ -14,6 +14,7 @@ import 'package:countit_app/data/repositories/bank_repository.dart';
 import 'package:countit_app/data/repositories/budget_repository.dart';
 import 'package:countit_app/data/repositories/family_repository.dart';
 import 'package:countit_app/data/repositories/notification_repository.dart';
+import 'package:countit_app/data/repositories/plan_repository.dart';
 import 'package:countit_app/data/repositories/profile_repository.dart';
 import 'package:countit_app/data/repositories/scheduled_transaction_repository.dart';
 import 'package:countit_app/data/repositories/transaction_repository.dart';
@@ -29,6 +30,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'mocks.dart';
+import 'plan_fixtures.dart';
 
 /// Local config without captcha (the Turnstile webview cannot run in widget tests).
 const testConfig = AppConfig(
@@ -54,6 +56,7 @@ extension PumpApp on WidgetTester {
     FamilyRepository? families,
     AnalysisRepository? analysis,
     AdminRepository? admin,
+    PlanRepository? plans,
     SessionCubit? session,
     InvitationsCubit? invitations,
     NotificationRepository? notifications,
@@ -114,6 +117,7 @@ extension PumpApp on WidgetTester {
           ),
           RepositoryProvider<AnalysisRepository>.value(value: analysis ?? MockAnalysisRepository()),
           RepositoryProvider<AdminRepository>.value(value: admin ?? MockAdminRepository()),
+          RepositoryProvider<PlanRepository>.value(value: plans ?? FakePlanRepository()),
         ],
         child: MultiBlocProvider(
           providers: [

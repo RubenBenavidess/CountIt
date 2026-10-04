@@ -1,6 +1,9 @@
 import 'package:countit_app/data/dtos/admin.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 
+/// Plan ids of the backend seed, by name.
+int? _planId(String? plan) => const {'Regular': 1, 'Contador': 2, 'Contador Profesional': 3}[plan];
+
 /// A row of `admin_list_users` as the API sends it.
 Map<String, dynamic> adminUserJson({
   String id = 'u-carlos',
@@ -15,6 +18,7 @@ Map<String, dynamic> adminUserJson({
   'first_name': 'Carlos',
   'last_name': 'Pérez',
   'role': role,
+  'plan_id': _planId(plan),
   'plan': plan,
   'plan_valid_until': validUntil,
   'created_at': '2026-10-02T15:00:00Z',
@@ -33,6 +37,7 @@ AdminUser adminUser({
   firstName: 'Carlos',
   lastName: 'Pérez',
   role: role,
+  planId: _planId(plan),
   planName: plan,
   planValidUntil: validUntil ?? DateTime(2028, 10, 4),
   createdAt: DateTime.utc(2026, 10, 2, 15),

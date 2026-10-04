@@ -25,6 +25,7 @@ import 'data/repositories/bank_repository.dart';
 import 'data/repositories/budget_repository.dart';
 import 'data/repositories/family_repository.dart';
 import 'data/repositories/notification_repository.dart';
+import 'data/repositories/plan_repository.dart';
 import 'data/repositories/profile_repository.dart';
 import 'data/repositories/push_device_repository.dart';
 import 'data/repositories/scheduled_transaction_repository.dart';
@@ -55,6 +56,7 @@ Future<void> main() async {
   final ScheduledTransactionRepository scheduled = SupabaseScheduledTransactionRepository(api);
   final AnalysisRepository analysis = SupabaseAnalysisRepository(api);
   final AdminRepository admin = SupabaseAdminRepository(api);
+  final PlanRepository plans = SupabasePlanRepository(api);
   final realtime = SupabaseRealtimeWatcher(client);
   final FamilyRepository families = SupabaseFamilyRepository(api, realtime);
   final NotificationRepository notificationRepository = SupabaseNotificationRepository(api, realtime);
@@ -131,6 +133,7 @@ Future<void> main() async {
         RepositoryProvider.value(value: notificationPermission),
         RepositoryProvider.value(value: analysis),
         RepositoryProvider.value(value: admin),
+        RepositoryProvider.value(value: plans),
       ],
       child: MultiBlocProvider(
         providers: [
