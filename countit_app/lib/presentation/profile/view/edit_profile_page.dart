@@ -102,19 +102,6 @@ class _EditProfileViewState extends State<_EditProfileView> {
     }
   }
 
-  Future<void> _confirmLeave() async {
-    final navigator = GoRouter.of(context);
-    final leave = await showConfirmDialog(
-      context,
-      title: '¿Descartar los cambios?',
-      message: 'Tienes cambios sin guardar.',
-      confirmLabel: 'Descartar',
-      cancelLabel: 'Seguir editando',
-      destructive: true,
-    );
-    if (leave) navigator.pop();
-  }
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -122,7 +109,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
       builder: (context, dirty, child) => PopScope(
         canPop: !dirty,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _confirmLeave();
+          if (!didPop) confirmDiscardChanges(context);
         },
         child: child!,
       ),

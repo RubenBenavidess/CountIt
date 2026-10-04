@@ -173,19 +173,6 @@ class _WalletFormViewState extends State<_WalletFormView> {
     await context.read<WalletFormCubit>().save(_input);
   }
 
-  Future<void> _confirmLeave() async {
-    final navigator = GoRouter.of(context);
-    final leave = await showConfirmDialog(
-      context,
-      title: '¿Descartar los cambios?',
-      message: 'Tienes cambios sin guardar.',
-      confirmLabel: 'Descartar',
-      cancelLabel: 'Seguir editando',
-      destructive: true,
-    );
-    if (leave) navigator.pop();
-  }
-
   void _onState(BuildContext context, SubmitState state) {
     switch (state.status) {
       case SubmitStatus.success:
@@ -198,7 +185,7 @@ class _WalletFormViewState extends State<_WalletFormView> {
         context.pop(true);
       case SubmitStatus.failure:
         final failure = state.failure!;
-        if (failure.key?.endsWith('_limit_exceeded') ?? false) {
+        if (failure.isQuota) {
           unawaited(showPlanUpsell(context, message: failure.message));
         } else if (failure.kind == FailureKind.notFound) {
           // Deleted (or no longer ours) while editing: nothing left to edit.
@@ -214,7 +201,7 @@ class _WalletFormViewState extends State<_WalletFormView> {
   static String? _bannerError(AppFailure? failure) {
     if (failure == null) return null;
     if (failure.key == 'wallet_name_taken' || failure.kind == FailureKind.notFound) return null;
-    if (failure.key?.endsWith('_limit_exceeded') ?? false) return null;
+    if (failure.isQuota) return null;
     return failure.message;
   }
 
@@ -224,7 +211,7 @@ class _WalletFormViewState extends State<_WalletFormView> {
     return PopScope(
       canPop: !dirty || _saved,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_confirmLeave());
+        if (!didPop) unawaited(confirmDiscardChanges(context));
       },
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar billetera' : 'Nueva billetera'),

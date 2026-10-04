@@ -1,8 +1,6 @@
 import '../../../data/dtos/budget.dart';
-import '../../../data/dtos/json_parsing.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../shared/state/submit_cubit.dart';
-import '../../../shared/utils/money.dart';
 import '../../../shared/utils/validators.dart';
 
 /// One form for creating and editing budgets (HU-11/HU-13 · COU-223..COU-225).
@@ -37,32 +35,13 @@ class BudgetFormCubit extends SubmitCubit {
 abstract final class BudgetValidators {
   static const nameMax = 50;
 
-  /// The API bound: `0 < amount < 1.000.000.000.000`.
-  static const maxLimitCents = 100000000000000;
+  static String? name(String? value) => Validators.name(value, max: nameMax);
 
-  static String? name(String? value) {
-    final required = Validators.required(value);
-    if (required != null) return required;
-    return value!.trim().length > nameMax ? 'Máximo de caracteres alcanzado ($nameMax) en el nombre' : null;
-  }
-
-  /// The limit as typed («1.234,5»): required, at most 2 decimals, within range.
-  static String? limit(String? value) {
-    final text = value?.trim() ?? '';
-    if (text.isEmpty) return Validators.requiredMessage;
-    final amount = Money.parse(text);
-    if (amount == null || Money.hasTooManyDecimals(amount)) {
-      return 'Ingresa un monto válido, con hasta 2 decimales';
-    }
-    final cents = Cents.fromAmount(amount);
-    return cents <= 0 || cents >= maxLimitCents ? 'El monto debe ser mayor que 0 y menor que 1.000.000.000.000' : null;
-  }
+  /// The limit as typed («1.234,5»): the API amount rules.
+  static String? limit(String? value) => Validators.amount(value);
 
   /// Cents of a valid [limit] text; null otherwise.
-  static int? limitCents(String text) {
-    if (limit(text) != null) return null;
-    return Cents.fromAmount(Money.parse(text.trim())!);
-  }
+  static int? limitCents(String text) => Validators.amountCents(text);
 
   /// Only budgets without renewal have (and need) an end date, never before the start.
   static String? endDate(BudgetPeriod period, DateTime start, DateTime? end) {

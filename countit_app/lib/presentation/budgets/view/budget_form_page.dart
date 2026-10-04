@@ -173,19 +173,6 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
     await context.read<BudgetFormCubit>().save(_input);
   }
 
-  Future<void> _confirmLeave() async {
-    final navigator = GoRouter.of(context);
-    final leave = await showConfirmDialog(
-      context,
-      title: '¿Descartar los cambios?',
-      message: 'Tienes cambios sin guardar.',
-      confirmLabel: 'Descartar',
-      cancelLabel: 'Seguir editando',
-      destructive: true,
-    );
-    if (leave) navigator.pop();
-  }
-
   void _onState(BuildContext context, SubmitState state) {
     switch (state.status) {
       case SubmitStatus.success:
@@ -198,7 +185,7 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
         context.pop(true);
       case SubmitStatus.failure:
         final failure = state.failure!;
-        if (_isQuota(failure)) {
+        if (failure.isQuota) {
           unawaited(showPlanUpsell(context, message: failure.message));
         } else if (failure.kind == FailureKind.notFound) {
           // The budget was deleted, or the wallet is gone or no longer shared.
@@ -247,11 +234,9 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
     }
   }
 
-  static bool _isQuota(AppFailure failure) => failure.key?.endsWith('_limit_exceeded') ?? false;
-
   /// Errors shown in the banner: everything not handled by a field or a navigation.
   static String? _bannerError(AppFailure? failure) {
-    if (failure == null || failure.kind == FailureKind.notFound || _isQuota(failure)) return null;
+    if (failure == null || failure.kind == FailureKind.notFound || failure.isQuota) return null;
     return _fieldKeys.contains(failure.key) ? null : failure.message;
   }
 
@@ -263,7 +248,7 @@ class _BudgetFormViewState extends State<_BudgetFormView> {
     return PopScope(
       canPop: !dirty || _saved,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_confirmLeave());
+        if (!didPop) unawaited(confirmDiscardChanges(context));
       },
       child: Scaffold(
         appBar: AppTopBar(title: _editing ? 'Editar presupuesto' : 'Nuevo presupuesto'),

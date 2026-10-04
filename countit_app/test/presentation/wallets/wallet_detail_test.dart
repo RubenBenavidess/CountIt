@@ -84,6 +84,21 @@ void main() {
               ),
             ),
             GoRoute(
+              path: 'transactions/new',
+              builder: (context, state) => Scaffold(
+                body: TextButton(onPressed: () => context.pop(true), child: const Text('NEW TRANSACTION')),
+              ),
+            ),
+            GoRoute(
+              path: 'transactions/:transactionId/edit',
+              builder: (context, state) => Scaffold(
+                body: TextButton(
+                  onPressed: () => context.pop(true),
+                  child: Text('EDIT TRANSACTION ${(state.extra! as Transaction).name}'),
+                ),
+              ),
+            ),
+            GoRoute(
               path: 'budgets/:budgetId/edit',
               builder: (context, state) => Scaffold(
                 body: TextButton(
@@ -195,6 +210,47 @@ void main() {
       await pumpDetail(tester, wallet);
       await tester.scrollUntilVisible(find.text('Taxi'), 300);
       expect(find.text('Taxi'), findsOneWidget);
+    });
+
+    testWidgets('«Movimiento» registers one; a save reloads the wallet, budgets and movements (COU-238)', (
+      tester,
+    ) async {
+      final wallet = walletFixture(id: 4);
+      when(() => wallets.getById(4)).thenAnswer((_) async => wallet);
+      await pumpDetail(tester, wallet);
+      await tester.tap(find.byKey(const ValueKey('transaction-new')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('NEW TRANSACTION'));
+      await tester.pumpAndSettle();
+      verify(() => wallets.getById(4)).called(2);
+      verify(() => budgets.listByWallet(4)).called(2);
+      verify(() => transactions.list(4)).called(2);
+    });
+
+    testWidgets('tapping a movement edits it when the caller may (owner); a member who is not the author cannot', (
+      tester,
+    ) async {
+      when(() => transactions.list(4))
+          .thenAnswer((_) async => TransactionPage([transactionFixture(name: 'Taxi', userId: 'someone-else')]));
+      final owned = walletFixture(id: 4);
+      when(() => wallets.getById(4)).thenAnswer((_) async => owned);
+      await pumpDetail(tester, owned);
+      await tester.scrollUntilVisible(find.text('Taxi'), 300);
+      await tester.tap(find.text('Taxi'));
+      await tester.pumpAndSettle();
+      expect(find.text('EDIT TRANSACTION Taxi'), findsOneWidget);
+    });
+
+    testWidgets('a member cannot open someone else\'s movement', (tester) async {
+      when(() => transactions.list(4))
+          .thenAnswer((_) async => TransactionPage([transactionFixture(name: 'Taxi', userId: 'someone-else')]));
+      final shared = walletFixture(id: 4, isOwner: false, memberCount: 1);
+      when(() => wallets.getById(4)).thenAnswer((_) async => shared);
+      await pumpDetail(tester, shared);
+      await tester.scrollUntilVisible(find.text('Taxi'), 300);
+      await tester.tap(find.text('Taxi'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('EDIT TRANSACTION'), findsNothing);
     });
 
     testWidgets('projection row only with the plan feature', (tester) async {
