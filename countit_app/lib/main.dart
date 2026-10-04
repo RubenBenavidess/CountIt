@@ -14,6 +14,7 @@ import 'data/remote/install_id.dart';
 import 'data/remote/supabase_setup.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/bank_repository.dart';
+import 'data/repositories/budget_repository.dart';
 import 'data/repositories/profile_repository.dart';
 import 'data/repositories/wallet_repository.dart';
 import 'shared/utils/dates.dart';
@@ -33,6 +34,7 @@ Future<void> main() async {
   final ProfileRepository profiles = SupabaseProfileRepository(api);
   final WalletRepository wallets = SupabaseWalletRepository(api);
   final BankRepository banks = SupabaseBankRepository(api);
+  final BudgetRepository budgets = SupabaseBudgetRepository(api);
 
   final session = SessionCubit(auth: auth, profiles: profiles);
   api.onSessionEnded = (failure) => unawaited(session.sessionEnded(failure));
@@ -56,6 +58,7 @@ Future<void> main() async {
         RepositoryProvider.value(value: profiles),
         RepositoryProvider.value(value: wallets),
         RepositoryProvider.value(value: banks),
+        RepositoryProvider.value(value: budgets),
       ],
       child: BlocProvider.value(
         value: session,

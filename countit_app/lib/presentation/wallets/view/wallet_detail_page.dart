@@ -8,6 +8,7 @@ import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/wallet.dart';
+import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../../shared/state/load_state.dart';
 import '../../../shared/utils/money.dart';
@@ -16,6 +17,8 @@ import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../account/view/reauth_sheet.dart';
+import '../../budgets/cubit/budget_list_cubit.dart';
+import '../../budgets/view/budget_section.dart';
 import '../cubit/wallet_detail_cubit.dart';
 import 'widgets/wallet_card.dart';
 import 'widgets/wallet_type_icon.dart';
@@ -30,9 +33,16 @@ class WalletDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) =>
-          WalletDetailCubit(context.read<WalletRepository>(), walletId: walletId, initial: initial)..load(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) =>
+              WalletDetailCubit(context.read<WalletRepository>(), walletId: walletId, initial: initial)..load(),
+        ),
+        BlocProvider(
+          create: (context) => BudgetListCubit(context.read<BudgetRepository>(), walletId: walletId)..load(),
+        ),
+      ],
       child: const _WalletDetailView(),
     );
   }
@@ -75,6 +85,10 @@ class _WalletDetailView extends StatelessWidget {
       onReauth: reauthPrompt(context, action: 'eliminar «${wallet.name}»', confirmLabel: 'Eliminar billetera'),
     );
   }
+
+  /// Pull-to-refresh reloads the wallet and its budgets together.
+  Future<void> _refresh(BuildContext context) =>
+      Future.wait([context.read<WalletDetailCubit>().load(), context.read<BudgetListCubit>().load()]);
 
   void _onMenu(BuildContext context, Wallet wallet, _MenuAction action) {
     switch (action) {
@@ -139,7 +153,7 @@ class _WalletDetailView extends StatelessWidget {
                     ? ErrorView.failure(state.wallet.failure!, onRetry: context.read<WalletDetailCubit>().load)
                     : const LoadingView())
               : RefreshIndicator(
-                  onRefresh: context.read<WalletDetailCubit>().load,
+                  onRefresh: () => _refresh(context),
                   child: _DetailBody(
                     wallet: wallet,
                     deleting: state.deleting,
@@ -165,57 +179,68 @@ class _DetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final muted = context.palette.muted;
     final description = wallet.description?.trim();
-    return ListView(
+    const padding = EdgeInsets.symmetric(horizontal: AppSpacing.screen);
+    return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xxl),
-      children: [
-        WalletCard(wallet: wallet),
-        const SizedBox(height: AppSpacing.lg),
-        _Figures(wallet: wallet),
-        if ((description?.isNotEmpty ?? false) || !wallet.isOwner) ...[
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: AppSpacing.xs,
-              children: [
-                if (!wallet.isOwner)
-                  Text('Compartida contigo por ${wallet.ownerName ?? 'otro usuario'}', style: AppTypography.label),
-                if (description?.isNotEmpty ?? false)
-                  Text(description!, style: AppTypography.body.copyWith(color: muted)),
+      slivers: [
+        SliverPadding(
+          padding: padding.copyWith(top: AppSpacing.sm, bottom: AppSpacing.xxl),
+          sliver: SliverList.list(
+            children: [
+              WalletCard(wallet: wallet),
+              const SizedBox(height: AppSpacing.lg),
+              _Figures(wallet: wallet),
+              if ((description?.isNotEmpty ?? false) || !wallet.isOwner) ...[
+                const SizedBox(height: AppSpacing.lg),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: AppSpacing.xs,
+                    children: [
+                      if (!wallet.isOwner)
+                        Text(
+                          'Compartida contigo por ${wallet.ownerName ?? 'otro usuario'}',
+                          style: AppTypography.label,
+                        ),
+                      if (description?.isNotEmpty ?? false)
+                        Text(description!, style: AppTypography.body.copyWith(color: muted)),
+                    ],
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
-        ],
-        const SizedBox(height: AppSpacing.xxl),
-        const _UpcomingSection(
-          icon: Icons.pie_chart_outline_rounded,
-          title: 'Presupuestos',
-          message: 'Aquí verás los presupuestos de esta billetera.',
         ),
-        const SizedBox(height: AppSpacing.lg),
-        const _UpcomingSection(
-          icon: Icons.receipt_long_outlined,
-          title: 'Movimientos',
-          message: 'Aquí verás los ingresos y gastos de esta billetera.',
+        const SliverPadding(padding: padding, sliver: BudgetSection()),
+        SliverPadding(
+          padding: padding.copyWith(top: AppSpacing.xxl, bottom: AppSpacing.xxl),
+          sliver: SliverList.list(
+            children: [
+              const _UpcomingSection(
+                icon: Icons.receipt_long_outlined,
+                title: 'Movimientos',
+                message: 'Aquí verás los ingresos y gastos de esta billetera.',
+              ),
+              if (wallet.isOwner) ...[
+                const SizedBox(height: AppSpacing.xxl),
+                AppButton(
+                  label: 'Editar billetera',
+                  icon: Icons.edit_outlined,
+                  variant: AppButtonVariant.ghost,
+                  onPressed: deleting ? null : onEdit,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppButton(
+                  label: 'Eliminar billetera',
+                  icon: Icons.delete_outline_rounded,
+                  variant: AppButtonVariant.danger,
+                  loading: deleting,
+                  onPressed: onDelete,
+                ),
+              ],
+            ],
+          ),
         ),
-        if (wallet.isOwner) ...[
-          const SizedBox(height: AppSpacing.xxl),
-          AppButton(
-            label: 'Editar billetera',
-            icon: Icons.edit_outlined,
-            variant: AppButtonVariant.ghost,
-            onPressed: deleting ? null : onEdit,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: 'Eliminar billetera',
-            icon: Icons.delete_outline_rounded,
-            variant: AppButtonVariant.danger,
-            loading: deleting,
-            onPressed: onDelete,
-          ),
-        ],
       ],
     );
   }
@@ -265,7 +290,7 @@ class _Figures extends StatelessWidget {
   }
 }
 
-/// Space reserved for budgets and movements (F04/F05).
+/// Space reserved for the movements (F05).
 class _UpcomingSection extends StatelessWidget {
   const _UpcomingSection({required this.icon, required this.title, required this.message});
 

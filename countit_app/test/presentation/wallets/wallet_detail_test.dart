@@ -30,12 +30,15 @@ const _network = AppFailure(kind: FailureKind.network, message: 'No hay conexió
 void main() {
   late MockWalletRepository wallets;
   late MockAuthRepository auth;
+  late MockBudgetRepository budgets;
 
   setUpAll(Dates.init);
 
   setUp(() {
     wallets = MockWalletRepository();
     auth = MockAuthRepository();
+    budgets = MockBudgetRepository();
+    when(() => budgets.listByWallet(any())).thenAnswer((_) async => const []);
     when(() => auth.sessionChanges).thenAnswer((_) => const Stream.empty());
   });
 
@@ -69,7 +72,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpApp(const SizedBox(), auth: auth, wallets: wallets, router: router);
+    await tester.pumpApp(const SizedBox(), auth: auth, wallets: wallets, budgets: budgets, router: router);
     await tester.tap(find.text('HOME'));
     await tester.pumpAndSettle();
   }
