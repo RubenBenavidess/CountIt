@@ -4,7 +4,7 @@ import 'package:countit_app/app/session/session_cubit.dart';
 import 'package:countit_app/app/session/session_state.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/presentation/profile/cubit/profile_cubits.dart';
-import 'package:countit_app/presentation/profile/view/plan_highlights.dart';
+import 'package:countit_app/presentation/profile/view/plan_details.dart';
 import 'package:countit_app/presentation/profile/view/profile_page.dart';
 import 'package:countit_app/presentation/profile/view/timezone_picker.dart';
 import 'package:countit_app/shared/platform/file_sharer.dart';
@@ -68,17 +68,23 @@ void main() {
     when(() => auth.signOut()).thenAnswer((_) async {});
   });
 
-  test('plan highlights read like the design', () {
-    expect(planHighlights(_contador), [
-      '10 billeteras',
-      '14 presupuestos c/u',
-      '40 movimientos al día',
-      '10 programados',
-      '2 familias · 3 miembros',
-      'Estadísticas avanzadas',
+  test('plan quotas and features are structured for the plan card', () {
+    expect(planQuotas(_contador).map((q) => '${q.label}: ${q.value}'), [
+      'Billeteras: 10',
+      'Presupuestos por billetera: 14',
+      'Movimientos por día: 40',
+      'Programadas activas: 10',
+      'Billeteras compartidas: 2',
+      'Miembros por billetera: 3',
+    ]);
+    expect(planFeatures(_contador).map((f) => '${f.label}: ${f.included}'), [
+      'Billeteras compartidas: true',
+      'Estadísticas avanzadas: true',
+      'Proyección de saldo: false',
     ]);
     const pro = UserPlan(planId: 3, name: 'Contador Profesional', limits: {'max_wallets': 999, 'wallet_projection': 1});
-    expect(planHighlights(pro), ['Billeteras ilimitadas', 'Proyección de saldo']);
+    expect(planQuotas(pro).map((q) => '${q.label}: ${q.value}'), ['Billeteras: Ilimitadas']);
+    expect(planFeatures(pro).where((f) => f.included).map((f) => f.label), ['Proyección de saldo']);
   });
 
   test('the time-zone list starts with Guayaquil and only has IANA names', () {
@@ -193,8 +199,11 @@ void main() {
       expect(find.text('María Quishpe'), findsOneWidget);
       expect(find.text('@mariaq · America/Guayaquil'), findsOneWidget);
       expect(find.text('Contador'), findsOneWidget);
-      expect(find.text('40 movimientos al día'), findsOneWidget);
+      expect(find.text('Movimientos por día'), findsOneWidget);
+      expect(find.text('40'), findsOneWidget);
+      expect(find.text('Proyección de saldo'), findsOneWidget);
       for (final label in ['Datos personales', 'Cambiar contraseña', 'Exportar mis datos', 'Eliminar mi cuenta']) {
+        await tester.scrollUntilVisible(find.text(label), 200);
         expect(find.text(label), findsOneWidget, reason: label);
       }
       expect(find.text('Administración'), findsNothing);
@@ -202,13 +211,13 @@ void main() {
 
     testWidgets('administration only for admins', (tester) async {
       await pump(tester, _profile(role: UserRole.admin));
-      await tester.ensureVisible(find.text('Administración'));
+      await tester.scrollUntilVisible(find.text('Administración'), 200);
       expect(find.text('Administración'), findsOneWidget);
     });
 
     testWidgets('sign-out asks first, then clears the session', (tester) async {
       final session = await pump(tester, _profile());
-      await tester.ensureVisible(find.text('Cerrar sesión'));
+      await tester.scrollUntilVisible(find.text('Cerrar sesión'), 200);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cerrar sesión'));
       await tester.pumpAndSettle();
@@ -224,6 +233,9 @@ void main() {
     testWidgets('an export failure is reported', (tester) async {
       when(profiles.exportMyData).thenThrow(const AppFailure(kind: FailureKind.network, message: 'No hay conexión'));
       await pump(tester, _profile());
+      await tester.scrollUntilVisible(find.text('Exportar mis datos'), 200);
+      await tester.ensureVisible(find.text('Exportar mis datos'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Exportar mis datos'));
       await tester.pumpAndSettle();
       expect(find.text('No hay conexión'), findsOneWidget);
