@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 /// this class is only for display and user input.
 abstract final class Money {
   static final NumberFormat _style = NumberFormat('#,##0.00', 'es');
+  static final _noise = RegExp(r'[\s$]');
+  static final _amount = RegExp(r'^\d+(\.\d{0,2})?$');
 
   /// U+2212 MINUS SIGN, as in the design («− $212»).
   static const minus = '−';
@@ -31,7 +33,7 @@ abstract final class Money {
   /// the decimal mark (numeric keyboards may only offer «.»); otherwise it
   /// groups thousands.
   static double? parse(String input) {
-    var text = input.replaceAll(RegExp(r'[\s$]'), '');
+    var text = input.replaceAll(_noise, '');
     if (text.isEmpty) return null;
     final lastDot = text.lastIndexOf('.');
     final lastComma = text.lastIndexOf(',');
@@ -47,7 +49,7 @@ abstract final class Money {
       final isDecimal = text.indexOf(separator) == last && decimals <= 2;
       text = isDecimal ? text.replaceAll(separator, '.') : text.replaceAll(separator, '');
     }
-    if (!RegExp(r'^\d+(\.\d{0,2})?$').hasMatch(text)) return null;
+    if (!_amount.hasMatch(text)) return null;
     return double.parse(text);
   }
 

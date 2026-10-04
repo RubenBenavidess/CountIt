@@ -117,6 +117,44 @@ void main() {
     expect(ended, isEmpty);
   }, skip: skip);
 
+  test('profile update round trip and data export (COU-146, COU-148)', () async {
+    final before = await profiles.fetchMyProfile();
+    await profiles.updateMyProfile(
+      firstName: before.firstName ?? 'Demo',
+      lastName: before.lastName ?? 'Demo',
+      timezone: 'Europe/Madrid',
+    );
+    expect((await profiles.fetchMyProfile()).timezone, 'Europe/Madrid');
+    await profiles.updateMyProfile(
+      firstName: before.firstName ?? 'Demo',
+      lastName: before.lastName ?? 'Demo',
+      timezone: before.timezone,
+    );
+    await expectLater(
+      profiles.updateMyProfile(firstName: 'Demo', lastName: 'Demo', timezone: 'Mars/Olympus'),
+      throwsA(isA<AppFailure>().having((f) => f.key, 'key', 'invalid_timezone')),
+    );
+    final export = await profiles.exportMyData();
+    expect(export.keys, isNotEmpty);
+  }, skip: skip);
+
+  test('change password keeps this device signed in, then back (COU-142)', () async {
+    const temporary = 'Contrato2026Tmp';
+    expect(await auth.changePassword(currentPassword: _password, newPassword: temporary), isTrue);
+    expect((await profiles.fetchMyProfile()).email, _email, reason: 'the fresh session works');
+    expect(await auth.changePassword(currentPassword: temporary, newPassword: _password), isTrue);
+    expect(ended, isEmpty);
+  }, skip: skip);
+
+  test('delete-account with a wrong password deletes nothing (COU-150)', () async {
+    await expectLater(
+      auth.deleteAccount('Wrong2026x'),
+      throwsA(isA<AppFailure>().having((f) => f.kind, 'kind', FailureKind.invalidCredentials)),
+    );
+    expect(auth.hasSession, isTrue);
+    expect(ended, isEmpty);
+  }, skip: skip);
+
   test('a session closed from another device gets 401 session_revoked and the app is told (COU-57)', () async {
     // Device B signs in with its own session.
     final other = SupabaseClient(

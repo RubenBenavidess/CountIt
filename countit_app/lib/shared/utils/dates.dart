@@ -58,6 +58,9 @@ abstract final class Dates {
   /// «3 oct 2026, 21:05».
   static String dateTime(DateTime value) => '${date(value)}, ${DateFormat('HH:mm', locale).format(value)}';
 
+  /// «21:05».
+  static String time(DateTime value) => DateFormat('HH:mm', locale).format(value);
+
   /// «octubre 2026».
   static String month(DateTime day) => DateFormat('MMMM y', locale).format(day);
 
