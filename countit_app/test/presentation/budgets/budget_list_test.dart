@@ -95,8 +95,11 @@ void main() {
   });
 
   group('BudgetCard (COU-219, COU-227)', () {
-    Future<void> pumpCard(WidgetTester tester, Budget budget, {VoidCallback? onTap}) =>
-        tester.pumpApp(BudgetCard(budget: budget, today: _today, onTap: onTap));
+    /// Settled: the bar fills with a short animation.
+    Future<void> pumpCard(WidgetTester tester, Budget budget, {VoidCallback? onTap}) async {
+      await tester.pumpApp(BudgetCard(budget: budget, today: _today, onTap: onTap));
+      await tester.pumpAndSettle();
+    }
 
     LinearProgressIndicator bar(WidgetTester tester) =>
         tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));

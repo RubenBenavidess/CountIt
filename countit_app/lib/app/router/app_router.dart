@@ -37,6 +37,7 @@ import '../../presentation/profile/view/profile_page.dart';
 import '../../presentation/scheduled/view/scheduled_form_page.dart';
 import '../../presentation/scheduled/view/scheduled_list_page.dart';
 import '../../presentation/shell/view/app_shell.dart';
+import '../../presentation/shell/view/fading_branch_container.dart';
 import '../../presentation/splash/view/splash_page.dart';
 import '../../presentation/statistics/view/projection_page.dart';
 import '../../presentation/statistics/view/statistics_page.dart';
@@ -174,8 +175,11 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
     GoRoute(path: AppRoutes.root, redirect: (context, state) => AppRoutes.home),
     // Tabs of the signed-in shell (COU-168); screens pushed from them cover
     // the bottom bar (root navigator).
-    StatefulShellRoute.indexedStack(
+    StatefulShellRoute(
       builder: (context, state, shell) => AppShell(shell: shell),
+      // Like indexedStack (each tab keeps its state) with a short cross-fade.
+      navigatorContainerBuilder: (context, shell, children) =>
+          FadingBranchContainer(currentIndex: shell.currentIndex, children: children),
       branches: [
         StatefulShellBranch(
           routes: [GoRoute(path: AppRoutes.home, builder: (context, state) => const HomePage())],

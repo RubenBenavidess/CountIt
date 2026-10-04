@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
+import 'motion.dart';
 
 enum AppButtonVariant {
   /// Alabaster on dark: the main action of a screen.
@@ -96,6 +97,10 @@ class AppButton extends StatelessWidget {
 
     // FilledButton already exposes button semantics; wrapping it again would
     // announce two buttons to screen readers.
-    return FilledButton(onPressed: loading ? null : onPressed, style: style, child: child);
+    final enabled = !loading && onPressed != null;
+    return PressScale(
+      enabled: enabled,
+      child: FilledButton(onPressed: enabled ? onPressed : null, style: style, child: child),
+    );
   }
 }

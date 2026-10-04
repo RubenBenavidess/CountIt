@@ -7,6 +7,7 @@ import '../../../data/dtos/transaction.dart';
 import '../../../shared/utils/dates.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/motion.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../cubit/transaction_list_cubit.dart';
 import 'widgets/transaction_filters.dart';
@@ -118,31 +119,38 @@ class TransactionSection extends StatelessWidget {
     }
     final entries = state.entries;
     final footer = state.hasMore || state.moreFailure != null;
-    return SliverList.builder(
-      itemCount: entries.length + (footer ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == entries.length) {
-          return _Footer(
-            key: const ValueKey('transactions-footer'),
-            failed: state.moreFailure != null,
-            onRetry: () => cubit.loadMore(retry: true),
-          );
-        }
-        return switch (entries[index]) {
-          TransactionDayHeader(:final day) => TransactionDayLabel(
-            key: ValueKey('day-${Dates.toApi(day)}'),
-            day: day,
-            today: today,
-          ),
-          TransactionRow(:final transaction) => TransactionTile(
-            key: ValueKey('transaction-${transaction.transactionId}'),
-            transaction: transaction,
-            showAuthor: showAuthorOf?.call(transaction) ?? showAuthor,
-            showWallet: showWallet,
-            onTap: onOpen == null ? null : () => onOpen!(transaction),
-          ),
-        };
-      },
+    // Rows of the first page enter one after another; later pages and
+    // rows scrolled back into view appear as they are.
+    return StaggerScope(
+      child: SliverList.builder(
+        itemCount: entries.length + (footer ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == entries.length) {
+            return _Footer(
+              key: const ValueKey('transactions-footer'),
+              failed: state.moreFailure != null,
+              onRetry: () => cubit.loadMore(retry: true),
+            );
+          }
+          return switch (entries[index]) {
+            TransactionDayHeader(:final day) => TransactionDayLabel(
+              key: ValueKey('day-${Dates.toApi(day)}'),
+              day: day,
+              today: today,
+            ),
+            TransactionRow(:final transaction) => StaggeredEntrance(
+              key: ValueKey('transaction-${transaction.transactionId}'),
+              index: index,
+              child: TransactionTile(
+                transaction: transaction,
+                showAuthor: showAuthorOf?.call(transaction) ?? showAuthor,
+                showWallet: showWallet,
+                onTap: onOpen == null ? null : () => onOpen!(transaction),
+              ),
+            ),
+          };
+        },
+      ),
     );
   }
 }

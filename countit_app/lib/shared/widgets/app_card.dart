@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/tokens.dart';
+import 'motion.dart';
 
 /// Card of the design: Prussian Blue surface (or outlined), radius 18, 18 px padding.
 class AppCard extends StatelessWidget {
@@ -35,9 +36,10 @@ class AppCard extends StatelessWidget {
         child: Padding(padding: padding, child: child),
       ),
     );
+    final pressable = onTap == null ? card : PressScale(child: card);
     return onTap == null && semanticLabel == null
-        ? card
-        : Semantics(button: onTap != null, label: semanticLabel, child: card);
+        ? pressable
+        : Semantics(button: onTap != null, label: semanticLabel, child: pressable);
   }
 }
 
@@ -91,13 +93,17 @@ class AppProgressBar extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       value: '${(value * 100).round()} %',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: LinearProgressIndicator(
-          value: value.clamp(0, 1),
-          minHeight: 8,
-          color: color,
-          backgroundColor: palette.surface2,
+      // Fills from empty the first time, then moves to the new value.
+      child: AnimatedProgress(
+        value: value.clamp(0, 1).toDouble(),
+        builder: (context, progress) => ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            color: color,
+            backgroundColor: palette.surface2,
+          ),
         ),
       ),
     );

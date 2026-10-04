@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/tokens.dart';
 import '../../../../shared/utils/dates.dart';
+import 'chart_entrance.dart';
 import 'chart_labels.dart';
 import 'chart_theme.dart';
 
@@ -95,13 +96,18 @@ class _TrendLineChartState extends State<TrendLineChart> {
               onTapDown: (details) => _select(details.localPosition.dx, constraints.maxWidth),
               onHorizontalDragUpdate: (details) => _select(details.localPosition.dx, constraints.maxWidth),
               child: RepaintBoundary(
-                child: CustomPaint(
-                  size: Size(constraints.maxWidth, widget.height),
-                  painter: TrendLinePainter(
-                    geometry: _geometry,
-                    theme: chart,
-                    stepped: widget.stepped,
-                    selected: selected,
+                // The line draws itself from left to right when the data arrives.
+                child: ChartEntrance(
+                  data: _geometry,
+                  builder: (context, reveal) => CustomPaint(
+                    size: Size(constraints.maxWidth, widget.height),
+                    painter: TrendLinePainter(
+                      geometry: _geometry,
+                      theme: chart,
+                      stepped: widget.stepped,
+                      selected: selected,
+                      reveal: reveal,
+                    ),
                   ),
                 ),
               ),
@@ -183,12 +189,15 @@ String axisDay(DateTime day, {required bool withYear}) =>
     (withYear ? _axisDayYear : _axisDay).format(day).replaceAll('.', '');
 
 class TrendLinePainter extends CustomPainter {
-  TrendLinePainter({required this.geometry, required this.theme, this.stepped = false, this.selected});
+  TrendLinePainter({required this.geometry, required this.theme, this.stepped = false, this.selected, this.reveal = 1});
 
   final TrendGeometry geometry;
   final ChartTheme theme;
   final bool stepped;
   final int? selected;
+
+  /// 0–1: share of the plot width the line has drawn (entrance animation).
+  final double reveal;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -219,6 +228,9 @@ class TrendLinePainter extends CustomPainter {
       if (stepped) line.lineTo(offsets[i].dx, offsets[i - 1].dy);
       line.lineTo(offsets[i].dx, offsets[i].dy);
     }
+    // Axis and labels stay; the data appears from the left.
+    canvas.save();
+    if (reveal < 1) canvas.clipRect(Rect.fromLTRB(0, 0, left + width * reveal + 4, size.height));
     final zero = yOf(0);
     final area = Path.from(line)
       ..lineTo(offsets.last.dx, zero)
@@ -241,6 +253,7 @@ class TrendLinePainter extends CustomPainter {
         canvas.drawCircle(offset, 3, dot);
       }
     }
+    canvas.restore();
     if (selected != null) {
       final at = offsets[selected!];
       canvas.drawLine(Offset(at.dx, 0), Offset(at.dx, height), grid..strokeWidth = 1.5);
@@ -261,5 +274,6 @@ class TrendLinePainter extends CustomPainter {
       !identical(oldDelegate.geometry, geometry) ||
       oldDelegate.theme != theme ||
       oldDelegate.stepped != stepped ||
-      oldDelegate.selected != selected;
+      oldDelegate.selected != selected ||
+      oldDelegate.reveal != reveal;
 }

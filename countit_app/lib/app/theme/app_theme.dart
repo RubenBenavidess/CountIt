@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
+import '../../shared/widgets/motion.dart';
 import 'tokens.dart';
 
 /// Semantic colours that Material's [ColorScheme] has no slot for.
@@ -142,6 +144,14 @@ abstract final class AppTheme {
       fontFamily: AppTypography.family,
       textTheme: textTheme,
       extensions: [palette],
+      // One coherent transition for every route (fade + short rise); iOS
+      // keeps its own, with the edge swipe to go back.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: AppPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: background,
         foregroundColor: onSurface,

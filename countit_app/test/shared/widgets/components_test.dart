@@ -187,6 +187,7 @@ void main() {
         ),
       );
       await tester.tap(find.byType(AppCard));
+      await tester.pumpAndSettle();
       expect(taps, 1);
       expect(find.text('Excedido'), findsOneWidget);
       final bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
