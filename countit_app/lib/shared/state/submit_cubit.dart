@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show protected;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../app/errors/app_failure.dart';
@@ -33,6 +34,10 @@ abstract class SubmitCubit extends Cubit<SubmitState> {
   SubmitCubit({DateTime Function()? now}) : _now = now ?? clock.now, super(const SubmitState());
 
   final DateTime Function() _now;
+
+  /// The clock of this cubit (fake in tests).
+  @protected
+  DateTime now() => _now();
 
   /// Runs [request] unless one is in flight; [onSuccess] may emit nothing else.
   Future<bool> submit(Future<void> Function() request) async {

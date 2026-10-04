@@ -73,9 +73,12 @@ class _ReauthSheetState extends State<_ReauthSheet> {
   }
 
   Future<void> _submit() async {
+    final cubit = context.read<ReauthCubit>();
+    // The keyboard's «done» bypasses the disabled button.
+    if (cubit.blocked) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final navigator = Navigator.of(context);
-    if (await context.read<ReauthCubit>().confirm(_password.text)) navigator.pop(true);
+    if (await cubit.confirm(_password.text)) navigator.pop(true);
   }
 
   @override
@@ -127,6 +130,7 @@ class _ReauthSheetState extends State<_ReauthSheet> {
                     validator: Validators.existingPassword,
                     enabled: !state.submitting,
                     textInputAction: TextInputAction.done,
+                    onChanged: (_) => context.read<ReauthCubit>().passwordEdited(),
                     onSubmitted: (_) => _submit(),
                   ),
                   CooldownButton(
