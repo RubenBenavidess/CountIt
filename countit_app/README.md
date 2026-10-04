@@ -61,6 +61,8 @@ flutter test test/live --dart-define=LIVE_API_URL=http://127.0.0.1:54321 --dart-
 ```
 
 ## Release
+Checklist de publicación y versionado: [`docs/RELEASE.md`](docs/RELEASE.md).
+
 `scripts/build_release.sh <staging|prod> [appbundle|apk|ipa]`: Dart ofuscado (`--obfuscate`), símbolos aparte en
 `build/symbols/<flavor>/<versión>` y R8 (minify + shrink, reglas en `android/app/proguard-rules.pro`); el mapping de R8
 queda en `build/app/outputs/mapping/<flavor>Release/mapping.txt`. `versionName`/`versionCode` salen de
