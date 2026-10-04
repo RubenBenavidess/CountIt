@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../remote/api_client.dart';
@@ -72,15 +73,24 @@ class SupabaseAuthRepository implements AuthRepository {
   bool get hasSession => _auth.currentSession != null;
 
   @override
-  Stream<SessionChange> get sessionChanges => _auth.onAuthStateChange.map(
-    (state) => switch (state.event) {
-      AuthChangeEvent.passwordRecovery => SessionChange.passwordRecovery,
-      AuthChangeEvent.signedOut => SessionChange.signedOut,
-      AuthChangeEvent.initialSession || AuthChangeEvent.signedIn when state.session != null => SessionChange.signedIn,
-      AuthChangeEvent.initialSession || AuthChangeEvent.signedIn => SessionChange.signedOut,
-      _ => SessionChange.updated,
-    },
-  );
+  Stream<SessionChange> get sessionChanges => _auth.onAuthStateChange.map(sessionChangeFor);
+
+  /// Maps SDK auth events to the app's session changes.
+  ///
+  /// `setSession(refreshToken)` (how Edge Function logins are adopted) emits
+  /// `tokenRefreshed`, not `signedIn`: with a session it must count as a
+  /// sign-in, or the login screen never leaves. SessionCubit ignores it while
+  /// already authenticated or in password recovery.
+  @visibleForTesting
+  static SessionChange sessionChangeFor(AuthState state) => switch (state.event) {
+    AuthChangeEvent.passwordRecovery => SessionChange.passwordRecovery,
+    AuthChangeEvent.signedOut => SessionChange.signedOut,
+    AuthChangeEvent.initialSession ||
+    AuthChangeEvent.signedIn ||
+    AuthChangeEvent.tokenRefreshed when state.session != null => SessionChange.signedIn,
+    AuthChangeEvent.initialSession || AuthChangeEvent.signedIn => SessionChange.signedOut,
+    _ => SessionChange.updated,
+  };
 
   @override
   Future<void> login({required String email, required String password, String? captchaToken}) async {
