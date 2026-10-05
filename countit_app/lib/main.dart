@@ -15,6 +15,7 @@ import 'app/router/app_router.dart';
 import 'app/session/session_cubit.dart';
 import 'app/session/session_state.dart';
 import 'data/remote/api_client.dart';
+import 'data/remote/firebase_push_messaging.dart';
 import 'data/remote/fresh_install.dart';
 import 'data/remote/install_id.dart';
 import 'data/remote/realtime_watcher.dart';
@@ -64,9 +65,9 @@ Future<void> main() async {
   final FamilyRepository families = SupabaseFamilyRepository(api, realtime);
   final NotificationRepository notificationRepository = SupabaseNotificationRepository(api, realtime);
 
-  // Push (HU-31): no-op until Firebase is configured (docs/PUSH.md); the
-  // token service, permission and open handler are already wired.
-  const PushMessaging messaging = NoopPushMessaging();
+  // Push (HU-31): FCM when this flavor has its Firebase config, otherwise a
+  // no-op (docs/PUSH.md); the inbox keeps working through Realtime.
+  final PushMessaging messaging = await initPushMessaging();
   const NotificationPermission notificationPermission = PlatformNotificationPermission();
   final pushTokens = PushTokenService(messaging: messaging, devices: SupabasePushDeviceRepository(api));
 

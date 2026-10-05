@@ -1,103 +1,66 @@
 # Notificaciones push (F09 · HU-31)
 
-La bandeja en la app ya funciona en vivo (Realtime sobre `public.notifications`). El **push** (FCM) está
-preparado detrás de interfaces y apagado: la app usa `NoopPushMessaging` hasta que exista la configuración de
-Firebase (COU-28 · COU-103). Este documento dice qué está listo y exactamente qué falta.
+La bandeja en la app funciona en vivo (Realtime sobre `public.notifications`) y el **push** (FCM) está activo
+en los flavors que tienen su `google-services.json` (hoy: `staging`). Sin ese archivo la app usa
+`NoopPushMessaging` y todo lo demás sigue igual (COU-28 · COU-103).
+
+## Archivos de Firebase por flavor (no se versionan)
+
+| Flavor | Paquete | Archivo |
+|---|---|---|
+| `local` | `ec.countit.app.local` | `android/app/src/local/google-services.json` |
+| `staging` | `ec.countit.app.staging` | `android/app/src/staging/google-services.json` (proyecto `countit-6e32f`) |
+| `prod` | `ec.countit.app` | `android/app/src/prod/google-services.json` |
+
+- Están en `.gitignore` (`android/app/src/*/google-services.json`); el dueño los guarda fuera del repo y los copia
+  al clonar. Comprobar que `client[].client_info.android_client_info.package_name` coincide con el flavor.
+- Gradle (`android/app/build.gradle.kts`) aplica `com.google.gms.google-services` **solo si algún flavor tiene
+  su archivo**, con `missingGoogleServicesStrategy = IGNORE`: el CI (flavor `local`, sin archivos) y los flavors
+  sin Firebase compilan igual.
+- En tiempo de ejecución `initPushMessaging()` (`lib/data/remote/firebase_push_messaging.dart`) intenta
+  `Firebase.initializeApp()` (5 s máx.); si falla (sin archivo, plataforma no soportada) usa el no-op y solo
+  registra el tipo de error. Nunca se registran tokens ni mensajes.
 
 ## Qué está listo
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
 | `PushMessaging` (interfaz) + `NoopPushMessaging` | `lib/app/push/push_messaging.dart` | Costura con el proveedor: token, rotación, `deleteToken`, mensajes en primer plano, tocados y de arranque en frío. |
+| `FirebasePushMessaging` + `initPushMessaging()` | `lib/data/remote/firebase_push_messaging.dart` | Implementación con `firebase_messaging`; `main.dart` la usa solo si Firebase arranca, si no `NoopPushMessaging`. |
 | `PushTokenService` | `lib/app/push/push_token_service.dart` | Tras el login `register_push_device(token, plataforma)` (COU-176); en cada rotación otra vez (COU-177); al cerrar sesión `unregister_push_device` **antes** de `auth.signOut()` y luego borra el token local (COU-178); con 401 solo borra el token local. Nunca registra tokens en logs; fallos y demoras (5 s) no bloquean al usuario. |
 | `PushOpenHandler` | `lib/app/push/push_open_handler.dart` | Push tocado (segundo plano o arranque en frío) → `NotificationRoutes` → pantalla y marcado como leída (COU-199). En primer plano → recarga la bandeja y emite un `PushNotice` (COU-179). Sin sesión no hace nada; kinds desconocidos o ids inválidos abren la bandeja. |
 | `PushNoticeHost` | `lib/presentation/notifications/view/push_notice_host.dart` | Snackbar con título, cuerpo y «Ver» para los push en primer plano. |
 | `NotificationRoutes` | `lib/app/router/notification_routes.dart` | Enrutador puro por `kind` + `data` (strings de FCM incluidos), con validación estricta de ids (COU-180). |
 | Permiso | `lib/shared/platform/notification_permission.dart` + `MainActivity.kt` (`ec.countit.app/notifications`) | `POST_NOTIFICATIONS` declarado; estado/solicitud/ajustes en Android 13+ (antes, el interruptor del sistema). Se pide desde la tarjeta de la bandeja (`PushPermissionCard`), **nunca al arrancar**, y solo si `PushMessaging.isAvailable` (COU-175). |
 | Canal Android | `MainActivity.createNotificationChannel()` + `AndroidManifest.xml` | Canal `countit_default` «Count It!» (importancia alta) creado al iniciar; FCM lo usa por la meta-data `com.google.firebase.messaging.default_notification_channel_id` (COU-106). |
-| Cableado | `lib/main.dart` | `SessionCubit(beforeSignOut: pushTokens.signingOut, onSessionLost: pushTokens.sessionLost)`, `pushTokens.setUser` sigue la sesión, `pushes.start()` tras restaurar la sesión (como los enlaces de Auth). |
+| Cableado | `lib/main.dart` | `final messaging = await initPushMessaging()`, `SessionCubit(beforeSignOut: pushTokens.signingOut, onSessionLost: pushTokens.sessionLost)`, `pushTokens.setUser` sigue la sesión, `pushes.start()` tras restaurar la sesión (como los enlaces de Auth). |
 
 Tests: `test/app/push/*`, `test/shared/platform/notification_permission_test.dart`,
 `test/presentation/notifications/push_ui_test.dart`, `test/app/notification_routes_test.dart` (con
 `FakePushMessaging`, `test/helpers/fake_push_messaging.dart`).
 
-## Por qué no se agregaron `firebase_core`/`firebase_messaging` todavía
+## Qué falta
 
-- Sin `google-services.json` el plugin de Gradle `com.google.gms.google-services` hace fallar el build, y sin él
-  `Firebase.initializeApp()` falla en tiempo de ejecución (no hay `FirebaseOptions`). Inicializar condicionalmente
-  dejaría código nativo y dependencias (minSdk, tamaño del APK) que no se pueden verificar.
-- Toda la lógica que no depende de Firebase ya está y está probada: activar el push es implementar una clase y
-  cambiar una línea de `main.dart`.
+### 1. Firebase para `local` y `prod` (Ruben)
+Registrar en Firebase las apps `ec.countit.app.local` y `ec.countit.app` (prod, idealmente en un proyecto
+propio) y dejar cada `google-services.json` en su carpeta (tabla de arriba). No son secretos (claves públicas
+restringidas por paquete), pero conviene **restringir la API key** en Google Cloud a las apps Android y a FCM. El
+backend (`send-push`) debe usar la cuenta de servicio del **mismo proyecto** que emite los tokens.
 
-## Qué falta (en orden)
-
-### 1. Proyecto de Firebase (COU-28, Ruben)
-1. Crear el proyecto (recomendado: uno para `staging`+`local` y otro para `prod`, o uno solo con tres apps).
-2. Registrar las apps Android con los ids de cada flavor: `ec.countit.app.local`, `ec.countit.app.staging`,
-   `ec.countit.app`. Descargar cada `google-services.json` y dejarlo en:
-   - `android/app/src/local/google-services.json`
-   - `android/app/src/staging/google-services.json`
-   - `android/app/src/prod/google-services.json`
-   No son secretos (claves públicas restringidas por paquete), pero conviene **restringir la API key** en Google
-   Cloud a las apps Android y a la API de FCM. Si se deciden versionar, el CI los necesita para compilar; si no,
-   inyectarlos en CI desde secretos.
-3. iOS (requiere la cuenta de Apple, COU-45): app `ec.countit.app` (y las de flavor cuando existan los
-   *schemes*), `GoogleService-Info.plist` por configuración en `ios/Runner/` (o un script de *build phase* que
-   copie el de cada configuración), clave **APNs `.p8`** subida a Firebase (Project settings → Cloud Messaging).
-4. Backend: la cuenta de servicio de FCM ya está en los secretos de staging (`send-push`). Usar el **mismo
-   proyecto** de Firebase que emite los tokens de la app.
-
-### 2. Gradle (Android)
-- `android/settings.gradle.kts` → `plugins { id("com.google.gms.google-services") version "<versión>" apply false }`.
-- `android/app/build.gradle.kts` → `plugins { id("com.google.gms.google-services") }`.
-- Comprobar `minSdk` que exija `firebase_messaging` (hoy `flutter.minSdkVersion`).
-
-### 3. Paquetes (COU-103)
-```bash
-flutter pub add firebase_core firebase_messaging   # fijar versiones exactas y commitear pubspec.lock
-```
-
-### 4. Implementación de `PushMessaging` con FCM
-Nuevo `lib/data/remote/firebase_push_messaging.dart`:
-```dart
-class FirebasePushMessaging implements PushMessaging {
-  FirebasePushMessaging(this._fcm);
-  final FirebaseMessaging _fcm;
-
-  @override bool get isAvailable => true;
-  @override String? get platform => switch (defaultTargetPlatform) {
-    TargetPlatform.android => 'android', TargetPlatform.iOS => 'ios', _ => null };
-  @override Future<String?> getToken() => _fcm.getToken();          // iOS: requiere permiso + APNs
-  @override Stream<String> get onTokenRefresh => _fcm.onTokenRefresh;
-  @override Future<void> deleteToken() => _fcm.deleteToken();
-  @override Stream<PushMessage> get foregroundMessages => FirebaseMessaging.onMessage.map(_toMessage);
-  @override Stream<PushMessage> get openedMessages => FirebaseMessaging.onMessageOpenedApp.map(_toMessage);
-  @override Future<PushMessage?> initialMessage() async {
-    final m = await _fcm.getInitialMessage();
-    return m == null ? null : _toMessage(m);
-  }
-  static PushMessage _toMessage(RemoteMessage m) =>
-      PushMessage(title: m.notification?.title, body: m.notification?.body, data: Map.unmodifiable(m.data));
-}
-```
-En `main.dart`:
-```dart
-await Firebase.initializeApp();                       // tras WidgetsFlutterBinding.ensureInitialized()
-await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: false, badge: true, sound: false);
-final PushMessaging messaging = FirebasePushMessaging(FirebaseMessaging.instance);   // en lugar de NoopPushMessaging
-```
+### 2. iOS (requiere la cuenta de Apple, COU-45; macOS)
+- App `ec.countit.app` en Firebase, `GoogleService-Info.plist` en `ios/Runner/` (ignorado en git) y clave
+  **APNs `.p8`** subida a Firebase (Project settings → Cloud Messaging).
+- Xcode, *Signing & Capabilities*: **Push Notifications** y **Background Modes → Remote notifications**.
+- El permiso lo pide `FirebaseMessaging.instance.requestPermission()`: implementar `NotificationPermission`
+  para iOS sobre esa llamada (`getNotificationSettings()` para el estado) y elegirla en `main.dart` por
+  plataforma; Android sigue con `PlatformNotificationPermission`.
 - No hace falta `onBackgroundMessage`: el backend envía mensajes con `notification`, que el sistema muestra solo.
-- **iOS:** el permiso lo pide `FirebaseMessaging.instance.requestPermission()`. Implementar
-  `NotificationPermission` para iOS sobre esa llamada (o `getNotificationSettings()` para el estado) y elegirla
-  en `main.dart` según la plataforma; Android sigue con `PlatformNotificationPermission`.
-- Nunca registrar en logs el token ni `RemoteMessage` (usar `AppLogger` solo con claves).
 
-### 5. iOS en Xcode (macOS)
-- *Signing & Capabilities*: **Push Notifications** y **Background Modes → Remote notifications**
-  (`aps-environment` en `Runner.entitlements`).
-- `GoogleService-Info.plist` añadido al target Runner.
+### 3. Verificación
+Hecha en staging (Android 16, emulador con Google Play, 04/10/2026): 1 (dispositivo registrado tras el login y
+el permiso aceptado desde la bandeja), 2 (`push_status = sent`, llegó al canal `countit_default`; al tocarla
+abrió la app en la bandeja y la marcó leída). Pendientes de repetir en un teléfono real: 3–6.
 
-### 6. Verificación
 1. Login en un dispositivo → `push_devices` tiene el token con la plataforma correcta.
 2. Generar una notificación (presupuesto al 80 %, invitación) con la app en segundo plano → llega al canal
    «Count It!»; tocarla abre la billetera/invitaciones y la marca leída.

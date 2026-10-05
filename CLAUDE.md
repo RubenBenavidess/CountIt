@@ -89,6 +89,7 @@ Flutter 3.47.6 · Dart 3.13 · Java 17 (`JAVA_HOME` del JBR de Android Studio). 
 F01–F10 implementados en `main` (base, auth y cuenta, billeteras, presupuestos, movimientos, programadas, familias,
 estadísticas y proyección, bandeja en vivo, planes y administración); navegación inferior Inicio · Movimientos ·
 Estadísticas · Perfil, animaciones (respetan «reducir movimiento») y monto grande coloreado al registrar movimientos.
-Pendiente de cuentas externas: **F09 push real** (Firebase, `docs/PUSH.md`), **captcha** COU-25 y **App Links**
+Push FCM activo en `staging` con `android/app/src/staging/google-services.json` local (no versionado, `docs/PUSH.md`);
+falta Firebase para `local`/`prod` e iOS. Pendiente de cuentas externas: **captcha** COU-25 y **App Links**
 (sitio en Cloudflare Pages), flavors iOS (Xcode) y **F11** publicación (Play Console, Apple Developer, keystore COU-58).
 

@@ -12,7 +12,7 @@ y `docs/api-schema.json` de ese repositorio. Diseño: lienzo *CountIt App* (toke
 | F03–F06 | Billeteras, presupuestos, movimientos y programadas | Hecho |
 | F07 | Familias: invitar, aceptar, quitar y abandonar, en vivo con Realtime | Hecho |
 | F08 | Estadísticas y proyección de saldo | Hecho |
-| F09 | Bandeja en vivo, badge y enrutado por `kind` | Hecho · **push real pendiente** de Firebase ([`docs/PUSH.md`](docs/PUSH.md)) |
+| F09 | Bandeja en vivo, badge y enrutado por `kind` | Hecho · push FCM en `staging` (Android); `local`/`prod`/iOS pendientes ([`docs/PUSH.md`](docs/PUSH.md)) |
 | F10 | Planes (`v_plans`), gating, aviso de vencimiento y administración (usuarios, bancos, auditoría) | Hecho |
 | F11 | Publicación en tiendas | Pendiente de cuentas (Play Console, Apple Developer, keystore de subida, captcha) |
 

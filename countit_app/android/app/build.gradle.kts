@@ -4,6 +4,22 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // On the classpath only; applied below when a flavor has its google-services.json.
+    id("com.google.gms.google-services") apply false
+}
+
+// FCM (docs/PUSH.md): google-services.json lives per flavor in
+// src/<flavor>/ and is not committed. The plugin is applied only when some
+// flavor has it, so CI and flavors without Firebase still build (the app then
+// falls back to NoopPushMessaging); a flavor without the file is skipped.
+val firebaseFlavors =
+    listOf("local", "staging", "prod").filter { file("src/$it/google-services.json").exists() }
+if (firebaseFlavors.isNotEmpty()) {
+    apply(plugin = "com.google.gms.google-services")
+    extensions.configure<com.google.gms.googleservices.GoogleServicesPlugin.GoogleServicesPluginConfig> {
+        missingGoogleServicesStrategy =
+            com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy.IGNORE
+    }
 }
 
 // Release signing (COU-135): android/key.properties (never committed; see
