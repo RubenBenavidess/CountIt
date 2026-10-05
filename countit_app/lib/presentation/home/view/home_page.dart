@@ -207,9 +207,15 @@ class _Header extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: CountUpText(
+                    key: const ValueKey('home-total-balance'),
                     value: wallets.ownBalanceCents / 100,
                     format: Money.format,
-                    style: AppTypography.money.copyWith(fontSize: 30),
+                    // Negative: the «−» from Money.format and the expense colour, nothing else.
+                    style: AppTypography.money.copyWith(
+                      fontSize: 30,
+                      color: wallets.ownBalanceCents < 0 ? palette.expense : null,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
                 Text(switch (ownCount) {

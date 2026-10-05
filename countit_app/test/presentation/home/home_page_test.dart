@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:countit_app/app/errors/app_failure.dart';
 import 'package:countit_app/app/router/app_router.dart';
 import 'package:countit_app/app/session/session_cubit.dart';
+import 'package:countit_app/app/theme/app_theme.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/presentation/home/cubit/wallets_cubit.dart';
@@ -9,6 +10,7 @@ import 'package:countit_app/presentation/home/view/home_page.dart';
 import 'package:countit_app/presentation/wallets/view/widgets/wallet_card.dart';
 import 'package:countit_app/shared/state/load_state.dart';
 import 'package:countit_app/shared/utils/dates.dart';
+import 'package:countit_app/shared/utils/money.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -143,6 +145,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(WalletCard), findsOneWidget);
     });
+
+    for (final (balance, negative) in [(100.0, false), (-42.1, true)]) {
+      testWidgets('total balance $balance: sign and colour only, no line under it', (tester) async {
+        when(() => wallets.list()).thenAnswer((_) async => [walletFixture(balance: balance)]);
+        await pumpHome(tester);
+        await tester.pumpAndSettle();
+        final total = find.byKey(const ValueKey('home-total-balance'));
+        expect(
+          find.descendant(of: total, matching: find.text(negative ? '${Money.minus}\$42,10' : r'$100,00')),
+          findsWidgets,
+        );
+        final palette = tester.element(total).palette;
+        for (final text in tester.widgetList<Text>(find.descendant(of: total, matching: find.byType(Text)))) {
+          expect(text.style?.decoration, TextDecoration.none);
+          expect(text.style?.color, negative ? palette.expense : isNot(palette.expense));
+        }
+        expect(find.descendant(of: total, matching: find.byType(DecoratedBox)), findsNothing);
+      });
+    }
 
     testWidgets('empty: «Crea tu primera billetera» opens the form', (tester) async {
       when(() => wallets.list()).thenAnswer((_) async => []);
