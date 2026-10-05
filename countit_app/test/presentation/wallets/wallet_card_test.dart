@@ -140,6 +140,23 @@ void main() {
       expect(find.text('Saldo negativo'), findsOneWidget);
     });
 
+    for (final balance in [42.1, -42.1]) {
+      testWidgets('balance $balance: no underline nor border under the number', (tester) async {
+        await pumpCard(tester, walletFixture(balance: balance));
+        final number = find.byKey(const ValueKey('wallet-balance'));
+        final texts = find.descendant(of: number, matching: find.byType(Text), matchRoot: true);
+        expect(texts, findsWidgets);
+        for (final text in tester.widgetList<Text>(texts)) {
+          expect(text.style?.decoration, TextDecoration.none);
+        }
+        for (final box in tester.widgetList<DecoratedBox>(
+          find.descendant(of: number, matching: find.byType(DecoratedBox)),
+        )) {
+          expect((box.decoration as BoxDecoration).border, isNull);
+        }
+      });
+    }
+
     testWidgets('shared wallets show the badge, members and owner', (tester) async {
       await pumpCard(tester, walletFixture(memberCount: 2));
       expect(find.text('Compartida · 2'), findsOneWidget);

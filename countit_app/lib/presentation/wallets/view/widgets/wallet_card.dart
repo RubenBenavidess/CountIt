@@ -175,13 +175,10 @@ class _Balance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final negative = wallet.balanceCents < 0;
-    final style = AppTypography.money.copyWith(
-      fontSize: 28,
-      color: colors.foreground,
-      decoration: negative ? TextDecoration.underline : null,
-      decorationColor: AppColors.expense,
-      decorationThickness: 2,
-    );
+    // A negative balance reads by its «−» and the «Saldo negativo» pill; the
+    // number keeps the card's foreground (contrast on any bank colour) and
+    // never gets a line under it.
+    final style = AppTypography.money.copyWith(fontSize: 28, color: colors.foreground, decoration: TextDecoration.none);
     return Row(
       spacing: AppSpacing.sm,
       children: [
