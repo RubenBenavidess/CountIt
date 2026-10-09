@@ -1,5 +1,7 @@
 # Sitio web de Count It!
 
+Publicado en **https://countit-bft.pages.dev** (proyecto `countit` en la cuenta de Cloudflare de Ruben; dominio gratuito de Pages para la beta). Fuente: carpeta `site/` en la raíz del repo.
+
 Sitio estático (HTML + CSS, **sin JavaScript**) que se publica en Cloudflare Pages. Contiene:
 
 | Ruta | Archivo | Para qué |
@@ -40,14 +42,15 @@ El servidor de Python no aplica `_headers` ni sirve `404.html`; eso solo ocurre 
 ```bash
 npx wrangler@4.20.0 pages deploy site --project-name countit --branch main
 ```
-La primera vez, `wrangler` pide iniciar sesión en Cloudflare (`npx wrangler@4.20.0 login`). Después, asociar el
-dominio propio en el panel (Workers & Pages → `countit` → Custom domains).
+La primera vez, iniciar sesión en Cloudflare (`npx wrangler@4.20.0 login`). Todo lo que hay en `site/` se publica:
+no dejar ahí borradores ni documentación. Con dominio propio, asociarlo en el panel (Workers & Pages → `countit` →
+Custom domains), agregarlo a `assetlinks.json`/manifiesto y a las redirect URLs de Auth.
 
 Comprobar tras desplegar:
 ```bash
-curl -sI https://<host>/ | grep -i -E 'content-security-policy|strict-transport|referrer-policy'
-curl -sI https://<host>/.well-known/assetlinks.json | grep -i -E 'content-type|access-control'
-curl -sI https://<host>/auth/reset-password | grep -i cache-control
+curl -sI https://countit-bft.pages.dev/ | grep -i -E 'content-security-policy|strict-transport|referrer-policy'
+curl -sI https://countit-bft.pages.dev/.well-known/assetlinks.json | grep -i -E 'content-type|access-control'
+curl -sI https://countit-bft.pages.dev/auth/reset-password/ | grep -i cache-control
 ```
 `assetlinks.json` debe responder `200` directamente (sin redirecciones) y con `Content-Type: application/json`.
 
@@ -77,7 +80,7 @@ Cuando exista el keystore de release:
 ## Verificar App Links
 ```bash
 # Lo que Google lee del sitio
-curl -s 'https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://<host>&relation=delegate_permission/common.handle_all_urls'
+curl -s 'https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://countit-bft.pages.dev&relation=delegate_permission/common.handle_all_urls'
 
 # Estado de verificación en un dispositivo con la app de staging instalada
 adb shell pm get-app-links ec.countit.app.staging
