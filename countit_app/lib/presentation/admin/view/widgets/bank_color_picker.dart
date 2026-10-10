@@ -56,7 +56,7 @@ class BankColorPicker extends StatelessWidget {
       children: [
         Semantics(
           container: true,
-          label: 'Color del banco',
+          label: 'Color de acento del banco',
           child: Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,

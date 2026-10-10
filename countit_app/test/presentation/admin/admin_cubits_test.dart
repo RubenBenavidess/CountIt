@@ -107,7 +107,7 @@ void main() {
     );
   });
 
-  group('AdminUserCubit (COU-203, COU-204)', () {
+  group('AdminUserCubit (COU-203)', () {
     final today = DateTime(2026, 10, 4);
     final contador = planOffer(2);
     final nowUtc = DateTime.utc(2026, 10, 4, 15);
@@ -146,31 +146,14 @@ void main() {
     );
 
     test('a 403 is shown neutrally and reloads our profile (the role may have changed)', () async {
-      when(() => admin.setUserRole('u-carlos', UserRole.admin)).thenThrow(_forbidden);
+      when(() => admin.setUserPlan('u-carlos', planId: 2, validUntil: any(named: 'validUntil'))).thenThrow(_forbidden);
       var reloads = 0;
       final cubit = AdminUserCubit(admin, user: adminUser(), onForbidden: () => reloads++);
-      expect(await cubit.changeRole(UserRole.admin), isFalse);
+      expect(await cubit.changePlan(contador, DateTime(2099, 1, 1), today: DateTime.now()), isFalse);
       expect(cubit.state.failure!.message, adminForbiddenMessage);
-      expect(cubit.state.user.role, UserRole.user);
+      expect(cubit.state.user.planId, adminUser().planId);
       expect(reloads, 1);
       await cubit.close();
     });
-
-    blocTest<AdminUserCubit, AdminUserState>(
-      'role change: the role the API saved',
-      setUp: () => when(() => admin.setUserRole('u-carlos', UserRole.admin)).thenAnswer((_) async => UserRole.admin),
-      build: () => AdminUserCubit(admin, user: adminUser()),
-      act: (cubit) async {
-        await Future.wait([cubit.changeRole(UserRole.admin), cubit.changeRole(UserRole.admin)]);
-      },
-      expect: () => [
-        AdminUserState(user: adminUser(), busy: AdminUserAction.role),
-        AdminUserState(
-          user: adminUser(role: UserRole.admin),
-          done: AdminUserAction.role,
-        ),
-      ],
-      verify: (_) => verify(() => admin.setUserRole('u-carlos', UserRole.admin)).called(1),
-    );
   });
 }

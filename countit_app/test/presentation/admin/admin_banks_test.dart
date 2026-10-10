@@ -11,6 +11,8 @@ import 'package:countit_app/presentation/admin/cubit/bank_form_cubit.dart';
 import 'package:countit_app/presentation/admin/view/admin_banks_page.dart';
 import 'package:countit_app/presentation/admin/view/admin_page.dart';
 import 'package:countit_app/presentation/admin/view/bank_form_page.dart';
+import 'package:countit_app/presentation/wallets/view/widgets/wallet_card.dart';
+import 'package:countit_app/presentation/wallets/view/widgets/wallet_colors.dart';
 import 'package:countit_app/shared/state/load_state.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +30,12 @@ const _austro = Bank(bankId: 7, name: 'Banco del Austro', countryCode: 'EC', isA
 const _forbidden = AppFailure(kind: FailureKind.forbidden, message: 'Acceso denegado', key: 'forbidden', status: 403);
 
 Future<void> _save(WidgetTester tester) async {
-  await tester.ensureVisible(find.byKey(const ValueKey('bank-save')));
+  // The footer sliver is built lazily: scroll until it exists.
+  await tester.scrollUntilVisible(
+    find.byKey(const ValueKey('bank-save')),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('bank-save')));
   await tester.pumpAndSettle();
@@ -244,18 +251,19 @@ void main() {
       expect(find.text('Ya existe un banco con ese nombre'), findsOneWidget);
     });
 
-    testWidgets('mid-tone colours explain the darker card tone (contrast)', (tester) async {
+    testWidgets('the colour is an accent: the preview card shows it muted', (tester) async {
       when(admin.listBanks).thenAnswer((_) async => const []);
       await pumpBanks(tester);
       await tester.tap(find.byKey(const ValueKey('bank-new')));
       await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('Color #8DC63F'));
+      expect(find.text('COLOR DE ACENTO'), findsOneWidget);
+      expect(find.textContaining('atenuado sobre la paleta de Count It!'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('bank-color-hex')), '#FFDD00');
       await tester.pumpAndSettle();
-      // Ink text reaches 4.5:1 on this light green: no adjustment needed.
-      expect(find.textContaining('tono más oscuro'), findsNothing);
-      await tester.enterText(find.byKey(const ValueKey('bank-color-hex')), '#00953A');
-      await tester.pumpAndSettle();
-      expect(find.textContaining('tono más oscuro'), findsOneWidget);
+      final card = tester.widget<Material>(
+        find.descendant(of: find.byType(WalletCard), matching: find.byType(Material)).first,
+      );
+      expect(card.color, mutedBankAccent(const Color(0xFFFFDD00)));
     });
   });
 }

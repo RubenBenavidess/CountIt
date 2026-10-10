@@ -146,21 +146,21 @@ void main() {
     });
   });
 
-  group('user detail (COU-202…COU-204)', () {
+  group('user detail (COU-202, COU-203)', () {
     testWidgets('an admin sees identity, role and plan, no finances and no actions', (tester) async {
       await pumpAt(tester, AppRoutes.adminUser('u-carlos'), UserRole.admin, extra: adminUser());
       expect(find.text('Carlos Pérez'), findsOneWidget);
       expect(find.text('delivered+demo_carlos@resend.dev'), findsOneWidget);
       expect(find.text('Regular'), findsOneWidget);
       expect(find.textContaining('no se muestran billeteras'), findsOneWidget);
-      expect(find.text('Solo un superadministrador puede cambiar planes y roles.'), findsOneWidget);
+      expect(find.text('Solo un superadministrador puede cambiar planes.'), findsOneWidget);
       expect(find.byKey(const ValueKey('admin-change-plan')), findsNothing);
     });
 
-    testWidgets('nobody changes their own plan or role', (tester) async {
+    testWidgets('nobody changes their own plan', (tester) async {
       await pumpAt(tester, AppRoutes.adminUser('u-me'), UserRole.superadmin, extra: adminUser(id: 'u-me'));
-      expect(find.text('No puedes cambiar tu propio plan ni tu rol.'), findsOneWidget);
-      expect(find.byKey(const ValueKey('admin-change-role')), findsNothing);
+      expect(find.text('No puedes cambiar tu propio plan.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('admin-change-plan')), findsNothing);
     });
 
     testWidgets('superadmin changes the plan after a confirmation with the summary', (tester) async {
@@ -233,45 +233,15 @@ void main() {
       );
     });
 
-    testWidgets('superadmin changes the role after confirming; going back updates the list', (tester) async {
-      when(() => admin.listUsers(search: '')).thenAnswer((_) async => Paged([adminUser()], hasMore: false));
-      when(() => admin.setUserRole('u-carlos', UserRole.admin)).thenAnswer((_) async => UserRole.admin);
-      await pumpAt(tester, AppRoutes.adminUsers, UserRole.superadmin);
-      await tester.tap(find.byKey(const ValueKey('admin-user-u-carlos')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('admin-change-role')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('role-choice-admin')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Revisar cambio'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Usuario → Administrador. Podrá gestionar bancos'), findsOneWidget);
-      await tester.tap(_inDialog('Cambiar rol'));
-      await tester.pumpAndSettle();
-      expect(find.text('Rol actualizado: Administrador.'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Volver'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AdminUsersPage), findsOneWidget);
-      expect(find.text('Administrador'), findsOneWidget, reason: 'badge of the updated row');
-    });
-
-    testWidgets('a 403 while changing is neutral', (tester) async {
-      when(() => admin.setUserRole('u-carlos', UserRole.superadmin)).thenThrow(
-        const AppFailure(kind: FailureKind.forbidden, message: 'Acceso denegado', key: 'forbidden', status: 403),
-      );
+    testWidgets('the role is read-only: even a superadmin cannot change it from the app (contract 1.4)', (
+      tester,
+    ) async {
       await pumpAt(tester, AppRoutes.adminUser('u-carlos'), UserRole.superadmin, extra: adminUser());
-      await tester.tap(find.byKey(const ValueKey('admin-change-role')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('role-choice-superadmin')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Revisar cambio'));
-      await tester.pumpAndSettle();
-      await tester.tap(_inDialog('Cambiar rol'));
-      await tester.pumpAndSettle();
-      expect(find.text(adminForbiddenMessage), findsOneWidget);
-      expect(find.text('Usuario'), findsNWidgets(2), reason: 'title and the unchanged role');
-      verify(profiles.fetchMyProfile).called(1); // our own role may have changed
+      expect(find.text('Rol'), findsOneWidget);
+      expect(find.text('Usuario'), findsNWidgets(2), reason: 'title and the role row');
+      expect(find.byKey(const ValueKey('admin-role-readonly')), findsOneWidget);
+      expect(find.byKey(const ValueKey('admin-change-plan')), findsOneWidget);
+      expect(find.text('Cambiar rol'), findsNothing);
     });
   });
 }

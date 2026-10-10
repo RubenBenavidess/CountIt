@@ -92,6 +92,12 @@ class _ProfileView extends StatelessWidget {
                     onTap: () => context.push(AppRoutes.admin),
                   ),
                 _Action(
+                  icon: Icons.info_outline_rounded,
+                  label: 'Acerca de Count It!',
+                  caption: 'Privacidad, términos y bancos',
+                  onTap: () => context.push(AppRoutes.about),
+                ),
+                _Action(
                   icon: Icons.logout_rounded,
                   label: 'Cerrar sesión',
                   chevron: false,

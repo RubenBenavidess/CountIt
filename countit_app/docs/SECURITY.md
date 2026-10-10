@@ -21,6 +21,8 @@ chequeos, cupos, modo seguro); la app no guarda secretos ni decide permisos, sol
 | PLATFORM-3 | `FLAG_SECURE` en toda la app mientras hay sesión (y en la recuperación de contraseña), más las pantallas de login/registro/contraseñas; cortina con el logo en el selector de apps (ambas plataformas) | `SessionSecureScreen`, `SecureScreen`, `PrivacyCurtain` |
 | PLATFORM | Única actividad exportada (`MainActivity`, launcher + deep link); `taskAffinity=""` contra *task hijacking*; permisos: `INTERNET` y `POST_NOTIFICATIONS` (pedido desde la bandeja, nunca al arrancar) | `AndroidManifest.xml` |
 | CODE-4 | Entradas validadas con los límites del contrato (nombres 1–40/50/100, usernames 3–12, contraseñas 8–72, montos ≤ 12 enteros y 2 decimales, ids saneados en búsquedas `ilike`) | `shared/utils/validators.dart`, `AmountInputFormatter`, repositorios |
+| AUTHZ | Roles de solo lectura en la app: `admin_set_user_role` salió de la API (contrato 1.4) y la app no tiene UI, cubit ni repositorio para cambiarlos; solo el dueño los cambia directamente en la BD. Los planes los cambia el superadmin (sin cambiar los propios) | `admin_user_page.dart`, `AdminRepository` |
+| LEGAL | Nombres de bancos solo informativos: aviso de no afiliación en el selector de bancos y en «Acerca de Count It!»; el color del banco es un acento atenuado (`mutedBankAccent`: mezcla con la paleta oscura, saturación ≤ 0,35, luminosidad 0,12–0,30, texto blanco ≥ 4,5:1), nunca la imagen del banco | `wallet_colors.dart`, `bank_disclaimer.dart`, `about_page.dart` |
 | CODE-1/RESILIENCE | Release ofuscado (`--obfuscate`, R8 minify + shrink), símbolos y mapping fuera del binario; `pubspec.lock` obligatorio en CI | `scripts/build_release.sh`, `proguard-rules.pro` |
 
 ## Riesgos residuales
@@ -37,6 +39,10 @@ chequeos, cupos, modo seguro); la app no guarda secretos ni decide permisos, sol
   dispositivo e IP del backend.
 - **Enlace de recuperación con sesión activa**: abrirlo reemplaza la sesión actual por la de recuperación (solo
   permite fijar una nueva contraseña de la cuenta del enlace).
+- **Escalada de rol**: un rol solo cambia con acceso directo a la BD (dueño del proyecto); queda fuera del alcance de
+  un admin o superadmin comprometido en la app. A cambio, promover a alguien exige intervención manual.
+- **Marcas de terceros**: los nombres de bancos aparecen en el catálogo; se mitiga con el aviso de no afiliación y
+  colores atenuados con la misma tipografía y diseño para todos (sin logos).
 - **`--dart-define` legible en el binario**: solo lleva valores públicos (URL, *anon key*, site key).
 
 ## Checklist MASVS-L1

@@ -32,6 +32,7 @@ import '../../presentation/home/view/home_page.dart';
 import '../../presentation/notifications/view/notifications_page.dart';
 import '../../presentation/plans/view/my_plan_page.dart';
 import '../../presentation/plans/view/plans_page.dart';
+import '../../presentation/profile/view/about_page.dart';
 import '../../presentation/profile/view/edit_profile_page.dart';
 import '../../presentation/profile/view/profile_page.dart';
 import '../../presentation/scheduled/view/scheduled_form_page.dart';
@@ -75,6 +76,7 @@ abstract final class AppRoutes {
   static const changePassword = '/profile/password';
   static const deleteAccount = '/profile/delete';
   static const myPlan = '/profile/plan';
+  static const about = '/profile/about';
   static const plans = '/plans';
   static const invitations = '/invitations';
   static const notifications = '/notifications';
@@ -204,6 +206,7 @@ GoRouter buildRouter({required SessionCubit session, required AppConfig config})
     GoRoute(path: AppRoutes.changePassword, builder: (context, state) => const ChangePasswordPage()),
     GoRoute(path: AppRoutes.deleteAccount, builder: (context, state) => const DeleteAccountPage()),
     GoRoute(path: AppRoutes.myPlan, builder: (context, state) => const MyPlanPage()),
+    GoRoute(path: AppRoutes.about, builder: (context, state) => const AboutPage()),
     GoRoute(path: AppRoutes.plans, builder: (context, state) => const PlansPage()),
     GoRoute(
       path: AppRoutes.admin,

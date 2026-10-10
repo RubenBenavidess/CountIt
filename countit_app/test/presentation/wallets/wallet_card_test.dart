@@ -50,17 +50,52 @@ void main() {
     });
 
     test('light colours get dark text and dark colours white text', () {
-      expect(WalletColors.of(0xFFFFDD00).foreground, AppColors.ink);
-      expect(WalletColors.of(0xFF00387B).foreground, AppColors.white);
+      expect(WalletColors.isLight(const Color(0xFFFFDD00)), isTrue);
+      expect(WalletColors.isLight(const Color(0xFF00387B)), isFalse);
     });
 
-    test('no bank colour uses the default wallet colour; legible brand colours are kept', () {
+    test('no bank colour uses the default wallet colour; bank colours become their muted accent', () {
       expect(WalletColors.of(null).base, AppColors.defaultWallet);
-      expect(WalletColors.of(0xFFD6006E).base, const Color(0xFFD6006E));
-      // BanEcuador's green reaches 4.5:1 with neither text colour: darkened a bit.
-      final green = WalletColors.of(0xFF00953A);
-      expect(green.base, isNot(const Color(0xFF00953A)));
-      expect(HSLColor.fromColor(green.base).hue, closeTo(HSLColor.fromColor(const Color(0xFF00953A)).hue, 1));
+      for (final value in _bankColors) {
+        final colors = WalletColors.of(value);
+        expect(colors.base, mutedBankAccent(Color(value)), reason: value.toRadixString(16));
+        expect(colors.base, isNot(Color(value)), reason: 'never the raw brand colour');
+        expect(colors.foreground, AppColors.white, reason: 'dark card, same text for every bank');
+      }
+    });
+  });
+
+  group('mutedBankAccent (bank trade dress)', () {
+    test('is pure and keeps a hint of the hue', () {
+      const pichincha = Color(0xFFFFDD00);
+      expect(mutedBankAccent(pichincha), mutedBankAccent(pichincha));
+      expect(
+        HSLColor.fromColor(mutedBankAccent(pichincha)).hue,
+        closeTo(HSLColor.fromColor(Color.lerp(pichincha, AppColors.prussian, bankAccentBlend)!).hue, 1),
+      );
+      expect(mutedBankAccent(pichincha), isNot(mutedBankAccent(const Color(0xFF0072BC))));
+    });
+
+    test('is always dark and desaturated, with white text above WCAG AA', () {
+      for (final value in [..._bankColors, 0xFFFFFFFF, 0xFF000000, 0xFFFF0000, 0x80FFDD00]) {
+        final accent = mutedBankAccent(Color(value));
+        final hsl = HSLColor.fromColor(accent);
+        final reason = value.toRadixString(16);
+        expect(accent.a, 1.0, reason: reason);
+        expect(hsl.saturation, lessThanOrEqualTo(bankAccentMaxSaturation + 0.01), reason: reason);
+        expect(hsl.lightness, inInclusiveRange(bankAccentMinLightness - 0.01, bankAccentMaxLightness + 0.01));
+        expect(_contrast(accent, AppColors.white), greaterThanOrEqualTo(4.5), reason: reason);
+        expect(_contrast(accent, AppColors.alabaster), greaterThanOrEqualTo(4.5), reason: reason);
+      }
+    });
+
+    test('Banco Pichincha: a dark olive instead of the brand yellow', () {
+      final accent = mutedBankAccent(const Color(0xFFFFDD00));
+      final hsl = HSLColor.fromColor(accent);
+      expect(hsl.hue, inInclusiveRange(50, 65));
+      expect(hsl.lightness, lessThan(0.3));
+      expect(bankAccentOf(0xFFFFDD00), accent);
+      expect(bankAccentOf(null), AppColors.defaultWallet);
     });
 
     test('four tones of the same hue, lightest first', () {

@@ -11,6 +11,8 @@ import '../../../shared/state/load_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../cubit/bank_picker_cubit.dart';
+import 'widgets/bank_disclaimer.dart';
+import 'widgets/wallet_colors.dart';
 
 /// What the user picked in the bank sheet: a bank or «Sin banco» ([bank] null).
 class BankSelection {
@@ -78,7 +80,7 @@ class _BankPickerSheet extends StatelessWidget {
                         : const LoadingView();
                   }
                   return ListView(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     children: [
                       _BankTile(
                         name: 'Sin banco',
@@ -98,7 +100,7 @@ class _BankPickerSheet extends StatelessWidget {
                       for (final bank in banks)
                         _BankTile(
                           name: bank.name,
-                          color: bank.color == null ? AppColors.defaultWallet : Color(bank.color!),
+                          color: bankAccentOf(bank.color),
                           selected: bank.bankId == selectedId,
                           onTap: () => Navigator.of(context).pop(BankSelection(bank)),
                         ),
@@ -106,6 +108,10 @@ class _BankPickerSheet extends StatelessWidget {
                   );
                 },
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.lg),
+              child: BankDisclaimer(),
             ),
           ],
         ),

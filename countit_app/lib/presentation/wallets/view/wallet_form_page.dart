@@ -25,6 +25,7 @@ import '../../plans/view/plan_upsell_sheet.dart';
 import '../cubit/wallet_form_cubit.dart';
 import 'bank_picker_sheet.dart';
 import 'widgets/wallet_card.dart';
+import 'widgets/wallet_colors.dart';
 import 'widgets/wallet_type_selector.dart';
 
 /// Create (no [initial]) or edit a wallet (HU-07/HU-09 · COU-192..COU-194).
@@ -286,7 +287,7 @@ class _BankField extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final name = bank?.name ?? 'Sin banco';
-    final color = bank?.color == null ? AppColors.defaultWallet : Color(bank!.color!);
+    final color = bankAccentOf(bank?.color);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.sm,

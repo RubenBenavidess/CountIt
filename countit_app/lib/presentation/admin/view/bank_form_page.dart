@@ -18,7 +18,6 @@ import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
 import '../../wallets/view/widgets/wallet_card.dart';
-import '../../wallets/view/widgets/wallet_colors.dart';
 import '../cubit/bank_form_cubit.dart';
 import 'widgets/bank_color_picker.dart';
 import 'widgets/role_guard.dart';
@@ -116,7 +115,6 @@ class _BankFormViewState extends State<_BankFormView> {
   @override
   Widget build(BuildContext context) {
     final muted = context.palette.muted;
-    final adjusted = _color != null && WalletColors.readable(Color(_color!)) != Color(_color!);
     return DiscardChangesGuard(
       dirty: _dirty && !_saved,
       child: Scaffold(
@@ -141,11 +139,11 @@ class _BankFormViewState extends State<_BankFormView> {
                     label: 'Vista previa de una billetera de este banco',
                     child: ExcludeSemantics(child: WalletCard(wallet: _preview)),
                   ),
-                  if (adjusted)
-                    Text(
-                      'Para que el texto se lea bien, las tarjetas usan un tono más oscuro de este color.',
-                      style: AppTypography.caption.copyWith(color: muted),
-                    ),
+                  Text(
+                    'Las tarjetas muestran este color atenuado sobre la paleta de Count It!, como un acento: '
+                    'nunca reproducen la imagen del banco.',
+                    style: AppTypography.caption.copyWith(color: muted),
+                  ),
                   if (banner != null) AppBanner(tone: BannerTone.error, message: banner),
                   AppTextField(
                     key: const ValueKey('bank-name'),
@@ -174,7 +172,7 @@ class _BankFormViewState extends State<_BankFormView> {
                     errorText: countryError,
                     validator: BankFormCubit.validateCountry,
                   ),
-                  Text('COLOR', style: AppTypography.overline.copyWith(color: muted)),
+                  Text('COLOR DE ACENTO', style: AppTypography.overline.copyWith(color: muted)),
                   BankColorPicker(
                     color: _color,
                     hexController: _hex,

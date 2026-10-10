@@ -16,7 +16,6 @@ import '../../../shared/widgets/app_dialogs.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_fields.dart';
 import '../../../shared/widgets/app_layout.dart';
-import '../../wallets/view/widgets/wallet_colors.dart';
 import '../cubit/admin_banks_cubit.dart';
 import 'widgets/role_guard.dart';
 
@@ -175,7 +174,8 @@ class BankAdminTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final hex = toHexColor(bank.color);
-    final dot = WalletColors.of(bank.color).base;
+    // Admins configure the raw accent colour; users only see it muted.
+    final dot = bank.color == null ? AppColors.defaultWallet : Color(bank.color!);
     final details = [bank.countryCode ?? '—', hex ?? 'Sin color', if (!bank.isActive) 'Inactivo'].join(' · ');
     return AppCard(
       padding: const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.sm),
