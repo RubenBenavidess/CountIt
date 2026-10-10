@@ -5,8 +5,10 @@ import 'package:countit_app/app/session/session_state.dart';
 import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/presentation/plans/view/plan_details.dart';
 import 'package:countit_app/presentation/profile/cubit/profile_cubits.dart';
+import 'package:countit_app/presentation/profile/view/about_page.dart';
 import 'package:countit_app/presentation/profile/view/profile_page.dart';
 import 'package:countit_app/presentation/profile/view/timezone_picker.dart';
+import 'package:countit_app/presentation/wallets/view/widgets/bank_disclaimer.dart';
 import 'package:countit_app/shared/platform/file_sharer.dart';
 import 'package:countit_app/shared/state/submit_cubit.dart';
 import 'package:countit_app/shared/utils/dates.dart';
@@ -202,7 +204,13 @@ void main() {
       expect(find.text('Contador'), findsOneWidget);
       expect(find.byKey(const ValueKey('profile-plan-card')), findsOneWidget);
       expect(find.text('Movimientos por día'), findsNothing);
-      for (final label in ['Datos personales', 'Cambiar contraseña', 'Exportar mis datos', 'Eliminar mi cuenta']) {
+      for (final label in [
+        'Datos personales',
+        'Cambiar contraseña',
+        'Exportar mis datos',
+        'Eliminar mi cuenta',
+        'Acerca de Count It!',
+      ]) {
         await tester.scrollUntilVisible(find.text(label), 200);
         expect(find.text(label), findsOneWidget, reason: label);
       }
@@ -239,6 +247,43 @@ void main() {
       await tester.tap(find.text('Exportar mis datos'));
       await tester.pumpAndSettle();
       expect(find.text('No hay conexión'), findsOneWidget);
+    });
+  });
+
+  group('About page (bank non-affiliation)', () {
+    testWidgets('shows the bank disclaimer and the legal links', (tester) async {
+      await tester.pumpApp(AboutPage(openLink: (_) async => true));
+      expect(find.text('Acerca de Count It!'), findsOneWidget);
+      expect(find.byType(BankDisclaimer), findsOneWidget);
+      expect(
+        find.text(
+          'Los nombres de bancos se muestran solo para que identifiques tus cuentas y pertenecen a sus '
+          'titulares. Count It! no está afiliada ni respaldada por ninguna entidad financiera.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('https://countit-bft.pages.dev/privacidad/'), findsOneWidget);
+      expect(find.text('https://countit-bft.pages.dev/terminos/'), findsOneWidget);
+    });
+
+    testWidgets('the links open outside the app; a failure shows the address', (tester) async {
+      final opened = <Uri>[];
+      await tester.pumpApp(
+        AboutPage(
+          openLink: (url) async {
+            opened.add(url);
+            return url == AboutPage.privacyUrl;
+          },
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('about-privacy')));
+      await tester.pumpAndSettle();
+      expect(opened, [AboutPage.privacyUrl]);
+      expect(find.textContaining('No pudimos abrir el enlace'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('about-terms')));
+      await tester.pumpAndSettle();
+      expect(opened.last, AboutPage.termsUrl);
+      expect(find.text('No pudimos abrir el enlace: https://countit-bft.pages.dev/terminos/'), findsOneWidget);
     });
   });
 }

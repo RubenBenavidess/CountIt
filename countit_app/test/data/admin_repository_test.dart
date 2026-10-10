@@ -84,13 +84,6 @@ void main() {
     ).called(1);
   });
 
-  test('setUserRole sends the role name and returns the saved role (COU-204)', () async {
-    rpcReturns({'user_id': 'u-carlos', 'username': 'demo_carlos', 'role': 'admin'});
-    expect(await admin.setUserRole('u-carlos', UserRole.admin), UserRole.admin);
-    verify(() => api.rpc<dynamic>('admin_set_user_role', params: {'p_user_id': 'u-carlos', 'p_role': 'admin'}))
-        .called(1);
-  });
-
   group('banks (HU-27 · COU-205…COU-207)', () {
     final bankJson = {
       'bank_id': 15,

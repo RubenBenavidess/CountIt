@@ -9,7 +9,9 @@ import 'package:countit_app/data/dtos/profile.dart';
 import 'package:countit_app/data/dtos/wallet.dart';
 import 'package:countit_app/presentation/wallets/cubit/bank_picker_cubit.dart';
 import 'package:countit_app/presentation/wallets/view/wallet_form_page.dart';
+import 'package:countit_app/presentation/wallets/view/widgets/bank_disclaimer.dart';
 import 'package:countit_app/presentation/wallets/view/widgets/wallet_card.dart';
+import 'package:countit_app/presentation/wallets/view/widgets/wallet_colors.dart';
 import 'package:countit_app/shared/state/load_state.dart';
 import 'package:countit_app/shared/utils/dates.dart';
 import 'package:countit_app/shared/widgets/app_banner.dart';
@@ -387,6 +389,19 @@ void main() {
       expect(find.text('Elige un banco'), findsOneWidget);
       expect(find.descendant(of: find.byType(ListTile), matching: find.text('Sin banco')), findsOneWidget);
       expect(find.text('Banco Guayaquil'), findsOneWidget);
+      // Non-affiliation notice at the bottom of the sheet, in muted small text.
+      expect(find.text(BankDisclaimer.text), findsOneWidget);
+      expect(BankDisclaimer.text, contains('no está afiliada ni respaldada por ninguna entidad financiera'));
+      // Swatches show the muted accent, never the raw brand colour.
+      final swatches = tester
+          .widgetList<Container>(find.descendant(of: find.byType(ListTile), matching: find.byType(Container)))
+          .map((c) => (c.decoration as BoxDecoration?)?.color)
+          .whereType<Color>()
+          .toList();
+      for (final bank in banksFixture.where((b) => b.color != null)) {
+        expect(swatches, contains(mutedBankAccent(Color(bank.color!))), reason: bank.name);
+        expect(swatches, isNot(contains(Color(bank.color!))), reason: bank.name);
+      }
 
       await tester.enterText(field('Buscar'), 'jep');
       await tester.pump(const Duration(milliseconds: 400));

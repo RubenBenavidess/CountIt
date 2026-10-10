@@ -4,7 +4,6 @@ import '../../shared/utils/dates.dart';
 import '../dtos/admin.dart';
 import '../dtos/bank.dart';
 import '../dtos/json_parsing.dart';
-import '../dtos/profile.dart';
 import '../remote/api_client.dart';
 
 /// Administration (HU-27, HU-28) through the `api.admin_*` RPCs.
@@ -23,9 +22,6 @@ abstract interface class AdminRepository {
   /// `admin_set_user_plan` 🛡: replaces the active plan until [validUntil]
   /// (after today); a downgrade applies its quotas right away.
   Future<PlanAssignment> setUserPlan(String userId, {required int planId, required DateTime validUntil});
-
-  /// `admin_set_user_role` 🛡.
-  Future<UserRole> setUserRole(String userId, UserRole role);
 
   /// `v_banks` as an admin: every bank, active or not, ordered by name.
   Future<List<Bank>> listBanks();
@@ -136,12 +132,5 @@ class SupabaseAdminRepository implements AdminRepository {
   static Bank _bank(Object? json) {
     if (json is! Map) throw _unexpected;
     return Bank.fromJson(Map<String, dynamic>.from(json));
-  }
-
-  @override
-  Future<UserRole> setUserRole(String userId, UserRole role) async {
-    final json = await _api.rpc<dynamic>('admin_set_user_role', params: {'p_user_id': userId, 'p_role': role.name});
-    if (json is! Map) throw _unexpected;
-    return UserRole.parse(json['role'] as String?);
   }
 }

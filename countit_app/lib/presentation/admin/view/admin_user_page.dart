@@ -9,7 +9,6 @@ import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/tokens.dart';
 import '../../../data/dtos/admin.dart';
 import '../../../data/dtos/plan_offer.dart';
-import '../../../data/dtos/profile.dart';
 import '../../../data/repositories/admin_repository.dart';
 import '../../../data/repositories/plan_repository.dart';
 import '../../../shared/utils/dates.dart';
@@ -26,8 +25,9 @@ import 'widgets/role_guard.dart';
 
 /// Detail of a user for administration (HU-28 · COU-202): identity, role and
 /// plan only (never finances, S-12). A superadmin changes the plan (COU-203)
-/// or the role (COU-204) of others after confirming a summary; nobody
-/// changes their own. Going back returns the updated user to the list.
+/// of others after confirming a summary; nobody changes their own. The role
+/// is read-only: it is only changed in the database by the owner (contract
+/// 1.4). Going back returns the updated user to the list.
 class AdminUserPage extends StatelessWidget {
   const AdminUserPage({super.key, required this.user});
 
@@ -89,20 +89,6 @@ class _AdminUserView extends StatelessWidget {
     if (confirmed) await cubit.changePlan(offer, until, today: today);
   }
 
-  Future<void> _changeRole(BuildContext context) async {
-    final cubit = context.read<AdminUserCubit>();
-    final user = cubit.state.user;
-    final role = await showRoleChoiceSheet(context, current: user.role);
-    if (role == null || role == user.role || !context.mounted) return;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: '¿Cambiar el rol de @${user.username}?',
-      message: '${user.role.label} → ${role.label}. ${roleConsequence(role)}',
-      confirmLabel: 'Cambiar rol',
-    );
-    if (confirmed) await cubit.changeRole(role);
-  }
-
   void _onState(BuildContext context, AdminUserState state) {
     if (state.failure != null) {
       showFailureSnackBar(context, state.failure!);
@@ -117,8 +103,6 @@ class _AdminUserView extends StatelessWidget {
           '${assignment.enforcedAnything ? ' ${enforcedSummary(assignment)}' : ''}',
           kind: SnackKind.success,
         );
-      case AdminUserAction.role:
-        showAppSnackBar(context, 'Rol actualizado: ${state.user.role.label}.', kind: SnackKind.success);
       case null:
         break;
     }
@@ -165,17 +149,20 @@ class _AdminUserView extends StatelessWidget {
                   'Por privacidad no se muestran billeteras, movimientos ni saldos del usuario.',
                   style: AppTypography.caption.copyWith(color: muted),
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Los roles no se cambian desde la app: solo el responsable del servicio puede cambiarlos.',
+                  key: const ValueKey('admin-role-readonly'),
+                  style: AppTypography.caption.copyWith(color: muted),
+                ),
                 const SizedBox(height: AppSpacing.xl),
                 if (!canChange)
                   Text(
-                    'Solo un superadministrador puede cambiar planes y roles.',
+                    'Solo un superadministrador puede cambiar planes.',
                     style: AppTypography.caption.copyWith(color: muted),
                   )
                 else if (self)
-                  Text(
-                    'No puedes cambiar tu propio plan ni tu rol.',
-                    style: AppTypography.caption.copyWith(color: muted),
-                  )
+                  Text('No puedes cambiar tu propio plan.', style: AppTypography.caption.copyWith(color: muted))
                 else ...[
                   AppButton(
                     key: const ValueKey('admin-change-plan'),
@@ -183,15 +170,6 @@ class _AdminUserView extends StatelessWidget {
                     icon: Icons.workspace_premium_outlined,
                     loading: state.busy == AdminUserAction.plan,
                     onPressed: state.busy == null ? () => unawaited(_changePlan(context)) : null,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppButton(
-                    key: const ValueKey('admin-change-role'),
-                    label: 'Cambiar rol',
-                    icon: Icons.admin_panel_settings_outlined,
-                    variant: AppButtonVariant.secondary,
-                    loading: state.busy == AdminUserAction.role,
-                    onPressed: state.busy == null ? () => unawaited(_changeRole(context)) : null,
                   ),
                 ],
               ],
@@ -202,13 +180,6 @@ class _AdminUserView extends StatelessWidget {
     );
   }
 }
-
-/// What a role allows, for the confirmation.
-String roleConsequence(UserRole role) => switch (role) {
-  UserRole.user => 'Perderá el acceso a la administración.',
-  UserRole.admin => 'Podrá gestionar bancos y ver la lista de usuarios.',
-  UserRole.superadmin => 'Podrá cambiar planes y roles y ver la auditoría.',
-};
 
 /// «Se terminaron 2 membresías y se pausaron 1 programadas.»
 String enforcedSummary(PlanAssignment assignment) {
@@ -282,41 +253,6 @@ Future<(PlanOffer, DateTime)?> showPlanChoiceSheet(
               }
               Navigator.of(context).pop((selected, until));
             },
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// New role for a user (superadmin); null when cancelled.
-Future<UserRole?> showRoleChoiceSheet(BuildContext context, {required UserRole current}) {
-  var selected = current;
-  return showAppBottomSheet<UserRole>(
-    context,
-    title: 'Cambiar rol',
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: AppSpacing.md,
-        children: [
-          AdminChoiceGroup<UserRole>(
-            label: 'Rol',
-            options: [
-              for (final role in UserRole.values)
-                AdminChoice(
-                  role,
-                  role.label,
-                  key: ValueKey('role-choice-${role.name}'),
-                  caption: role == current ? 'Rol actual' : roleConsequence(role),
-                ),
-            ],
-            selected: selected,
-            onSelected: (role) => setState(() => selected = role),
-          ),
-          AppButton(
-            label: 'Revisar cambio',
-            onPressed: selected == current ? null : () => Navigator.of(context).pop(selected),
           ),
         ],
       ),

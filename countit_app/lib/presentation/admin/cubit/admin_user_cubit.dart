@@ -4,11 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../app/errors/app_failure.dart';
 import '../../../data/dtos/admin.dart';
 import '../../../data/dtos/plan_offer.dart';
-import '../../../data/dtos/profile.dart';
 import '../../../data/repositories/admin_repository.dart';
 import 'admin_failures.dart';
 
-enum AdminUserAction { plan, role }
+enum AdminUserAction { plan }
 
 class AdminUserState extends Equatable {
   const AdminUserState({required this.user, this.busy, this.failure, this.done, this.assignment});
@@ -31,8 +30,10 @@ class AdminUserState extends Equatable {
   List<Object?> get props => [user, busy, failure, done, assignment];
 }
 
-/// Detail of one user for administration (HU-28 · COU-202…COU-204): changes
-/// the plan or the role (superadmin only; the API answers 403 otherwise).
+/// Detail of one user for administration (HU-28 · COU-202, COU-203): changes
+/// the plan (superadmin only; the API answers 403 otherwise). Roles are not
+/// changed from the app (contract 1.4): only the owner changes them in the
+/// database.
 class AdminUserCubit extends Cubit<AdminUserState> {
   AdminUserCubit(this._admin, {required AdminUser user, this.onForbidden}) : super(AdminUserState(user: user));
 
@@ -78,14 +79,6 @@ class AdminUserCubit extends Cubit<AdminUserState> {
       return AdminUserState(user: user, done: AdminUserAction.plan, assignment: assignment);
     });
   }
-
-  Future<bool> changeRole(UserRole role) => _run(AdminUserAction.role, () async {
-    final saved = await _admin.setUserRole(state.user.userId, role);
-    return AdminUserState(
-      user: state.user.copyWith(role: saved),
-      done: AdminUserAction.role,
-    );
-  });
 
   Future<bool> _run(AdminUserAction action, Future<AdminUserState> Function() request) async {
     if (state.busy != null) return false;
