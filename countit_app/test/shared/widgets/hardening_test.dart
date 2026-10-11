@@ -2,6 +2,7 @@ import 'package:countit_app/shared/utils/dates.dart';
 import 'package:countit_app/shared/widgets/app_button.dart';
 import 'package:countit_app/shared/widgets/app_fields.dart';
 import 'package:countit_app/shared/widgets/secure_screen.dart';
+import 'package:countit_app/shared/widgets/wordmark.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,6 +57,27 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(find.bySemanticsLabel('Count It!'), findsNothing);
+  });
+
+  testWidgets('PrivacyCurtain above the Navigator renders the wordmark with a real text style', (tester) async {
+    // Same placement as the app: MaterialApp.builder, outside any page's Material.
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => PrivacyCurtain(child: child!),
+        home: const SizedBox.shrink(),
+      ),
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    final texts = tester.widgetList<RichText>(
+      find.descendant(of: find.byType(Wordmark), matching: find.byType(RichText)),
+    );
+    expect(texts, isNotEmpty);
+    for (final text in texts) {
+      expect(text.text.style?.decoration, isNot(TextDecoration.underline), reason: 'fallback error text style');
+    }
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
   });
 
   testWidgets('date picker opens even when today is outside the allowed range (audit A6)', (tester) async {

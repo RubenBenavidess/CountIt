@@ -116,10 +116,16 @@ class _PrivacyCurtainState extends State<PrivacyCurtain> with WidgetsBindingObse
       children: [
         widget.child,
         if (_covered)
+          // The curtain sits above the Navigator (MaterialApp.builder), where
+          // no page provides a DefaultTextStyle: without one, text falls back
+          // to Flutter's yellow double-underlined error style.
           const Positioned.fill(
-            child: ColoredBox(
-              color: AppColors.ink,
-              child: Center(child: Wordmark(size: 36, spread: false)),
+            child: DefaultTextStyle(
+              style: TextStyle(),
+              child: ColoredBox(
+                color: AppColors.ink,
+                child: Center(child: Wordmark(size: 36, spread: false)),
+              ),
             ),
           ),
       ],
