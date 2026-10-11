@@ -8,7 +8,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_layout.dart';
 import 'auth_header.dart';
 
-/// Landing of `countit://auth/confirmed` (COU-114). The app does not sign in
+/// Landing of `https://<host>/auth/confirmed` (COU-114). The app does not sign in
 /// from the link: login goes through the Edge Function (rate limit, captcha).
 class EmailConfirmedPage extends StatelessWidget {
   const EmailConfirmedPage({super.key, this.expired = false});

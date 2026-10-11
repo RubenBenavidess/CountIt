@@ -15,7 +15,7 @@ chequeos, cupos, modo seguro); la app no guarda secretos ni decide permisos, sol
 | CRYPTO | Sin criptografía propia: TLS del sistema y almacén seguro de la plataforma | — |
 | AUTH | Login por Edge Function (rate limit por dispositivo, captcha opcional); 401 cierra la sesión; acciones destructivas piden contraseña (modo seguro de 5 min) | `ApiClient`, `reauth_sheet.dart` |
 | NETWORK-1 | HTTPS obligatorio en staging/prod (`AppConfig` falla al arrancar si no); `cleartextTrafficPermitted=false` y solo CAs del sistema; HTTP únicamente en el flavor `local` hacia 10.0.2.2/localhost | `network_security_config.xml` (`main`, `local`) |
-| PLATFORM-1 | Deep links: solo `countit://auth/confirmed` y `/reset-password`; todo lo demás se ignora. El de confirmación no inicia sesión | `app/links/auth_links.dart` |
+| PLATFORM-1 | Enlaces de Auth solo como App Links verificados (`autoVerify`, `assetlinks.json`): `https://countit-bft.pages.dev/auth/confirmed` y `/auth/reset-password` (barra final opcional); se rechaza todo lo demás (otro esquema, `http`, otro host o subdominio, puerto, *user info*, otra ruta) y no hay esquema propio. El de confirmación no inicia sesión | `app/links/auth_links.dart`, `AndroidManifest.xml` |
 | PLATFORM-1 | `data` de notificaciones y pushes como no confiable: solo `kind` conocidos, ids enteros positivos de 32 bits, sin rutas ni URLs | `app/router/notification_routes.dart` |
 | PLATFORM-2 | WebView del captcha: JS solo para el script de Turnstile; navegación solo a `about:blank`, el origen https configurado y `challenges.cloudflare.com`; sin acceso a archivos ni *content providers*, sin geolocalización, sin contenido mixto, permisos web denegados; solo se aceptan mensajes con forma de token | `shared/widgets/turnstile_field.dart` |
 | PLATFORM-3 | `FLAG_SECURE` en toda la app mientras hay sesión (y en la recuperación de contraseña), más las pantallas de login/registro/contraseñas; cortina con el logo en el selector de apps (ambas plataformas) | `SessionSecureScreen`, `SecureScreen`, `PrivacyCurtain` |
@@ -28,9 +28,11 @@ chequeos, cupos, modo seguro); la app no guarda secretos ni decide permisos, sol
 ## Riesgos residuales
 - **iOS sin bloqueo de capturas** (COU-115): iOS no tiene `FLAG_SECURE`; la cortina tapa el selector de apps pero no
   las capturas ni la grabación. Pendiente de la cuenta de Apple para probar la técnica del `UITextField` seguro.
-- **Enlaces de esquema propio** (COU-62, COU-132, COU-109): otra app puede registrar `countit://` e interceptar el
-  enlace de recuperación (token de un solo uso y de vida corta). Se resuelve con App Links/Universal Links verificados
-  cuando haya dominio propio (`assetlinks.json`, `apple-app-site-association`).
+- **Universal Links en iOS** (COU-132): en Android el riesgo del esquema propio quedó cerrado (COU-62, COU-109): los
+  enlaces son App Links verificados contra `assetlinks.json` y `countit://` ya no existe. iOS tampoco registra el
+  esquema, pero los enlaces https no abren la app hasta tener cuenta de Apple (entitlement *Associated Domains* y
+  `apple-app-site-association`); mientras tanto el correo abre la página de respaldo del sitio. El dominio de la beta
+  es el gratuito de Cloudflare Pages (`countit-bft.pages.dev`): quien controle esa cuenta controla la verificación.
 - **Sin certificate pinning**: Supabase rota sus certificados (hoy en Cloudflare/AWS) sin aviso y un pin desfasado deja
   la app sin servicio sin poder actualizarla a tiempo. Se mitiga con TLS del sistema, sin CAs de usuario y sin
   *cleartext*; se reconsidera con un dominio propio y una política de rotación (pins de respaldo).

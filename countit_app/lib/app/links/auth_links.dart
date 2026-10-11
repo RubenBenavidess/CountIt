@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../data/repositories/auth_repository.dart';
+import '../config/app_config.dart';
 import '../errors/app_failure.dart';
 import '../logging/app_logger.dart';
 
@@ -8,17 +9,28 @@ import '../logging/app_logger.dart';
 /// `docs/API.md`, deep links). The backend sends implicit-flow links: tokens
 /// or the error travel in the fragment (`#access_token=…&type=recovery`,
 /// `#error=access_denied&error_code=otp_expired`).
+///
+/// Only verified Android App Links on [AppConfig.authLinkHost] are accepted
+/// (COU-62, COU-109): a custom scheme could be registered by another app and
+/// intercept the recovery token, so `countit://` is no longer handled.
 sealed class AuthLink {
   const AuthLink();
 
-  /// Parses `countit://auth/<action>`; null for any other link.
-  static AuthLink? parse(Uri uri) {
-    if (uri.scheme != 'countit' || uri.host != 'auth') return null;
+  /// Parses `https://<host>/auth/<action>` (optionally with a trailing `/`);
+  /// null for any other scheme, host, port, user info or path.
+  static AuthLink? parse(Uri uri, {String host = AppConfig.authLinkHost}) {
+    if (uri.scheme != 'https' ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasPort ||
+        uri.host.toLowerCase() != host.toLowerCase()) {
+      return null;
+    }
     final params = {...uri.queryParameters, ..._fragmentParameters(uri)};
     final failed = params.containsKey('error') || params.containsKey('error_code');
     return switch (uri.path) {
-      '/confirmed' => EmailConfirmedLink(expired: failed),
-      '/reset-password' => PasswordResetLink(uri, expired: failed || !params.containsKey('access_token')),
+      '/auth/confirmed' || '/auth/confirmed/' => EmailConfirmedLink(expired: failed),
+      '/auth/reset-password' ||
+      '/auth/reset-password/' => PasswordResetLink(uri, expired: failed || !params.containsKey('access_token')),
       _ => null,
     };
   }
@@ -33,7 +45,7 @@ sealed class AuthLink {
   }
 }
 
-/// `countit://auth/confirmed`: the e-mail is confirmed (or the link expired).
+/// `https://<host>/auth/confirmed`: the e-mail is confirmed (or the link expired).
 /// The app does not sign in from it: the user logs in through the Edge Function.
 class EmailConfirmedLink extends AuthLink {
   const EmailConfirmedLink({required this.expired});
@@ -41,7 +53,7 @@ class EmailConfirmedLink extends AuthLink {
   final bool expired;
 }
 
-/// `countit://auth/reset-password`: carries a recovery session.
+/// `https://<host>/auth/reset-password`: carries a recovery session.
 class PasswordResetLink extends AuthLink {
   const PasswordResetLink(this.uri, {required this.expired});
 

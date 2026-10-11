@@ -34,13 +34,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Supabase Auth e-mail links (COU-114, COU-136): countit://auth/confirmed
-                 and countit://auth/reset-password. Handled by AuthLinkHandler. -->
-            <intent-filter>
+            <!-- Supabase Auth e-mail links (COU-114, COU-136) as verified App Links
+                 (COU-62, COU-109): https://${authLinkHost}/auth/confirmed and
+                 /auth/reset-password, handled by AuthLinkHandler. No custom scheme:
+                 another app could register it and intercept the recovery token.
+                 Android verifies the host against /.well-known/assetlinks.json
+                 (package + signing certificate, site/ in this repo). -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="countit" android:host="auth"/>
+                <data android:scheme="https" android:host="${authLinkHost}" android:pathPrefix="/auth/confirmed"/>
+                <data android:scheme="https" android:host="${authLinkHost}" android:pathPrefix="/auth/reset-password"/>
             </intent-filter>
             <!-- go_router must not treat the links as routes; app_links delivers them. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>

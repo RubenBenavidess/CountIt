@@ -97,4 +97,10 @@ class AppConfig {
   bool get captchaEnabled => turnstileSiteKey != null;
 
   bool get isProduction => environment == AppEnvironment.prod;
+
+  /// Host of the verified App Links that Supabase Auth e-mails point to
+  /// (`https://<host>/auth/confirmed`, `/auth/reset-password`; COU-62, COU-109).
+  /// Must match `authLinkHost` in `android/app/build.gradle.kts` and the site that
+  /// serves `/.well-known/assetlinks.json`. Optional define; the beta uses Pages.
+  static const authLinkHost = String.fromEnvironment('AUTH_LINK_HOST', defaultValue: 'countit-bft.pages.dev');
 }
