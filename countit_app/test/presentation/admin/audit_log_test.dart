@@ -158,6 +158,21 @@ void main() {
       verifyZeroInteractions(admin);
     });
 
+    testWidgets('scrolling away and back rebuilds the entries without a PageStorage clash', (tester) async {
+      // The list stores its scroll offset (a double) under PageStorageKey('audit-log');
+      // each ExpansionTile must store its expanded flag under its own key.
+      when(() => admin.listAuditLog(filter: const AuditFilter()))
+          .thenAnswer((_) async => Paged(_entries(40), hasMore: false));
+      await pumpAt(tester, UserRole.superadmin, AppRoutes.auditLog);
+      final list = find.byKey(const PageStorageKey('audit-log'));
+      await tester.drag(list, const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      await tester.drag(list, const Offset(0, 3000));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('audit-1')), findsOneWidget);
+    });
+
     testWidgets('entries in Spanish with who, when and what; details on demand; filters', (tester) async {
       when(() => admin.listAuditLog(filter: const AuditFilter())).thenAnswer(
         (_) async => Paged([_entry(2), _entry(1, action: 'plans_expired', entity: 'job', actor: null)], hasMore: false),

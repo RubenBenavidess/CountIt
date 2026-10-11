@@ -243,6 +243,9 @@ class AuditEntryTile extends StatelessWidget {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          // Own storage key: without it the tile stores its expanded flag under
+          // the list's PageStorageKey, where the scroll offset (a double) lives.
+          key: PageStorageKey('audit-entry-${entry.auditId}'),
           minTileHeight: 64,
           tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
