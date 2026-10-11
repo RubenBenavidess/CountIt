@@ -8,5 +8,15 @@
         "D5:77:2A:C8:FB:EF:7C:CC:1B:E3:B8:26:07:36:8D:8C:23:A6:00:6D:66:15:37:C8:9E:5C:07:68:1A:41:A5:5E"
       ]
     }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ec.countit.app.local",
+      "sha256_cert_fingerprints": [
+        "D5:77:2A:C8:FB:EF:7C:CC:1B:E3:B8:26:07:36:8D:8C:23:A6:00:6D:66:15:37:C8:9E:5C:07:68:1A:41:A5:5E"
+      ]
+    }
   }
 ]

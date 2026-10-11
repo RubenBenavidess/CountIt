@@ -66,20 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- Supabase Auth e-mail links (countit://auth/...), handled by AuthLinkHandler. -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>CFBundleURLName</key>
-			<string>ec.countit.app.auth</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>countit</string>
-			</array>
-		</dict>
-	</array>
+	<!-- Supabase Auth e-mail links arrive as https App Links (AuthLinkHandler). No custom
+	     URL scheme: another app could register it and intercept the recovery token.
+	     TODO(COU-132): Universal Links need an Apple team, the Associated Domains entitlement
+	     (applinks:countit-bft.pages.dev) and apple-app-site-association on the site. -->
 	<!-- go_router must not treat the links as routes; app_links delivers them. -->
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>

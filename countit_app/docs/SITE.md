@@ -55,7 +55,10 @@ curl -sI https://countit-bft.pages.dev/auth/reset-password/ | grep -i cache-cont
 `assetlinks.json` debe responder `200` directamente (sin redirecciones) y con `Content-Type: application/json`.
 
 ## Agregar la huella de producción
-Hoy `assetlinks.json` solo declara `ec.countit.app.staging` (llave de depuración usada en los builds de staging).
+Hoy `assetlinks.json` declara `ec.countit.app.staging` y `ec.countit.app.local`, ambos con la huella de la llave de
+depuración de la laptop de Ruben (los dos flavors se firman con ella; otra máquina tiene otra llave y sus builds no se
+verifican). El host del manifiesto sale de `authLinkHost` en `android/app/build.gradle.kts` (y de `AUTH_LINK_HOST` en
+Dart).
 Cuando exista el keystore de release:
 
 1. Obtener la huella SHA-256 del certificado de firma:
@@ -83,7 +86,7 @@ Cuando exista el keystore de release:
 curl -s 'https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://countit-bft.pages.dev&relation=delegate_permission/common.handle_all_urls'
 
 # Estado de verificación en un dispositivo con la app de staging instalada
-adb shell pm get-app-links ec.countit.app.staging
+adb shell pm get-app-links ec.countit.app.staging   # o ec.countit.app.local
 # Forzar una nueva verificación (Android 12+)
 adb shell pm verify-app-links --re-verify ec.countit.app.staging
 ```

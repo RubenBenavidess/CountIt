@@ -66,9 +66,15 @@ widget se carga bajo ese origen). Sin site key los formularios no muestran captc
 instala con `flutter pub get --enforce-lockfile` y falla si no coinciden. Actualiza a propósito (`flutter pub upgrade`
 o los PRs semanales de Dependabot, que también cubren las GitHub Actions, fijadas por SHA) y sube el lock en el mismo PR.
 
-**Enlaces de los correos** (`countit://auth/confirmed`, `countit://auth/reset-password`): el backend los usa si tiene
+**Enlaces de los correos** (App Links verificados `https://countit-bft.pages.dev/auth/confirmed` y
+`https://countit-bft.pages.dev/auth/reset-password`, COU-62/COU-109): el backend los usa si tiene
 `AUTH_EMAIL_REDIRECT_URL` y `PASSWORD_RESET_REDIRECT_URL` (ver su README) y la URL está en *Redirect URLs* de Auth.
-Probar en un emulador: `adb shell am start -W -a android.intent.action.VIEW -d "countit://auth/confirmed" ec.countit.app.local`.
+No hay esquema propio (`countit://`): otra app podría registrarlo y robar el token de recuperación. El host sale de
+`authLinkHost` en `android/app/build.gradle.kts` y, en Dart, del define opcional `AUTH_LINK_HOST` (por defecto
+`countit-bft.pages.dev`); ambos deben coincidir y el sitio debe publicar `/.well-known/assetlinks.json` con el paquete
+y la huella de la firma (`docs/SITE.md`). Probar en un emulador:
+`adb shell pm get-app-links ec.countit.app.staging` (debe decir `verified`) y
+`adb shell am start -W -a android.intent.action.VIEW -d "https://countit-bft.pages.dev/auth/confirmed" ec.countit.app.staging`.
 
 ## Calidad
 ```bash

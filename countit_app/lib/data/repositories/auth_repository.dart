@@ -43,7 +43,7 @@ abstract interface class AuthRepository {
   /// Opens the 5-minute safe mode for the current session (HU-06).
   Future<DateTime> reauthenticate(String password);
 
-  /// Adopts the recovery session carried by `countit://auth/reset-password#…`
+  /// Adopts the recovery session carried by `https://<host>/auth/reset-password#…`
   /// (emits [SessionChange.passwordRecovery]). Throws when the link expired.
   Future<void> recoverSession(Uri link);
 

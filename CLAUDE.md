@@ -52,7 +52,9 @@ Flutter 3.47.6 · Dart 3.13 · Java 17 (`JAVA_HOME` del JBR de Android Studio). 
 - Sesión solo en Keystore/Keychain; la primera ejecución de una instalación borra el almacén seguro previo.
 - Nada de `print`/`debugPrint`: `AppLogger` (solo debug, redactado). Nunca loguear tokens, montos, correos ni nombres.
 - `FLAG_SECURE` en toda la app con sesión (`SessionSecureScreen`) y en pantallas de contraseñas; `PrivacyCurtain`.
-- Deep links solo `countit://auth/{confirmed,reset-password}`; `data` de notificaciones validado en `NotificationRoutes`.
+- Enlaces de Auth solo como App Links verificados `https://countit-bft.pages.dev/auth/{confirmed,reset-password}`
+  (`AUTH_LINK_HOST`, `authLinkHost` en Gradle, `site/.well-known/assetlinks.json`); sin esquema propio. `data` de
+  notificaciones validado en `NotificationRoutes`.
 - `env/*.json` solo con valores públicos (URL, *anon key*, site key de Turnstile). `env/staging.json`/`prod.json`,
   `android/key.properties` y keystores **nunca** al repo.
 
@@ -90,6 +92,5 @@ F01–F10 implementados en `main` (base, auth y cuenta, billeteras, presupuestos
 estadísticas y proyección, bandeja en vivo, planes y administración); navegación inferior Inicio · Movimientos ·
 Estadísticas · Perfil, animaciones (respetan «reducir movimiento») y monto grande coloreado al registrar movimientos.
 Push FCM activo en `staging` con `android/app/src/staging/google-services.json` local (no versionado, `docs/PUSH.md`);
-falta Firebase para `local`/`prod` e iOS. Pendiente de cuentas externas: **captcha** COU-25 y **App Links**
-(sitio en Cloudflare Pages), flavors iOS (Xcode) y **F11** publicación (Play Console, Apple Developer, keystore COU-58).
+falta Firebase para `local`/`prod` e iOS. Pendiente de cuentas externas: **captcha** COU-25, Universal Links de iOS (COU-132), flavors iOS (Xcode) y **F11** publicación (Play Console, Apple Developer, keystore COU-58).
 

@@ -65,6 +65,10 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Host of the verified App Links for Auth e-mails (AndroidManifest.xml, COU-62).
+        // One value for every flavor during the beta; prod can override it per flavor
+        // once it has its own domain (keep AUTH_LINK_HOST in sync on the Dart side).
+        manifestPlaceholders["authLinkHost"] = "countit-bft.pages.dev"
     }
 
     // One installable app per environment (COU-11); run with
